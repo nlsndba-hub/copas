@@ -9,14 +9,15 @@
 </head>
 <body>
 
-    <!-- LOGIN -->
+    <!-- SELEÇÃO DE PERSONAGEM -->
     <div id="telaLogin">
-        <div class="login-box">
+        <div class="selecao-box">
             <h1>♥ Jogo de Copas ♠</h1>
-            <p class="sub">Quem somar 60 pontos ou mais perde!</p>
-            <label for="inputNome" class="sr-only">Seu nome</label>
-            <input type="text" id="inputNome" placeholder="Digite seu nome" maxlength="14" autocomplete="off">
-            <button id="btnEntrar" class="btn-modo"><i class="fas fa-robot"></i> Jogar contra a máquina</button>
+            <p class="sub">Escolha seu personagem. Três máquinas serão sorteadas para jogar com você.</p>
+            <div id="gradePersonagens" class="grade-personagens"></div>
+            <p id="personagemEscolhido" class="escolha-status">Escolha seu personagem</p>
+            <button id="btnComecar" class="btn-modo" disabled><i class="fas fa-play"></i> Começar partida</button>
+            <p class="regra-selecao">Quem atingir 60 pontos ou mais sai após o fim da rodada. Uma máquina da reserva assume a vaga.</p>
         </div>
     </div>
 
@@ -34,6 +35,9 @@
                 <span id="radioNome">Rádio desligada</span>
             </div>
             <div id="status" role="status" aria-live="polite"></div>
+            <button type="button" id="btnRanking" title="Ver Ranking Geral" aria-label="Ver Ranking Geral">
+                <i class="fas fa-trophy"></i>
+            </button>
         </div>
 
         <div id="mesa">
@@ -55,6 +59,7 @@
         <img id="efeitoQ" class="escondido" src="qspades.png" alt="Rainha de Espadas na mesa!">
 
         <div id="modal" class="escondido"><div class="modal-box" id="modalBox"></div></div>
+        <div id="modalRanking" class="escondido"><div class="modal-box" id="modalRankingBox"></div></div>
     </div>
 
     <script src="script.js"></script>

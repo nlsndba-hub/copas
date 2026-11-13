@@ -40,15 +40,58 @@ function criarElementoCarta(c, extra = '') {
     return d;
 }
 
-// ================= INÍCIO =================
-$('btnEntrar').onclick = entrar;
-$('inputNome').addEventListener('keydown', e => { if (e.key === 'Enter') entrar(); });
-function entrar() {
-    nomeJogador = $('inputNome').value.trim();
-    if (!nomeJogador) { $('inputNome').focus(); $('inputNome').placeholder = 'Digite um nome!'; return; }
+// ================= PERSONAGENS E INÍCIO =================
+// total = pontos acumulados na partida (eliminação >= 60)
+// pontosRank = pontuação acumulada do Ranking Geral (1º=1, 2º=2, 3º=3, 4º=4 por rodada)
+const PERSONAGENS = [
+    'Alcy','Nelson','Caio','Marcio','Julio','Motoboy','Alex',
+    'Big Z','Samuel','Raphael','Metello','Dezinho','Xandão','Gordo','Ronaldo'
+].map((nome, i) => ({ id: i + 1, nome, foto: `fotos/${i + 1}.png`, total: 0, pontosRank: 0 }));
+
+let jogadorHumano = null;
+let filaMaquinas = [];
+let maquinasEliminadas = [];
+
+function montarSelecao() {
+    const grade = $('gradePersonagens');
+    grade.innerHTML = '';
+    PERSONAGENS.forEach(p => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'personagem-card';
+        card.innerHTML = `<img src="${p.foto}" alt="${p.nome}" onerror="this.src='fotos/${p.id}.png'; this.onerror=null"><strong>${p.nome}</strong>`;
+        card.onclick = () => {
+            jogadorHumano = p;
+            $('personagemEscolhido').innerHTML = `Você escolheu: <b>${p.nome}</b>`;
+            document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
+            card.classList.add('escolhido');
+            $('btnComecar').disabled = false;
+        };
+        grade.appendChild(card);
+    });
+}
+$('btnComecar').onclick = iniciarPartida;
+montarSelecao();
+
+function iniciarPartida() {
+    if (!jogadorHumano) return;
+    PERSONAGENS.forEach(p => { p.total = 0; p.pontosRank = 0; });
+    const disponiveis = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id).slice());
+    const bots = disponiveis.splice(0, 3);
+    filaMaquinas = disponiveis;
+    maquinasEliminadas = [];
+    const participantes = [jogadorHumano, ...bots];
+    nomeJogador = jogadorHumano.nome;
     $('telaLogin').classList.add('escondido');
     $('jogo').classList.remove('escondido');
-    G = { nomes: [nomeJogador, 'Máquina 1', 'Máquina 2', 'Máquina 3'], totais: [0, 0, 0, 0], rodada: 0 };
+    G = {
+        nomes: participantes.map(p => p.nome),
+        personagens: participantes,
+        totais: participantes.map(p => p.total),
+        rodada: 0,
+        fila: filaMaquinas,
+        rankingGeral: PERSONAGENS
+    };
     novaRodada();
 }
 
@@ -57,7 +100,7 @@ function novaRodada() {
     const b = embaralhar(criarBaralho());
     G.maos = [0, 1, 2, 3].map(i => b.slice(i * 13, i * 13 + 13));
     G.mesa = []; G.lider = null; G.quebrada = false; G.vazas = 0;
-    G.pts = [0, 0, 0, 0]; G.pegas = [[], [], [], []]; G.ocupado = false; G.aviso = '';
+    G.pts = [0, 0, 0, 0]; G.pegas = [[], [], [], []]; G.renunciou = [false, false, false, false]; G.ocupado = false; G.aviso = '';
     G.turno = G.maos.findIndex(m => m.some(c => c.naipe === PAU && c.valor === 0)); // quem tem o 2♣ começa
     G.distribuindo = true; G.rodadaEncerrada = false; G.cartasReveladas = 0;
     G.ordemDistribuicao = [];
@@ -66,6 +109,7 @@ function novaRodada() {
         G.ordemDistribuicao.push({ jogador, carta: G.maos[jogador][rodada] });
     for (let i = 0; i < 4; i++) $(`carta-${i}`).innerHTML = '';
     $('modal').classList.add('escondido');
+    $('modalRanking').classList.add('escondido');
     render();
     G.timer = setTimeout(revelarProximaCarta, 180);
 }
@@ -98,18 +142,60 @@ function validar(i, c) {
     return null;                                                  // sem o naipe: qualquer carta
 }
 
+
 function jogar(i, c) {
+    const renuncia = G.mesa.length > 0 && c.naipe !== G.lider &&
+        G.maos[i].some(x => x.naipe === G.lider);
+
+    if (renuncia) {
+        G.renunciou[i] = true;
+    }
+
     G.maos[i] = G.maos[i].filter(x => x.id !== c.id);
     G.mesa.push({ jogador: i, carta: c });
+
     if (G.mesa.length === 1) G.lider = c.naipe;
     if (c.naipe === COP) G.quebrada = true;
-    if (ehDama(c)) mostrarQ();
-    $(`carta-${i}`).appendChild(criarElementoCarta(c, 'jogada' + (G.mesa.length === 1 ? ' carta-lider' : '')));
+
+    if (ehDama(c)) {
+        mostrarQ();
+        tocarAudioDama();
+    }
+
+    $(`carta-${i}`).appendChild(
+        criarElementoCarta(c, 'jogada' +
+            (G.mesa.length === 1 ? ' carta-lider' : ''))
+    );
+
+    // RENÚNCIA: ENCERRA A RODADA IMEDIATAMENTE
+    if (renuncia) {
+        G.ocupado = true;
+        G.aviso = `${G.nomes[i]} RENUNCIOU! Recebeu os 26 pontos da rodada.`;
+
+        clearTimeout(G.timer);
+        render();
+
+        // Não permite que os outros jogadores continuem a vaza.
+        // Fecha a rodada e atribui exatamente 26 pontos ao renunciante.
+        G.timer = setTimeout(() => {
+            fimRodada();
+        }, 1100);
+
+        return;
+    }
+
     G.aviso = '';
-    G.turno = (G.turno + 1) % 4;                                  // sentido horário
-    if (G.mesa.length === 4) { G.ocupado = true; render(); G.timer = setTimeout(resolverVaza, 1300); }
-    else agendar();
+    G.turno = (G.turno + 1) % 4;
+
+    if (G.mesa.length === 4) {
+        G.ocupado = true;
+        render();
+        G.timer = setTimeout(resolverVaza, 1300);
+    } else {
+        agendar();
+    }
 }
+
 
 function resolverVaza() {
     let venc = null;
@@ -121,7 +207,7 @@ function resolverVaza() {
     G.pts[w] += pontos;
     G.mesa.forEach(j => { if (pontosCarta(j.carta)) G.pegas[w].push(j.carta); });
     $(`carta-${w}`).firstChild.classList.add('carta-vencedora');
-    G.aviso = `${G.nomes[w]} levou a vaza${pontos ? ` (+${pontos} pt${pontos > 1 ? 's' : ''})` : ''}`;
+    G.aviso = `${G.nomes[w]} levou a mesa${pontos ? ` (+${pontos} pt${pontos > 1 ? 's' : ''})` : ''}`;
     render();
     G.vazas++;
     G.timer = setTimeout(() => {
@@ -133,36 +219,151 @@ function resolverVaza() {
 }
 
 function fimRodada() {
-    const lua = G.pts.findIndex(p => p === 26);                   // pegou tudo: ele zera, os outros levam 26
-    const ganho = G.pts.map((p, i) => lua >= 0 ? (i === lua ? 0 : 26) : p);
-    ganho.forEach((g, i) => G.totais[i] += g);
-    const fim = G.totais.some(t => t >= LIMITE);
-    const ordem = [0, 1, 2, 3].sort((a, b) => G.totais[a] - G.totais[b]);
-    const maior = Math.max(...G.totais);
-    let h = fim ? '<h2>🏁 Fim de jogo!</h2>' : `<h2>Fim da rodada ${G.rodada}</h2>`;
-    // Se o jogador humano terminar a rodada com a menor pontuação (inclusive empate),
-    // exibe o sticker comemorativo no resumo da rodada.
-    const menorPontuacao = Math.min(...ganho);
-    if (ganho[0] === menorPontuacao) {
-        h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.gif" alt="Sticker comemorativo por terminar com a menor pontuação">`;
-    }
-    if (lua >= 0) h += `<p>🌕 <b>${G.nomes[lua]}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
-    h += '<table><tr><th>Jogador</th><th>Rodada</th><th>Total</th></tr>';
-    ordem.forEach((i, pos) => {
-        const cls = (fim && G.totais[i] === maior ? 'perdeu ' : '') + (i === 0 ? 'eu' : '');
-        h += `<tr class="${cls}"><td>${fim ? (pos + 1) + 'º ' : ''}${G.nomes[i]}${fim && G.totais[i] === maior ? ' 😖' : ''}</td><td>+${ganho[i]}</td><td>${G.totais[i]}</td></tr>`;
+    const renunciante = G.renunciou.findIndex(Boolean);
+    const lua = renunciante >= 0 ? -1 : G.pts.findIndex(p => p === 26);
+    const ganho = renunciante >= 0
+        ? G.pts.map((p, i) => i === renunciante ? 26 : 0)
+        : G.pts.map((p, i) => lua >= 0 ? (i === lua ? 0 : 26) : p);
+    G.pts = ganho.slice();
+
+    // Guarda os 4 jogadores que participaram desta rodada antes de qualquer substituição
+    const jogadoresMesaRodada = G.personagens.map((p, i) => {
+        p.total += ganho[i];
+        G.totais[i] = p.total;
+        return {
+            personagem: p,
+            nome: G.nomes[i],
+            ganhoRodada: ganho[i],
+            totalPartida: p.total
+        };
     });
-    h += '</table>';
-    h += '<p class="legenda-pontos">Cartas que valeram pontos nesta rodada aparecem junto à posição de cada jogador.</p>';
-    if (fim) h += `<p>${G.totais[0] === maior ? 'Você perdeu dessa vez!' : 'Perdeu: <b>' + ordem.filter(i => G.totais[i] === maior).map(i => G.nomes[i]).join(', ') + '</b>'}</p>`;
-    h += `<button class="btn-modo" id="btnModal">${fim ? 'Jogar novamente' : 'Próxima rodada'}</button>`;
+
+    // Ordena os 4 jogadores da mesa (menor total na partida = melhor colocação)
+    // Define os pontos do Ranking Geral: 1º = +1, 2º = +2, 3º = +3, 4º = +4
+    const classificacaoMesa = [...jogadoresMesaRodada].sort((a, b) =>
+        a.totalPartida - b.totalPartida || a.ganhoRodada - b.ganhoRodada
+    );
+
+    classificacaoMesa.forEach((item, idx) => {
+        // Em caso de empate exato nos pontos, mantém a mesma colocação/pontuação
+        let posEfetiva = idx;
+        while (
+            posEfetiva > 0 &&
+            classificacaoMesa[posEfetiva - 1].totalPartida === item.totalPartida &&
+            classificacaoMesa[posEfetiva - 1].ganhoRodada === item.ganhoRodada
+        ) {
+            posEfetiva--;
+        }
+        const ptsRankGanho = posEfetiva + 1; // 1º=1, 2º=2, 3º=3, 4º=4
+        item.ptsRankGanho = ptsRankGanho;
+        item.personagem.pontosRank += ptsRankGanho;
+    });
+
+    // A eliminação e a reposição acontecem somente depois de fechar a rodada.
+    const eliminadosAgora = [];
+    for (let i = 1; i < 4; i++) {
+        if (G.personagens[i].total >= LIMITE) eliminadosAgora.push({ indice: i, nome: G.personagens[i].nome });
+    }
+    eliminadosAgora.forEach(({ indice: i }) => {
+        const saiu = G.personagens[i];
+        maquinasEliminadas.push(saiu);
+        const proxima = G.fila.shift();
+        if (proxima) {
+            G.personagens[i] = proxima;
+            G.nomes[i] = proxima.nome;
+            G.totais[i] = proxima.total;
+        }
+    });
+
+    const humanoPerdeu = G.personagens[0].total >= LIMITE;
+    const fim = humanoPerdeu || (!G.fila.length && eliminadosAgora.length > 0);
+
+    let h = fim ? '<h2>🏁 Fim de jogo!</h2>' : `<h2>Fim da rodada ${G.rodada}</h2>`;
+    const menorPontuacao = Math.min(...ganho);
+    if (ganho[0] === menorPontuacao) h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.gif" alt="Sticker comemorativo">`;
+    if (renunciante >= 0) h += `<p>⚠️ <b>${jogadoresMesaRodada[renunciante].nome} RENUNCIOU!</b> Por jogar fora do naipe tendo cartas do naipe solicitado, recebeu os 26 pontos da rodada.</p>`;
+    else if (lua >= 0) h += `<p>🌕 <b>${jogadoresMesaRodada[lua].nome}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
+    if (eliminadosAgora.length) h += `<p>🚪 Saíram da mesa: ${eliminadosAgora.map(p => p.nome).join(', ')}. ${G.fila.length ? 'Novas máquinas entram na próxima rodada.' : 'Não há mais reservas.'}</p>`;
+
+    // Tabela da rodada mostrando APENAS os 4 jogadores da mesa e os pontos ganhos no Rank Geral
+    h += '<h3>Classificação da Mesa</h3><table><tr><th>#</th><th>Jogador</th><th>Total</th><th>Rank Geral</th><th>Situação</th></tr>';
+    classificacaoMesa.forEach((item, pos) => {
+        const p = item.personagem;
+        const ehEu = p.id === jogadorHumano.id;
+        const situacao = ehEu ? 'Você' : (p.total >= LIMITE ? 'Eliminado' : 'Na mesa');
+        h += `<tr class="${p.total >= LIMITE ? 'perdeu ' : ''}${ehEu ? 'eu' : ''}">
+            <td>${pos + 1}º</td>
+            <td>${p.nome}</td>
+            <td>${item.totalPartida}</td>
+            <td><b>+${item.ptsRankGanho}</b> (${p.pontosRank})</td>
+            <td>${situacao}</td>
+        </tr>`;
+    });
+    h += '</table><p class="legenda-pontos">Pontuação da rodada: ' + jogadoresMesaRodada.map(item => `${item.nome} +${item.ganhoRodada}`).join(' · ') + '</p>';
+
+    if (fim) {
+        h += `<p>${G.personagens[0].total >= LIMITE ? 'Você atingiu 60 pontos ou mais. Fim de jogo!' : 'Todas as máquinas foram eliminadas.'}</p>`;
+        // No fim definitivo do jogo, exibe também o Ranking Geral Final completo
+        const rankingFinal = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total);
+        h += '<h3>🏆 Ranking Geral Final</h3><table><tr><th>#</th><th>Jogador</th><th>Pts Rank</th><th>Pts Mesa</th></tr>';
+        rankingFinal.forEach((p, pos) => {
+            const ehEu = p.id === jogadorHumano.id;
+            h += `<tr class="${ehEu ? 'eu' : ''}"><td>${pos + 1}º</td><td>${p.nome}${ehEu ? ' (Você)' : ''}</td><td><b>${p.pontosRank}</b></td><td>${p.total}</td></tr>`;
+        });
+        h += '</table>';
+    }
+
+    h += `<button class="btn-modo" id="btnModal">${fim ? 'Escolher personagens novamente' : 'Próxima rodada'}</button>`;
     G.rodadaEncerrada = true;
     $('modalBox').innerHTML = h;
     $('modal').classList.remove('escondido');
     $('btnModal').focus();
-    $('btnModal').onclick = fim ? () => { G.totais = [0, 0, 0, 0]; G.rodada = 0; novaRodada(); } : novaRodada;
+    $('btnModal').onclick = fim ? () => {
+        G = null; jogadorHumano = null; $('jogo').classList.add('escondido');
+        $('telaLogin').classList.remove('escondido');
+        $('personagemEscolhido').textContent = 'Escolha seu personagem';
+        $('btnComecar').disabled = true;
+        document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
+    } : () => {
+        G.nomes = G.personagens.map(p => p.nome);
+        G.totais = G.personagens.map(p => p.total);
+        novaRodada();
+    };
     render();
 }
+
+// ================= MODAL DO RANKING GERAL (DURANTE A PARTIDA) =================
+function abrirRankingGeral() {
+    if (!G) return;
+    // Ordena por menor pontuação no Ranking Geral (1º=1, 2º=2, 3º=3, 4º=4), desempate pelos pontos de mesa
+    const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total);
+    let h = '<h2>🏆 Ranking Geral</h2>';
+    h += '<p class="legenda-pontos" style="margin-bottom:10px;">Pontuação por rodada: 1º (+1) · 2º (+2) · 3º (+3) · 4º (+4)</p>';
+    h += '<table><tr><th>#</th><th>Jogador</th><th>Rank</th><th>Mesa</th><th>Situação</th></tr>';
+    ranking.forEach((p, pos) => {
+        const ativo = G.personagens.includes(p);
+        const ehEu = jogadorHumano && p.id === jogadorHumano.id;
+        const situacao = ehEu ? 'Você' : (ativo ? 'Na mesa' : (p.total >= LIMITE ? 'Eliminado' : 'Reserva'));
+        h += `<tr class="${p.total >= LIMITE ? 'perdeu ' : ''}${ehEu ? 'eu' : ''}">
+            <td>${pos + 1}º</td>
+            <td>${p.nome}</td>
+            <td><b>${p.pontosRank}</b></td>
+            <td>${p.total}</td>
+            <td>${situacao}</td>
+        </tr>`;
+    });
+    h += '</table>';
+    h += '<button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
+    $('modalRankingBox').innerHTML = h;
+    $('modalRanking').classList.remove('escondido');
+    $('btnFecharRanking').focus();
+    $('btnFecharRanking').onclick = () => $('modalRanking').classList.add('escondido');
+}
+
+$('btnRanking').onclick = abrirRankingGeral;
+$('modalRanking').addEventListener('click', e => {
+    if (e.target === $('modalRanking')) $('modalRanking').classList.add('escondido');
+});
 
 // ================= FLUXO DE TURNOS =================
 function agendar() {
@@ -180,7 +381,11 @@ function agendar() {
 function tentarJogar(c) {
     if (G.distribuindo || G.turno !== 0 || G.ocupado || G.mesa.length === 4) return;
     const erro = validar(0, c);
-    if (erro) { G.aviso = '⚠ ' + erro; render(true); return; }
+    // Jogar fora do naipe tendo cartas do naipe solicitado é permitido,
+    // mas caracteriza RENÚNCIA e aplica a penalidade de 26 pontos.
+    const renuncia = G.mesa.length > 0 && c.naipe !== G.lider &&
+        G.maos[0].some(x => x.naipe === G.lider);
+    if (erro && !renuncia) { G.aviso = '⚠ ' + erro; render(true); return; }
     jogar(0, c);
 }
 
@@ -226,10 +431,10 @@ function render(piscar) {
     const ov = n > 1 ? Math.max(w * 0.3, (n * w - innerWidth * 0.94) / (n - 1)) : 0;
     div.style.setProperty('--ov', ov + 'px');
     G.maos[0].forEach(c => {
-        const ok = minha && !validar(0, c);
         const indice = G.ordemDistribuicao ? G.ordemDistribuicao.findIndex(x => x.jogador === 0 && x.carta.id === c.id) : -1;
         const revelada = !G.distribuindo || indice < G.cartasReveladas;
-        const el = revelada ? criarElementoCarta(c, minha ? (ok && !G.distribuindo ? 'valida' : 'bloqueada') : '') : criarVersoCarta();
+        // Não destacar/sugerir cartas válidas ou inválidas na mão do jogador.
+        const el = revelada ? criarElementoCarta(c) : criarVersoCarta();
         if (revelada && !G.distribuindo) {
             el.tabIndex = 0; el.setAttribute('role', 'button');
             el.onclick = () => tentarJogar(c);
@@ -247,10 +452,10 @@ function render(piscar) {
         const cops = G.pegas[i].filter(c => c.naipe === COP).length, q = G.pegas[i].some(ehDama);
         const box = $(`j${i}`);
         box.classList.toggle('turno-ativo', i === G.turno && !G.ocupado);
-        const ranking = G.totais.map((total, jogador) => ({ total, jogador })).sort((a,b) => a.total - b.total).findIndex(x => x.jogador === i) + 1;
-        box.innerHTML = `<span class="nome"><i class="fas fa-${i ? 'robot' : 'user'}"></i> ${G.nomes[i]} <small class="ranking">${ranking}º</small></span>
-            <span class="tot">Total: ${G.totais[i]}</span><span class="rod">Rodada: ${G.pts[i]}</span>
-            ${i !== 0 ? `<span class="cartas-verso">${Array.from({length: 13}, () => '<i></i>').join('')}</span>` : ''}`;
+        const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total).findIndex(p => p.id === G.personagens[i].id) + 1;
+        box.innerHTML = `<img class="avatar-jogador" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
+            <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small></span>
+            <span class="tot">Total: ${G.totais[i]}</span><span class="rod">Rodada: ${G.pts[i]}</span>`;
         if (G.rodadaEncerrada && i !== 0) {
             const faixa = document.createElement('div'); faixa.className = 'pontos-mao-final';
             G.pegas[i].forEach(c => faixa.appendChild(criarElementoCarta(c, 'carta-ponto-final')));
@@ -269,7 +474,7 @@ function render(piscar) {
     if (G.distribuindo) st.textContent = 'Distribuindo as cartas…';
     else if (G.aviso) st.textContent = G.aviso;
     else if (G.vazas === 0 && G.mesa.length === 0) st.textContent = `Rodada ${G.rodada}: ${G.nomes[G.turno]} tem o 2♣ e começa.`;
-    else if (minha) st.textContent = G.mesa.length ? `Sua vez — siga ${NAIPES[G.lider].nome} ${NAIPES[G.lider].s} se tiver.` : 'Sua vez — você abre a vaza.';
+    else if (minha) st.textContent = G.mesa.length ? `Sua vez — deve seguir ${NAIPES[G.lider].nome} ${NAIPES[G.lider].s}; jogar outro naipe tendo esse é renúncia.` : 'Sua vez — você abre a mesa.';
     else st.textContent = `Vez de ${G.nomes[G.turno]}…`;
 }
 addEventListener('resize', () => G && render());
@@ -284,6 +489,15 @@ function mostrarQ() {
 // ================= RÁDIO (pagode) =================
 // Busca estações de pagode ativas no diretório Radio-Browser; se nenhuma tocar, usa uma batucada interna.
 const R = { a: new Audio(), est: [], i: -1, on: false, tent: 0, t: null, ctx: null, synth: null };
+
+const audioDama = new Audio('fotos/dama-espadas.ogg');
+function tocarAudioDama() {
+    audioDama.pause();
+    audioDama.currentTime = 0;
+    audioDama.volume = Math.min(1, Math.max(0.2, R.a ? R.a.volume * 2 : 1));
+    audioDama.play().catch(() => {});
+}
+
 R.a.volume = 0.6;
 const setR = t => $('radioNome').textContent = t;
 function marcarBotao() {
