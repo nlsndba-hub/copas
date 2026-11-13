@@ -26,7 +26,11 @@
             <div id="radio">
                 <button id="btnRadio" aria-label="Tocar rádio"><i class="fas fa-play"></i></button>
                 <button id="btnProx" aria-label="Próxima rádio"><i class="fas fa-forward"></i></button>
-                <input type="range" id="vol" min="0" max="1" step="0.05" value="0.6" aria-label="Volume">
+                <div id="controleVolume" aria-label="Controle de volume">
+                    <button type="button" id="volMenos" aria-label="Diminuir volume">−</button>
+                    <output id="volValor" for="volMenos volMais">60</output>
+                    <button type="button" id="volMais" aria-label="Aumentar volume">+</button>
+                </div>
                 <span id="radioNome">Rádio desligada</span>
             </div>
             <div id="status" role="status" aria-live="polite"></div>

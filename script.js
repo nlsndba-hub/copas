@@ -59,9 +59,28 @@ function novaRodada() {
     G.mesa = []; G.lider = null; G.quebrada = false; G.vazas = 0;
     G.pts = [0, 0, 0, 0]; G.pegas = [[], [], [], []]; G.ocupado = false; G.aviso = '';
     G.turno = G.maos.findIndex(m => m.some(c => c.naipe === PAU && c.valor === 0)); // quem tem o 2♣ começa
+    G.distribuindo = true; G.rodadaEncerrada = false; G.cartasReveladas = 0;
+    G.ordemDistribuicao = [];
+    // Distribuição visual: primeiro todas as cartas aparecem com o verso; depois são reveladas uma a uma.
+    for (let rodada = 0; rodada < 13; rodada++) for (let jogador = 0; jogador < 4; jogador++)
+        G.ordemDistribuicao.push({ jogador, carta: G.maos[jogador][rodada] });
     for (let i = 0; i < 4; i++) $(`carta-${i}`).innerHTML = '';
     $('modal').classList.add('escondido');
-    agendar();
+    render();
+    G.timer = setTimeout(revelarProximaCarta, 180);
+}
+
+// Revela as cartas depois que as 52 já foram distribuídas visualmente com o verso para cima.
+function revelarProximaCarta() {
+    if (!G || !G.distribuindo) return;
+    G.cartasReveladas++;
+    render();
+    if (G.cartasReveladas < 52) {
+        G.timer = setTimeout(revelarProximaCarta, 75);
+    } else {
+        G.distribuindo = false;
+        G.timer = setTimeout(() => { G.aviso = ''; agendar(); }, 450);
+    }
 }
 
 // ================= REGRAS =================
@@ -121,15 +140,23 @@ function fimRodada() {
     const ordem = [0, 1, 2, 3].sort((a, b) => G.totais[a] - G.totais[b]);
     const maior = Math.max(...G.totais);
     let h = fim ? '<h2>🏁 Fim de jogo!</h2>' : `<h2>Fim da rodada ${G.rodada}</h2>`;
+    // Se o jogador humano terminar a rodada com a menor pontuação (inclusive empate),
+    // exibe o sticker comemorativo no resumo da rodada.
+    const menorPontuacao = Math.min(...ganho);
+    if (ganho[0] === menorPontuacao) {
+        h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.png" alt="Sticker comemorativo por terminar com a menor pontuação">`;
+    }
     if (lua >= 0) h += `<p>🌕 <b>${G.nomes[lua]}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
     h += '<table><tr><th>Jogador</th><th>Rodada</th><th>Total</th></tr>';
-    (fim ? ordem : [0, 1, 2, 3]).forEach((i, pos) => {
+    ordem.forEach((i, pos) => {
         const cls = (fim && G.totais[i] === maior ? 'perdeu ' : '') + (i === 0 ? 'eu' : '');
         h += `<tr class="${cls}"><td>${fim ? (pos + 1) + 'º ' : ''}${G.nomes[i]}${fim && G.totais[i] === maior ? ' 😖' : ''}</td><td>+${ganho[i]}</td><td>${G.totais[i]}</td></tr>`;
     });
     h += '</table>';
+    h += '<p class="legenda-pontos">Cartas que valeram pontos nesta rodada aparecem junto à posição de cada jogador.</p>';
     if (fim) h += `<p>${G.totais[0] === maior ? 'Você perdeu dessa vez!' : 'Perdeu: <b>' + ordem.filter(i => G.totais[i] === maior).map(i => G.nomes[i]).join(', ') + '</b>'}</p>`;
     h += `<button class="btn-modo" id="btnModal">${fim ? 'Jogar novamente' : 'Próxima rodada'}</button>`;
+    G.rodadaEncerrada = true;
     $('modalBox').innerHTML = h;
     $('modal').classList.remove('escondido');
     $('btnModal').focus();
@@ -151,7 +178,7 @@ function agendar() {
 }
 
 function tentarJogar(c) {
-    if (G.turno !== 0 || G.ocupado || G.mesa.length === 4) return;
+    if (G.distribuindo || G.turno !== 0 || G.ocupado || G.mesa.length === 4) return;
     const erro = validar(0, c);
     if (erro) { G.aviso = '⚠ ' + erro; render(true); return; }
     jogar(0, c);
@@ -181,6 +208,14 @@ function escolherBot(i) {
     return [...v].sort(ord)[v.length - 1];
 }
 
+function criarVersoCarta() {
+    const d = document.createElement('div');
+    d.className = 'carta verso';
+    d.setAttribute('aria-label', 'Carta virada para baixo');
+    return d;
+}
+
+
 // ================= TELA =================
 function render(piscar) {
     const minha = G.turno === 0 && !G.ocupado && G.mesa.length < 4;
@@ -192,25 +227,47 @@ function render(piscar) {
     div.style.setProperty('--ov', ov + 'px');
     G.maos[0].forEach(c => {
         const ok = minha && !validar(0, c);
-        const el = criarElementoCarta(c, minha ? (ok ? 'valida' : 'bloqueada') : '');
-        el.tabIndex = 0; el.setAttribute('role', 'button');
-        el.onclick = () => tentarJogar(c);
-        el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tentarJogar(c); } };
+        const indice = G.ordemDistribuicao ? G.ordemDistribuicao.findIndex(x => x.jogador === 0 && x.carta.id === c.id) : -1;
+        const revelada = !G.distribuindo || indice < G.cartasReveladas;
+        const el = revelada ? criarElementoCarta(c, minha ? (ok && !G.distribuindo ? 'valida' : 'bloqueada') : '') : criarVersoCarta();
+        if (revelada && !G.distribuindo) {
+            el.tabIndex = 0; el.setAttribute('role', 'button');
+            el.onclick = () => tentarJogar(c);
+            el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tentarJogar(c); } };
+        }
         div.appendChild(el);
     });
+    if (G.rodadaEncerrada) {
+        div.innerHTML = '';
+        G.pegas[0].forEach(c => div.appendChild(criarElementoCarta(c, 'carta-ponto-final')));
+        div.classList.add('mao-pontos-finais');
+    } else div.classList.remove('mao-pontos-finais');
     // Jogadores
     for (let i = 0; i < 4; i++) {
         const cops = G.pegas[i].filter(c => c.naipe === COP).length, q = G.pegas[i].some(ehDama);
         const box = $(`j${i}`);
         box.classList.toggle('turno-ativo', i === G.turno && !G.ocupado);
-        box.innerHTML = `<span class="nome"><i class="fas fa-${i ? 'robot' : 'user'}"></i> ${G.nomes[i]}</span>
+        const ranking = G.totais.map((total, jogador) => ({ total, jogador })).sort((a,b) => a.total - b.total).findIndex(x => x.jogador === i) + 1;
+        box.innerHTML = `<span class="nome"><i class="fas fa-${i ? 'robot' : 'user'}"></i> ${G.nomes[i]} <small class="ranking">${ranking}º</small></span>
             <span class="tot">Total: ${G.totais[i]}</span><span class="rod">Rodada: ${G.pts[i]}</span>
-            <span class="pegou">${cops ? `<span class="pt-cop">♥ ${cops}</span>` : ''}${q ? '<span class="pt-q">Q♠ 13</span>' : ''}</span>`;
+            ${i !== 0 ? `<span class="cartas-verso">${Array.from({length: 13}, () => '<i></i>').join('')}</span>` : ''}`;
+        if (G.rodadaEncerrada && i !== 0) {
+            const faixa = document.createElement('div'); faixa.className = 'pontos-mao-final';
+            G.pegas[i].forEach(c => faixa.appendChild(criarElementoCarta(c, 'carta-ponto-final')));
+            box.appendChild(faixa);
+        }
     }
+    // Posiciona o painel do jogador humano imediatamente antes da primeira carta da mão.
+    requestAnimationFrame(() => {
+        const primeiraCarta = $('maoJogador').querySelector('.carta');
+        const inicioMao = primeiraCarta ? primeiraCarta.getBoundingClientRect().left : $('maoJogador').getBoundingClientRect().left;
+        $('j0').style.left = Math.max(8, inicioMao - 122) + 'px';
+    });
     // Status
     const st = $('status');
     st.classList.toggle('aviso', G.aviso.startsWith('⚠'));
-    if (G.aviso) st.textContent = G.aviso;
+    if (G.distribuindo) st.textContent = 'Distribuindo as cartas…';
+    else if (G.aviso) st.textContent = G.aviso;
     else if (G.vazas === 0 && G.mesa.length === 0) st.textContent = `Rodada ${G.rodada}: ${G.nomes[G.turno]} tem o 2♣ e começa.`;
     else if (minha) st.textContent = G.mesa.length ? `Sua vez — siga ${NAIPES[G.lider].nome} ${NAIPES[G.lider].s} se tiver.` : 'Sua vez — você abre a vaza.';
     else st.textContent = `Vez de ${G.nomes[G.turno]}…`;
@@ -269,7 +326,43 @@ function desligarRadio() {
 }
 $('btnRadio').onclick = () => R.on ? desligarRadio() : ligarRadio();
 $('btnProx').onclick = () => { if (!R.on) return ligarRadio(); R.tent = 0; tentarEstacao(); };
-$('vol').oninput = e => { R.a.volume = +e.target.value; if (R.synth) R.synth.g.gain.value = R.a.volume * 0.5; };
+let volumePercentual = 60;
+function aplicarVolume() {
+    R.a.volume = volumePercentual / 100;
+    if (R.synth) R.synth.g.gain.value = R.a.volume * 0.5;
+    $('volValor').textContent = String(volumePercentual);
+    $('volValor').setAttribute('aria-label', `Volume ${volumePercentual}%`);
+}
+function alterarVolume(delta) {
+    volumePercentual = Math.max(0, Math.min(100, volumePercentual + delta));
+    aplicarVolume();
+}
+function configurarBotaoVolume(id, delta) {
+    const botao = $(id);
+    let inicio = null, repetidor = null, acionouPressaoLonga = false;
+    const limpar = () => { clearTimeout(inicio); clearInterval(repetidor); inicio = repetidor = null; };
+    botao.addEventListener('pointerdown', e => {
+        if (e.button !== 0) return;
+        e.preventDefault(); acionouPressaoLonga = false; limpar();
+        inicio = setTimeout(() => {
+            acionouPressaoLonga = true;
+            alterarVolume(delta * 10);
+            repetidor = setInterval(() => alterarVolume(delta * 10), 250);
+        }, 2000);
+    });
+    const soltar = () => {
+        if (inicio === null && repetidor === null) return;
+        const foiLongo = acionouPressaoLonga; limpar();
+        if (!foiLongo) alterarVolume(delta);
+    };
+    botao.addEventListener('pointerup', soltar);
+    botao.addEventListener('pointerleave', soltar);
+    botao.addEventListener('pointercancel', soltar);
+    botao.addEventListener('click', e => { if (e.detail === 0) alterarVolume(delta); });
+}
+configurarBotaoVolume('volMenos', -1);
+configurarBotaoVolume('volMais', 1);
+aplicarVolume();
 
 // Batucada de samba/pagode gerada no navegador (garante som mesmo sem internet)
 function musicaInterna() {
@@ -296,3 +389,13 @@ function musicaInterna() {
     setR('♪ Batucada interna (rádio indisponível)');
 }
 function pararSynth() { if (R.synth) { clearInterval(R.synth.timer); R.synth.g.disconnect(); R.synth = null; } }
+
+
+// Camuflagem discreta: Ctrl + botão direito alterna uma tela preta, sem tocar no jogo ou no áudio.
+const camuflagem = document.createElement('div');
+camuflagem.id = 'camuflagem';
+document.body.appendChild(camuflagem);
+let camuflado = false;
+document.addEventListener('contextmenu', e => {
+    if (e.ctrlKey) { e.preventDefault(); camuflado = !camuflado; camuflagem.classList.toggle('ativa', camuflado); }
+});

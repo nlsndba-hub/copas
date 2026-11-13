@@ -101,3 +101,74 @@ button { font-family: inherit; }
     #efeitoQ { width: 130px; height: 170px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Cartas distribuídas e reveladas */
+.carta.verso {
+    background: repeating-linear-gradient(45deg, #173b79 0 5px, #f4f4f4 5px 7px, #173b79 7px 12px);
+    border: 3px solid #fff;
+    box-shadow: -3px 5px 10px rgba(0,0,0,.5), inset 0 0 0 3px #173b79;
+    cursor: default;
+}
+.carta.verso::after {
+    content: "♥  ♠";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 17px;
+    text-shadow: 1px 2px 3px #000;
+}
+.cartas-verso { display: flex; justify-content: center; gap: 2px; margin-top: 4px; height: 13px; }
+.cartas-verso i { display: block; width: 7px; height: 11px; border: 1px solid #fff; border-radius: 2px; background: repeating-linear-gradient(45deg,#173b79 0 2px,#fff 2px 3px); }
+.ranking { color: var(--ouro); font-size: 10px; margin-left: 4px; }
+.pegou { display: flex; justify-content: center; align-items: center; gap: 12px; min-height: 22px; }
+.pt-cop, .pt-q { display: inline-block; padding: 1px 5px; border-radius: 5px; background: rgba(255,255,255,.12); }
+.posicao-carta { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 3px; max-width: 190px; }
+.posicao-carta .carta-ponto-final { width: 30px; height: 43px; padding: 2px; border-width: 1px; border-radius: 4px; box-shadow: 0 2px 4px #0008; }
+.posicao-carta .carta-ponto-final .topo { left: 2px; top: 2px; }
+.posicao-carta .carta-ponto-final .base { right: 2px; bottom: 2px; }
+.posicao-carta .carta-ponto-final .valor { font-size: 9px; }
+.posicao-carta .carta-ponto-final .np { font-size: 8px; }
+.posicao-carta .carta-ponto-final .centro { font-size: 17px; }
+.posicao-carta .carta-ponto-final .badge { top: 1px; right: 2px; font-size: 8px; }
+.legenda-pontos { color: #bbb; font-size: 12px; }
+#camuflagem { position: fixed; inset: 0; z-index: 999999; background: #000; display: none; pointer-events: none; }
+#camuflagem.ativa { display: block; }
+
+/* No encerramento, as cartas pontuadas ficam na área da mão de cada participante. */
+#maoJogador.mao-pontos-finais { justify-content: center; align-items: flex-end; flex-wrap: wrap; gap: 5px; height: auto; min-height: calc(var(--ch) + 30px); }
+#maoJogador .carta-ponto-final, .pontos-mao-final .carta-ponto-final { width: 43px; height: 62px; margin: 0; padding: 3px; border-width: 1px; border-radius: 5px; }
+#maoJogador .carta-ponto-final .topo, .pontos-mao-final .carta-ponto-final .topo { left: 3px; top: 3px; }
+#maoJogador .carta-ponto-final .base, .pontos-mao-final .carta-ponto-final .base { right: 3px; bottom: 3px; }
+#maoJogador .carta-ponto-final .valor, .pontos-mao-final .carta-ponto-final .valor { font-size: 12px; }
+#maoJogador .carta-ponto-final .np, .pontos-mao-final .carta-ponto-final .np { font-size: 10px; }
+#maoJogador .carta-ponto-final .centro, .pontos-mao-final .carta-ponto-final .centro { font-size: 23px; }
+#maoJogador .carta-ponto-final .badge, .pontos-mao-final .carta-ponto-final .badge { font-size: 10px; }
+.pontos-mao-final { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 210px; margin: 5px auto 0; }
+#modal { background: rgba(0,0,0,.38); }
+
+/* Ajustes de interface: volume preciso e painel do jogador antes da mão. */
+#controleVolume { display: flex; align-items: center; gap: 5px; }
+#controleVolume button { width: 25px; height: 28px; border: 1px solid #777; border-radius: 5px; background: #263b29; color: #fff; font-size: 20px; line-height: 1; font-weight: 700; cursor: pointer; touch-action: none; user-select: none; }
+#controleVolume button:hover { background: #356d3b; }
+#controleVolume output { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; color: #fff; }
+#vol { display: none; }
+#j0 { bottom: 24px; left: 8px; }
+@media (max-width: 768px) {
+    #controleVolume { gap: 3px; }
+    #controleVolume button { width: 23px; height: 26px; }
+    #controleVolume output { min-width: 24px; font-size: 12px; }
+    #j0 { bottom: 12px; }
+}
+
+/* Sticker exibido quando o jogador humano termina a rodada com a menor pontuação. */
+.sticker-menor-pontuacao {
+    display: block;
+    width: min(180px, 48vw);
+    height: auto;
+    max-height: 180px;
+    object-fit: contain;
+    margin: 8px auto 12px;
+    border-radius: 12px;
+}
