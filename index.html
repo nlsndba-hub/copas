@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#14461a">
     <title>Jogo de Copas (Hearts)</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -14,9 +15,9 @@
         <div class="selecao-box">
             <h1>♥ Jogo de Copas ♠</h1>
             <p class="sub">Escolha seu personagem. Três máquinas serão sorteadas para jogar com você.</p>
-            <div id="gradePersonagens" class="grade-personagens"></div>
-            <p id="personagemEscolhido" class="escolha-status">Escolha seu personagem</p>
             <button id="btnComecar" class="btn-modo" disabled><i class="fas fa-play"></i> Começar partida</button>
+            <p id="personagemEscolhido" class="escolha-status">Escolha seu personagem</p>
+            <div id="gradePersonagens" class="grade-personagens"></div>
             <p class="regra-selecao">Quem atingir 60 pontos ou mais sai após o fim da rodada. Uma máquina da reserva assume a vaga.</p>
         </div>
     </div>
@@ -27,6 +28,9 @@
             <div id="radio">
                 <button id="btnRadio" aria-label="Tocar rádio"><i class="fas fa-play"></i></button>
                 <button id="btnProx" aria-label="Próxima rádio"><i class="fas fa-forward"></i></button>
+                <select id="selEstado" aria-label="Estado da rádio"><option value="RJ" selected>RJ</option><option value="SP">SP</option></select>
+                <select id="selGenero" aria-label="Gênero da rádio"></select>
+                <select id="selRadio" aria-label="Escolher rádio"><option value="" disabled selected>Carregando rádios…</option></select>
                 <div id="controleVolume" aria-label="Controle de volume">
                     <button type="button" id="volMenos" aria-label="Diminuir volume">−</button>
                     <output id="volValor" for="volMenos volMais">60</output>

@@ -1,7 +1,43 @@
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-:root { --cw: 84px; --ch: 120px; --tw: 64px; --th: 92px; --verm: #c62828; --pret: #111; --ouro: #ffd54f; --ok: #4CAF50; }
+/* =====================================================================
+   JOGO DE COPAS - CSS RESPONSIVO
+   ---------------------------------------------------------------------
+   Toda a tela é medida em uma unidade --u (definida pelo script.js).
+   O script testa tamanhos até achar o MAIOR que cabe na tela sem que
+   nenhum personagem encoste na área das cartas. Por isso o jogo se
+   adapta a PC, tablet e celular (em pé ou deitado).
 
-body { background: radial-gradient(circle, #2e7d32 0%, #14461a 100%); overflow: hidden; height: 100vh; width: 100vw; color: #fff; }
+   ORDEM DAS CAMADAS (de baixo para cima):
+     1  personagens (painéis)
+     10 cartas jogadas no meio da mesa
+     20 mão do jogador  (carta selecionada = 25, arrastando = 26)
+     50 barra do topo
+   ===================================================================== */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+:root {
+    /* Valores de reserva (o script.js recalcula conforme a tela) */
+    --u: 12px;
+    --cw: 84px;                          /* largura da carta na mão   */
+    --ch: calc(var(--cw) * 1.4286);      /* altura da carta na mão    */
+    --tw: 64px;                          /* largura da carta na mesa  */
+    --th: calc(var(--tw) * 1.4375);      /* altura da carta na mesa   */
+    --av: max(34px, calc(var(--u) * 5.2));   /* foto do personagem   */
+    --mao-h: calc(var(--ch) * .55);      /* parte da mão sempre visível */
+    --desce: calc(var(--ch) - var(--mao-h));
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --verm: #c62828; --pret: #111; --ouro: #ffd54f; --ok: #4CAF50;
+}
+
+html, body { width: 100%; height: 100%; }
+body {
+    background: radial-gradient(circle, #2e7d32 0%, #14461a 100%);
+    overflow: hidden;
+    color: #fff;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+}
 .escondido { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 button { font-family: inherit; }
@@ -16,25 +52,51 @@ button { font-family: inherit; }
 .btn-modo { padding: 14px; font-size: 17px; background: #2e7d32; color: #fff; border: none; cursor: pointer; border-radius: 8px; font-weight: bold; width: 100%; }
 .btn-modo:hover { background: #1b5e20; }
 
+
+/* ============ ESTRUTURA DA TELA DO JOGO (coluna: topo / mesa / mão) ============ */
+#jogo {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+    overflow: hidden;
+}
+
 /* BARRA DO TOPO: rádio + status + ranking */
-#topbar { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; align-items: stretch; z-index: 50; flex-wrap: wrap; }
+#topbar {
+    position: relative;
+    z-index: 50;
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: stretch;
+    padding: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) 4px max(8px, env(safe-area-inset-left, 0px));
+}
 #radio { background: rgba(0,0,0,.75); border: 1px solid #666; border-radius: 10px; padding: 5px 8px; display: flex; align-items: center; gap: 6px; font-size: 13px; max-width: 100%; }
 #radio button { background: var(--ok); border: none; color: #fff; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 14px; }
 #radio button.on { background: #d32f2f; }
 #vol { width: 70px; }
 #radioNome { max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#status { flex: 1; min-width: 180px; background: rgba(0,0,0,.75); border: 2px solid var(--ok); border-radius: 10px; padding: 8px 12px; font-size: 16px; font-weight: 600; display: flex; align-items: center; }
+/* Altura FIXA (2 linhas): a mensagem mudar de tamanho não empurra a mesa */
+#status {
+    flex: 1; min-width: 160px; height: 50px;
+    background: rgba(0,0,0,.75); border: 2px solid var(--ok); border-radius: 10px;
+    padding: 5px 12px; font-size: 15px; line-height: 1.25; font-weight: 600;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+    -webkit-box-pack: center; overflow: hidden;
+}
 #status.aviso { border-color: #ff5252; background: rgba(120,0,0,.85); }
 
-/* Botão do Ranking Geral ao lado da legenda */
 #btnRanking {
     background: rgba(0,0,0,.78);
     border: 2px solid var(--ouro);
     color: var(--ouro);
     border-radius: 10px;
     padding: 0 14px;
-    min-width: 44px;
-    min-height: 42px;
+    min-width: 46px;
+    min-height: 44px;
     cursor: pointer;
     font-size: 18px;
     display: flex;
@@ -42,69 +104,195 @@ button { font-family: inherit; }
     justify-content: center;
     transition: transform .15s, background .15s, box-shadow .15s;
 }
-#btnRanking:hover {
-    background: rgba(255, 213, 79, .18);
-    box-shadow: 0 0 12px rgba(255, 213, 79, .45);
-    transform: translateY(-1px);
-}
+#btnRanking:hover { background: rgba(255, 213, 79, .18); box-shadow: 0 0 12px rgba(255, 213, 79, .45); transform: translateY(-1px); }
 
-/* MESA */
-#mesa { position: absolute; inset: 0; }
-.oponente { position: absolute; text-align: center; background: rgba(0,0,0,.65); padding: 6px 12px; border-radius: 12px; min-width: 112px; border: 2px solid rgba(255,255,255,.25); box-shadow: 0 4px 8px rgba(0,0,0,.4); transition: .3s; font-size: 12px; }
+/* ============ MESA: grade 3x3 (nenhum elemento fica em cima do outro) ============
+        .      j2      .
+        j1   central   j3
+             j0 (você)
+*/
+#mesa {
+    position: relative;               /* sem z-index: as camadas valem para a tela toda */
+    flex: 1 1 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    gap: calc(var(--u) * .6);
+    padding: calc(var(--u) * .6) max(calc(var(--u) * .8), env(safe-area-inset-right, 0px)) calc(var(--u) * .6) max(calc(var(--u) * .8), env(safe-area-inset-left, 0px));
+}
+#j2 { grid-column: 2; grid-row: 1; justify-self: center; }
+#j1 { grid-column: 1; grid-row: 2; align-self: center; }
+#j3 { grid-column: 3; grid-row: 2; align-self: center; }
+#areaCentral { grid-column: 2; grid-row: 2; place-self: center; }
+#j0 { grid-column: 1 / -1; grid-row: 3; justify-self: center; }
+
+/* PERSONAGENS (camada 1: sempre ATRÁS das cartas) */
+.oponente {
+    position: relative;
+    z-index: 1;
+    width: calc(var(--u) * 10.5);
+    text-align: center;
+    background: rgba(0,0,0,.72);
+    padding: calc(var(--u) * .5) calc(var(--u) * .7);
+    border-radius: calc(var(--u) * 1);
+    border: 2px solid rgba(255,255,255,.25);
+    box-shadow: 0 4px 8px rgba(0,0,0,.4);
+    transition: border-color .3s, box-shadow .3s;
+    font-size: max(10px, calc(var(--u) * 1));
+    line-height: 1.25;
+}
 .oponente.turno-ativo { border-color: var(--ok); box-shadow: 0 0 18px var(--ok); animation: pulse 1.5s infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(76,175,80,.8); } 70% { box-shadow: 0 0 0 14px rgba(76,175,80,0); } 100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); } }
-.nome { display: block; font-weight: bold; font-size: 13px; }
-.tot { display: block; color: var(--ouro); font-weight: bold; }
-.rod { display: block; color: #ddd; }
-.pegou { display: block; min-height: 18px; font-weight: 900; font-size: 14px; }
-/* Pontos: copas = fonte vermelha com contorno branco; Q♠ = fonte preta com contorno branco */
+.avatar-jogador {
+    display: block; width: var(--av); height: var(--av); object-fit: cover;
+    border-radius: 9px; border: 2px solid #d5b65b; margin: 0 auto calc(var(--u) * .35);
+    background: #444; box-shadow: 0 2px 8px #0009; flex: none;
+}
+.info-jogador { min-width: 0; }
+.nome { display: block; font-weight: bold; font-size: max(10.5px, calc(var(--u) * 1.08)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tot { display: block; color: var(--ouro); font-weight: bold; white-space: nowrap; }
+.rod { display: block; color: #ddd; white-space: nowrap; }
+.ranking { color: var(--ouro); font-size: .85em; margin-left: 4px; }
+
+/* Você (embaixo): foto à esquerda, dados à direita */
+#j0 { width: auto; min-width: calc(var(--u) * 10.5); display: flex; align-items: center; gap: calc(var(--u) * .8); text-align: left; border-color: var(--ok); }
+#j0 .avatar-jogador { margin: 0; width: max(32px, calc(var(--u) * 4.2)); height: max(32px, calc(var(--u) * 4.2)); }
+#j0 .nome { overflow: visible; }
+
 .pt-cop, .pt-q { margin: 0 3px; }
 .pt-cop, .badge.cop { color: var(--verm); text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff; }
 .pt-q, .badge.dama { color: var(--pret); text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff; }
 
-#j2 { top: 62px; left: 50%; transform: translateX(-50%); }
-#j1 { top: 50%; left: 10px; transform: translateY(-50%); }
-#j3 { top: 50%; right: 10px; transform: translateY(-50%); }
-#j0 { bottom: calc(var(--ch) + 46px); left: 10px; border-color: var(--ok); }
-#j2.turno-ativo, #j1.turno-ativo, #j3.turno-ativo { transform-origin: center; }
 
-#areaCentral { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 190px; height: 200px; }
-.posicao-carta { position: absolute; }
+/* Cartas que cada jogador pegou (aparecem só no fim da rodada, FORA do fluxo para não mexer no layout) */
+.pontos-mao-final {
+    position: absolute; top: calc(100% + 4px); left: 0;
+    width: calc((var(--tw) * .5 + 2px) * 5 + 8px);
+    display: flex; flex-wrap: wrap; gap: 2px; padding: 3px;
+    background: rgba(0,0,0,.55); border-radius: 6px; pointer-events: none;
+}
+#j2 .pontos-mao-final { left: 50%; transform: translateX(-50%); }
+#j3 .pontos-mao-final { left: auto; right: 0; justify-content: flex-end; }
+.pontos-mao-final .carta { --w: calc(var(--tw) * .5); margin: 0; cursor: default; }
+
+/* ============ ÁREA CENTRAL (camada 10: sempre ACIMA dos personagens) ============ */
+#areaCentral {
+    position: relative;
+    z-index: 10;
+    width: calc(var(--tw) * 3 + 8px);
+    height: calc(var(--th) * 2.2);
+    border-radius: 16px;
+    transition: box-shadow .2s, background .2s;
+}
+#areaCentral.drop-ativo { background: rgba(255, 213, 79, .14); box-shadow: 0 0 22px rgba(255, 213, 79, .5); }
+.posicao-carta { position: absolute; display: flex; justify-content: center; align-items: center; }
 #carta-2 { top: 0; left: 50%; transform: translateX(-50%); }
 #carta-0 { bottom: 0; left: 50%; transform: translateX(-50%); }
 #carta-1 { top: 50%; left: 0; transform: translateY(-50%); }
 #carta-3 { top: 50%; right: 0; transform: translateY(-50%); }
 
-/* MÃO */
-#maoJogador { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; align-items: flex-end; height: calc(var(--ch) + 30px); width: 98%; }
+/* ============ MÃO DO JOGADOR (camada 20: acima de tudo na mesa) ============ */
+#maoJogador {
+    position: relative;
+    z-index: 20;
+    flex: none;
+    width: 100%;
+    height: calc(var(--mao-h) + var(--safe-b));
+    padding: 0 8px var(--safe-b);
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    overflow: visible;
+}
 
-/* CARTAS */
-.carta { width: var(--cw); height: var(--ch); background: #fff; border-radius: 7px; box-shadow: -3px 5px 10px rgba(0,0,0,.5); border: 2px solid #777; position: relative; padding: 5px; cursor: pointer; transition: transform .2s, opacity .2s; margin-left: calc(-1 * var(--ov, 40px)); font-weight: 900; font-family: 'Times New Roman', serif; user-select: none; flex: none; text-align: center; }
-.carta:first-child { margin-left: 0; }
+/* ============ CARTAS (tudo proporcional à largura --w) ============ */
+.carta {
+    --w: var(--cw);
+    width: var(--w);
+    height: calc(var(--w) * 1.4286);
+    background: #fff;
+    border-radius: calc(var(--w) * .085);
+    border: 2px solid #777;
+    box-shadow: -3px 5px 10px rgba(0,0,0,.5);
+    position: relative;
+    flex: none;
+    cursor: pointer;
+    font-weight: 900;
+    font-family: 'Times New Roman', serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    text-align: center;
+}
 .carta.vermelho { color: var(--verm); } .carta.preto { color: var(--pret); }
-.carta .topo, .carta .base { display: flex; flex-direction: column; align-items: center; line-height: 1; position: absolute; left: 5px; }
-.carta .topo { top: 4px; } .carta .base { bottom: 4px; transform: rotate(180deg); }
-.carta .valor { font-size: 24px; } .carta .np { font-size: 19px; }
-.carta .centro { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 52px; }
-.badge { position: absolute; top: 3px; right: 5px; font-size: 20px; font-weight: 900; font-family: 'Segoe UI', sans-serif; }
-.carta.valida { border-color: var(--ouro); }
-.carta.valida:hover, .carta.valida:focus-visible { transform: translateY(-28px); z-index: 10; box-shadow: 0 0 18px var(--ouro); }
-.carta.bloqueada { opacity: .5; filter: grayscale(.4); }
-.carta.jogada { cursor: default; margin: 0; --cw: var(--tw); }
-.posicao-carta .carta { width: var(--tw); height: var(--th); margin: 0; cursor: default; padding: 3px; }
-.posicao-carta .carta .centro { font-size: 34px; } .posicao-carta .carta .valor { font-size: 17px; } .posicao-carta .carta .np { font-size: 14px; } .posicao-carta .badge { font-size: 14px; }
-.carta-lider { border: 3px solid #ff0000 !important; box-shadow: 0 0 15px #ff0000 !important; }
-.carta-vencedora { animation: vence .5s ease 2; }
-@keyframes vence { 50% { transform: scale(1.15); box-shadow: 0 0 25px var(--ouro); } }
+.carta .topo, .carta .base { display: flex; flex-direction: column; align-items: center; line-height: 1; position: absolute; pointer-events: none; }
+.carta .topo { left: calc(var(--w) * .06); }
+.carta .base { right: calc(var(--w) * .06); }
+.carta .topo { top: calc(var(--w) * .05); }
+.carta .base { bottom: calc(var(--w) * .05); transform: rotate(180deg); }
+.carta .valor { font-size: calc(var(--w) * .29); }
+.carta .np { font-size: calc(var(--w) * .23); }
+.carta .centro { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: calc(var(--w) * .62); pointer-events: none; }
+.badge { position: absolute; top: calc(var(--w) * .04); right: calc(var(--w) * .06); font-size: calc(var(--w) * .24); font-weight: 900; font-family: 'Segoe UI', sans-serif; pointer-events: none; }
 
-/* EFEITO Q♠ (só aparece quando a Q♠ é jogada) */
-#efeitoQ { position: absolute; bottom: calc(var(--ch) + 50px); right: 14px; width: 190px; height: 250px; object-fit: cover; border-radius: 14px; border: 4px solid #fff; box-shadow: 0 0 30px #000; z-index: 999; animation: popIn .35s ease; }
+/* Cartas na mão: mostram só a parte de cima; a selecionada sobe inteira */
+#maoJogador .carta {
+    transform: translateY(var(--desce));
+    margin-left: calc(-1 * var(--ov, 0px));
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+#maoJogador .carta:first-child { margin-left: 0; }
+@media (hover: hover) {
+    #maoJogador:not(.mao-pontos-finais) .carta:not(.selecionada):not(.verso):hover { transform: translateY(calc(var(--desce) - 10px)); }
+}
+#maoJogador .carta.selecionada {
+    transform: translateY(calc(var(--ch) * -.06));
+    z-index: 25;
+    border-color: var(--ouro);
+    box-shadow: 0 -4px 22px rgba(0,0,0,.65), 0 0 16px var(--ouro);
+}
+#maoJogador .carta.arrastando { opacity: .65; z-index: 26; }
+
+/* Fim da rodada: a mão mostra as cartas de pontos que você pegou (menores, sobrepostas) */
+#maoJogador.mao-pontos-finais { align-items: center; }
+#maoJogador.mao-pontos-finais .carta { --w: calc(var(--tw) * .75); transform: none; cursor: default; }
+
+/* Cartas jogadas na mesa */
+.posicao-carta .carta { --w: var(--tw); cursor: default; }
+.carta-lider { border: 3px solid #ff0000 !important; box-shadow: 0 0 15px #ff0000 !important; }
+.carta-vencedora { animation: vence .5s ease 2; z-index: 2; }
+@keyframes vence { 50% { transform: scale(1.12); box-shadow: 0 0 25px var(--ouro); } }
+
+/* Cartas viradas (durante a distribuição) */
+.carta.verso {
+    background: repeating-linear-gradient(45deg, #173b79 0 5px, #f4f4f4 5px 7px, #173b79 7px 12px);
+    border: 3px solid #fff;
+    box-shadow: -3px 5px 10px rgba(0,0,0,.5), inset 0 0 0 3px #173b79;
+    cursor: default;
+}
+.carta.verso::after {
+    content: "♥  ♠"; position: absolute; inset: 0; display: grid; place-items: center;
+    color: #fff; font-size: calc(var(--w) * .2); text-shadow: 1px 2px 3px #000;
+}
+
+/* EFEITO Q♠ (não bloqueia toque, fica acima da mão, no canto) */
+#efeitoQ {
+    --qw: clamp(84px, 20vmin, 190px);
+    position: absolute;
+    right: max(8px, env(safe-area-inset-right, 0px));
+    bottom: calc(var(--mao-h) + var(--safe-b) + 10px);
+    width: var(--qw); height: calc(var(--qw) * 1.316);
+    object-fit: cover; border-radius: 14px; border: 4px solid #fff;
+    box-shadow: 0 0 30px #000; z-index: 999; pointer-events: none;
+    animation: popIn .35s ease;
+}
 @keyframes popIn { from { transform: scale(0) rotate(-10deg); } to { transform: scale(1); } }
 
 /* MODAIS */
-#modal, #modalRanking { position: absolute; inset: 0; background: rgba(0,0,0,.38); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 10px; }
+#modal, #modalRanking { position: absolute; inset: 0; background: rgba(0,0,0,.5); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 10px; }
 #modalRanking { z-index: 600; background: rgba(0,0,0,.62); }
-.modal-box { background: #1e1e1e; border: 2px solid var(--ok); border-radius: 14px; padding: 22px; width: min(460px, 96vw); max-height: 94vh; overflow: auto; text-align: center; }
+.modal-box { background: #1e1e1e; border: 2px solid var(--ok); border-radius: 14px; padding: clamp(12px, 3vw, 22px); width: min(460px, 96vw); max-height: 94vh; max-height: 94dvh; overflow: auto; text-align: center; }
 .modal-box h2 { color: var(--ouro); margin-bottom: 12px; }
 .modal-box h3 { color: #fff; margin: 12px 0 4px; font-size: 16px; }
 .modal-box table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 15px; }
@@ -114,78 +302,18 @@ button { font-family: inherit; }
 .modal-box tr.eu td:first-child { color: var(--ouro); }
 .modal-box p { margin-bottom: 8px; }
 
-@media (max-width: 768px) {
-    :root { --cw: 62px; --ch: 90px; --tw: 48px; --th: 70px; }
-    .carta .valor { font-size: 18px; } .carta .np { font-size: 14px; } .carta .centro { font-size: 36px; } .badge { font-size: 14px; }
-    .posicao-carta .carta .centro { font-size: 26px; } .posicao-carta .carta .valor { font-size: 14px; } .posicao-carta .carta .np { font-size: 11px; }
-    #areaCentral { width: 150px; height: 160px; }
-    .oponente { min-width: 88px; padding: 4px 6px; font-size: 11px; }
-    #j2 { top: 100px; } #j1, #j3 { top: 46%; }
-    #vol { width: 50px; } #radioNome { max-width: 90px; }
-    #efeitoQ { width: 130px; height: 170px; }
-}
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
-/* Cartas distribuídas e reveladas */
-.carta.verso {
-    background: repeating-linear-gradient(45deg, #173b79 0 5px, #f4f4f4 5px 7px, #173b79 7px 12px);
-    border: 3px solid #fff;
-    box-shadow: -3px 5px 10px rgba(0,0,0,.5), inset 0 0 0 3px #173b79;
-    cursor: default;
-}
-.carta.verso::after {
-    content: "♥  ♠";
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: #fff;
-    font-size: 17px;
-    text-shadow: 1px 2px 3px #000;
-}
-.cartas-verso { display: flex; justify-content: center; gap: 2px; margin-top: 4px; height: 13px; }
-.cartas-verso i { display: block; width: 7px; height: 11px; border: 1px solid #fff; border-radius: 2px; background: repeating-linear-gradient(45deg,#173b79 0 2px,#fff 2px 3px); }
-.ranking { color: var(--ouro); font-size: 10px; margin-left: 4px; }
-.pegou { display: flex; justify-content: center; align-items: center; gap: 12px; min-height: 22px; }
-.pt-cop, .pt-q { display: inline-block; padding: 1px 5px; border-radius: 5px; background: rgba(255,255,255,.12); }
-.posicao-carta { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 3px; max-width: 190px; }
-.posicao-carta .carta-ponto-final { width: 30px; height: 43px; padding: 2px; border-width: 1px; border-radius: 4px; box-shadow: 0 2px 4px #0008; }
-.posicao-carta .carta-ponto-final .topo { left: 2px; top: 2px; }
-.posicao-carta .carta-ponto-final .base { right: 2px; bottom: 2px; }
-.posicao-carta .carta-ponto-final .valor { font-size: 9px; }
-.posicao-carta .carta-ponto-final .np { font-size: 8px; }
-.posicao-carta .carta-ponto-final .centro { font-size: 17px; }
-.posicao-carta .carta-ponto-final .badge { top: 1px; right: 2px; font-size: 8px; }
 .legenda-pontos { color: #bbb; font-size: 12px; }
 #camuflagem { position: fixed; inset: 0; z-index: 999999; background: #000; display: none; pointer-events: none; }
 #camuflagem.ativa { display: block; }
 
-/* No encerramento, as cartas pontuadas ficam na área da mão de cada participante. */
-#maoJogador.mao-pontos-finais { justify-content: center; align-items: flex-end; flex-wrap: wrap; gap: 5px; height: auto; min-height: calc(var(--ch) + 30px); }
-#maoJogador .carta-ponto-final, .pontos-mao-final .carta-ponto-final { width: 43px; height: 62px; margin: 0; padding: 3px; border-width: 1px; border-radius: 5px; }
-#maoJogador .carta-ponto-final .topo, .pontos-mao-final .carta-ponto-final .topo { left: 3px; top: 3px; }
-#maoJogador .carta-ponto-final .base, .pontos-mao-final .carta-ponto-final .base { right: 3px; bottom: 3px; }
-#maoJogador .carta-ponto-final .valor, .pontos-mao-final .carta-ponto-final .valor { font-size: 12px; }
-#maoJogador .carta-ponto-final .np, .pontos-mao-final .carta-ponto-final .np { font-size: 10px; }
-#maoJogador .carta-ponto-final .centro, .pontos-mao-final .carta-ponto-final .centro { font-size: 23px; }
-#maoJogador .carta-ponto-final .badge, .pontos-mao-final .carta-ponto-final .badge { font-size: 10px; }
-.pontos-mao-final { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 210px; margin: 5px auto 0; }
-
-/* Ajustes de interface: volume preciso e painel do jogador antes da mão. */
+/* Controle de volume */
 #controleVolume { display: flex; align-items: center; gap: 5px; }
 #controleVolume button { width: 25px; height: 28px; border: 1px solid #777; border-radius: 5px; background: #263b29; color: #fff; font-size: 20px; line-height: 1; font-weight: 700; cursor: pointer; touch-action: none; user-select: none; }
 #controleVolume button:hover { background: #356d3b; }
 #controleVolume output { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; color: #fff; }
 #vol { display: none; }
-#j0 { bottom: 24px; left: 8px; }
-@media (max-width: 768px) {
-    #controleVolume { gap: 3px; }
-    #controleVolume button { width: 23px; height: 26px; }
-    #controleVolume output { min-width: 24px; font-size: 12px; }
-    #j0 { bottom: 12px; }
-}
 
-/* Sticker exibido quando o jogador humano termina a rodada com a menor pontuação. */
 .sticker-menor-pontuacao {
     display: block;
     width: min(180px, 48vw);
@@ -196,65 +324,11 @@ button { font-family: inherit; }
     border-radius: 12px;
 }
 
-
 /* Seleção de personagens */
-#telaLogin { overflow-y: auto; align-items: flex-start; padding: 24px 12px; }
-.selecao-box {
-    width: min(1000px, 96vw); margin: auto; padding: 24px;
-    background: linear-gradient(145deg, #202820, #111); border: 2px solid #c5a34a;
-    border-radius: 18px; box-shadow: 0 16px 50px #000b; text-align: center;
-}
-.selecao-box h1 { color: #ffd54f; margin-bottom: 8px; }
-.selecao-box .sub { color: #ddd; margin-bottom: 18px; }
-.grade-personagens {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
-    gap: 12px; max-height: min(56vh, 560px); overflow-y: auto; padding: 6px;
-}
-.personagem-card {
-    min-width: 0; padding: 8px; border: 2px solid #555; border-radius: 12px;
-    background: #292929; color: #fff; cursor: pointer; transition: .18s;
-    display: flex; flex-direction: column; align-items: center; gap: 7px;
-}
-.personagem-card:hover { border-color: #ffd54f; transform: translateY(-3px); }
-.personagem-card.escolhido { border-color: #4caf50; background: #173c20; box-shadow: 0 0 15px #4caf5080; }
-.personagem-card img { width: 100%; height: 112px; object-fit: cover; border-radius: 8px; background: #444; }
-.personagem-card strong { font-size: 14px; }
-.escolha-status { margin: 14px 0; color: #ffd54f; }
-.regra-selecao { margin-top: 12px; font-size: 12px; color: #bbb; }
-#btnComecar:disabled { opacity: .4; cursor: not-allowed; }
-.avatar-jogador {
-    display: block; width: 72px; height: 72px; object-fit: cover;
-    border-radius: 9px; border: 2px solid #d5b65b; margin: 0 auto 5px;
-    background: #444; box-shadow: 0 2px 8px #0009;
-}
-.oponente { min-width: 118px; }
-@media (max-width: 768px) {
-    .selecao-box { padding: 14px 9px; }
-    .grade-personagens { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
-    .personagem-card { padding: 5px; }
-    .personagem-card img { height: 88px; }
-    .personagem-card strong { font-size: 12px; }
-    .avatar-jogador { width: 54px; height: 54px; }
-    .oponente { min-width: 92px; }
-}
-
-
-/* ===== REVISÃO DE INTERFACE: seleção estilo jogo de luta ===== */
-html, body { min-height: 100%; }
-#telaLogin {
-    overflow: auto;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
-    scrollbar-width: none;
-}
-#telaLogin::-webkit-scrollbar,
-.grade-personagens::-webkit-scrollbar,
-.modal-box::-webkit-scrollbar,
-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+#telaLogin { overflow-y: auto; align-items: center; justify-content: center; padding: 12px; z-index: 100; position: absolute; inset: 0; }
 .selecao-box {
     width: min(1120px, 98vw);
-    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
     overflow: auto;
     padding: clamp(12px, 2vh, 22px);
     border: 2px solid #c8a64b;
@@ -263,6 +337,7 @@ body::-webkit-scrollbar { width: 0; height: 0; display: none; }
       linear-gradient(135deg, rgba(255,255,255,.06), transparent 35%),
       radial-gradient(ellipse at 50% 0%, #344638 0%, #151b17 62%, #090d0b 100%);
     box-shadow: 0 0 0 4px #111, 0 14px 45px #000d, inset 0 0 24px #0009;
+    text-align: center;
 }
 .selecao-box h1 {
     margin: 0 0 4px;
@@ -275,12 +350,9 @@ body::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .selecao-box .sub { margin: 0 0 12px; color: #d7d7c8; font-size: 13px; }
 .grade-personagens {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    grid-auto-rows: minmax(0, 1fr);
-    gap: 8px;
-    max-height: none;
-    overflow: visible;
-    padding: 8px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    padding: 10px;
     border: 1px solid #7d6938;
     border-radius: 8px;
     background: #080b0ad9;
@@ -289,26 +361,19 @@ body::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .personagem-card {
     position: relative;
     min-height: 0;
-    padding: 5px;
-    gap: 4px;
+    padding: 7px;
+    gap: 6px;
     border: 2px solid #4b514b;
     border-radius: 5px;
     background: linear-gradient(145deg, #353b35, #151916);
     box-shadow: 0 3px 7px #000a, inset 0 0 0 1px #ffffff0b;
     overflow: hidden;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
-.personagem-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border: 1px solid #ffffff12;
-    pointer-events: none;
-}
-.personagem-card:hover {
-    border-color: #e7c45c;
-    transform: translateY(-2px);
-    box-shadow: 0 0 14px #e7c45c55, 0 4px 8px #000;
-}
+.personagem-card:hover { border-color: #e7c45c; transform: translateY(-2px); }
 .personagem-card.escolhido {
     border-color: #ffe27a;
     background: linear-gradient(145deg, #64501e, #25200f);
@@ -316,150 +381,74 @@ body::-webkit-scrollbar { width: 0; height: 0; display: none; }
 }
 .personagem-card img {
     width: 100%;
-    height: clamp(72px, 15vh, 132px);
-    object-fit: cover;
-    object-position: center 25%;
-    border: 1px solid #8b8b78;
+    height: clamp(60px, 11vh, 100px);
+    object-fit: contain;
+    background: linear-gradient(145deg, #485248, #111712);
     border-radius: 3px;
-    background: linear-gradient(135deg, #51594e, #171b18);
 }
 .personagem-card strong {
     width: 100%;
     padding: 3px 2px;
     color: #f5e9c5;
     background: #0008;
-    font-size: clamp(10px, 1.1vw, 13px);
+    font-size: 13px;
     text-transform: uppercase;
-    letter-spacing: .3px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.escolha-status { margin: 8px 0 !important; font-size: 13px; }
-#btnComecar { width: min(340px, 100%); padding: 11px 18px; border: 1px solid #f3d36c; border-radius: 5px; text-transform: uppercase; letter-spacing: 1px; background: linear-gradient(#98762a, #594316); }
+.escolha-status { margin: 8px 0 !important; font-size: 13px; color: #ffd54f; }
+#btnComecar { margin: 8px auto 0; width: min(340px, 100%); padding: 11px 18px; border: 1px solid #f3d36c; border-radius: 5px; text-transform: uppercase; letter-spacing: 1px; background: linear-gradient(#98762a, #594316); }
+#btnComecar:disabled { opacity: .4; cursor: not-allowed; }
 #btnComecar:not(:disabled):hover { background: linear-gradient(#c49b37, #76591b); }
-.regra-selecao { margin-top: 7px; font-size: 11px; }
+.regra-selecao { margin-top: 7px; font-size: 11px; color: #bbb; }
 
-/* ===== Responsividade: não cortar o jogador nem exibir a barra de rolagem ===== */
+
+.personagem-card { font: inherit; }
+
+/* Seleção: título e botão ficam sempre visíveis; só a grade de fotos rola */
+.selecao-box { display: flex; flex-direction: column; }
+.selecao-box > * { flex: none; }
+.selecao-box > .grade-personagens { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; grid-auto-rows: max-content; align-content: start; }
+.personagem-card img { object-fit: contain; object-position: center; }
+
+/* ============ AJUSTES POR TIPO DE TELA ============ */
+
+/* Telas médias e celulares */
 @media (max-width: 768px) {
-    body { overflow-x: hidden; overflow-y: auto; width: 100%; height: auto; min-height: 100dvh; }
-    #telaLogin { position: fixed; inset: 0; overflow-y: auto; align-items: flex-start; padding: 8px 6px; }
-    .selecao-box { width: 100%; max-height: none; padding: 10px 7px; margin: auto; }
-    .selecao-box h1 { font-size: 21px; }
-    .selecao-box .sub { font-size: 11px; margin-bottom: 8px; }
-    .grade-personagens {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 6px;
-        padding: 6px;
-    }
-    .personagem-card { padding: 4px; }
-    .personagem-card img { height: clamp(76px, 14vh, 112px); }
-    .personagem-card strong { font-size: 11px; }
-    .regra-selecao { font-size: 10px; }
-
-    #jogo {
-        position: relative;
-        min-height: max(760px, 100dvh);
-        height: auto;
-        overflow: visible;
-        padding-bottom: 8px;
-    }
-    #topbar { position: relative; top: auto; left: auto; right: auto; padding: 6px; gap: 5px; }
-    #radio { width: 100%; justify-content: flex-start; flex-wrap: nowrap; }
-    #radioNome { max-width: 28vw; }
-    #status { min-width: 0; flex: 1; min-height: 38px; font-size: 12px; padding: 6px 8px; }
-    #btnRanking { min-width: 40px; min-height: 38px; padding: 0 10px; font-size: 16px; }
-    #mesa {
-        position: relative;
-        inset: auto;
-        height: 590px;
-        min-height: 590px;
-        width: 100%;
-    }
-    #j2 { top: 8px; }
-    #j1 { top: 44%; left: 4px; }
-    #j3 { top: 44%; right: 4px; }
-    #j0 {
-        top: auto;
-        bottom: 104px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: min(210px, 48vw);
-        min-width: 0;
-        padding: 5px 7px;
-    }
-    #areaCentral { top: 43%; width: 142px; height: 150px; }
-    #carta-1 { left: -5px; }
-    #carta-3 { right: -5px; }
-    #maoJogador {
-        position: absolute;
-        bottom: 8px;
-        left: 50%;
-        width: 98%;
-        height: 94px;
-        transform: translateX(-50%);
-        overflow: visible;
-    }
-    #maoJogador .carta { --cw: 48px; width: 48px; height: 72px; padding: 3px; }
-    #maoJogador .carta .valor { font-size: 15px; }
-    #maoJogador .carta .np { font-size: 12px; }
-    #maoJogador .carta .centro { font-size: 29px; }
-    #maoJogador .carta .badge { font-size: 11px; right: 3px; }
-    #efeitoQ { position: fixed; top: 28%; bottom: auto; right: 5px; width: 105px; height: 138px; }
-    .oponente { min-width: 82px; max-width: 29vw; padding: 4px; font-size: 10px; }
-    .avatar-jogador { width: 43px; height: 43px; }
-    .nome { font-size: 11px; }
-    .tot, .rod { font-size: 10px; }
-    .cartas-verso { transform: scale(.8); }
-    .modal-box { max-height: 88dvh; overflow-y: auto; scrollbar-width: none; }
+    #topbar { gap: 4px; padding-bottom: 2px; }
+    #radio { width: 100%; padding: 4px 6px; }
+    #radio button { width: 30px; height: 30px; font-size: 12px; }
+    #radioNome { max-width: 42vw; font-size: 12px; }
+    #status { min-width: 0; height: 44px; font-size: 13px; padding: 4px 8px; }
+    #btnRanking { min-width: 44px; min-height: 44px; padding: 0 10px; font-size: 16px; }
+    .grade-personagens { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .personagem-card img { height: clamp(56px, 11vh, 90px); }
 }
+
+/* Celular DEITADO / telas baixas: personagens ficam "horizontais" (foto ao lado do texto) para sobrar altura */
+@media (max-height: 520px) {
+    #topbar { padding-bottom: 2px; }
+    #status { height: 44px; }
+    .oponente:not(#j0) { width: calc(var(--u) * 14); display: flex; align-items: center; gap: calc(var(--u) * .6); text-align: left; padding: calc(var(--u) * .4) calc(var(--u) * .6); }
+    .oponente:not(#j0) .avatar-jogador { margin: 0; width: max(30px, calc(var(--u) * 4)); height: max(30px, calc(var(--u) * 4)); }
+    .oponente:not(#j0) .info-jogador { flex: 1; }
+    .grade-personagens { gap: 6px; }
+    .personagem-card img { height: auto; }
+    .selecao-box .sub, .regra-selecao { display: none; }
+    .personagem-card { flex-direction: row; align-items: center; gap: 6px; padding: 4px; }
+    .personagem-card img { width: 46px; height: 46px; flex: none; border-radius: 6px; object-fit: contain; }
+    .personagem-card strong { width: auto; flex: 1; min-width: 0; font-size: 11px; text-align: left; }
+}
+
+/* Celular em pé muito estreito */
 @media (max-width: 380px) {
-    #mesa { height: 560px; min-height: 560px; }
-    #j0 { bottom: 98px; }
-    #maoJogador .carta { --cw: 43px; width: 43px; }
-    .oponente { min-width: 74px; }
-}
-@media (max-height: 700px) and (min-width: 769px) {
-    .selecao-box { padding: 10px 16px; }
-    .personagem-card img { height: 82px; }
-    .grade-personagens { gap: 5px; }
-    .selecao-box .sub { margin-bottom: 6px; }
+    .grade-personagens { gap: 4px; padding: 6px; }
+    .personagem-card strong { font-size: 11px; }
 }
 
-
-/* ===== Ajuste solicitado: retratos maiores na seleção ===== */
-@media (min-width: 769px) {
-    .selecao-box { width: min(1240px, 98vw); }
-    .grade-personagens {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 10px;
-        padding: 10px;
-    }
-    .personagem-card { padding: 7px; gap: 6px; }
-    .personagem-card img {
-        width: 100%;
-        height: clamp(130px, 19vh, 190px);
-        object-fit: contain;
-        background: linear-gradient(145deg, #485248, #111712);
-    }
-    .personagem-card strong { font-size: 14px; padding: 5px 2px; }
-}
-@media (min-width: 769px) and (max-height: 760px) {
-    .selecao-box { padding: 9px 14px; }
-    .selecao-box h1 { font-size: 23px; margin-bottom: 2px; }
-    .selecao-box .sub { margin-bottom: 6px; }
-    .grade-personagens { gap: 6px; padding: 6px; }
-    .personagem-card img { height: clamp(105px, 16vh, 130px); }
-    .escolha-status { margin: 5px 0 !important; }
-    .regra-selecao { margin-top: 4px; }
-}
-@media (max-width: 768px) {
-    .grade-personagens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .personagem-card img {
-        height: clamp(130px, 23vh, 190px);
-        object-fit: contain;
-        background: linear-gradient(145deg, #485248, #111712);
-    }
-    .personagem-card strong { font-size: 12px; padding: 5px 2px; }
-    .avatar-jogador { width: 62px; height: 62px; }
-}
+/* Seletor de estado da rádio */
+#selEstado, #selGenero { background: #111; color: #ffd54f; border: 1px solid #666; border-radius: 6px; height: 30px; padding: 0 4px; font-weight: bold; font-size: 12px; }
+#selRadio { background: #111; color: #fff; border: 1px solid #666; border-radius: 6px; height: 30px; padding: 0 4px; font-size: 12px; max-width: 38vw; min-width: 0; }
+#radio { flex-wrap: wrap; }
+#selGenero { max-width: 26vw; }
