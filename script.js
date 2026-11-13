@@ -144,7 +144,7 @@ function fimRodada() {
     // exibe o sticker comemorativo no resumo da rodada.
     const menorPontuacao = Math.min(...ganho);
     if (ganho[0] === menorPontuacao) {
-        h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.png" alt="Sticker comemorativo por terminar com a menor pontuação">`;
+        h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.gif" alt="Sticker comemorativo por terminar com a menor pontuação">`;
     }
     if (lua >= 0) h += `<p>🌕 <b>${G.nomes[lua]}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
     h += '<table><tr><th>Jogador</th><th>Rodada</th><th>Total</th></tr>';
