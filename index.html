@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Copas (Hearts)</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- LOGIN -->
+    <div id="telaLogin">
+        <div class="login-box">
+            <h1>♥ Jogo de Copas ♠</h1>
+            <p class="sub">Quem somar 60 pontos ou mais perde!</p>
+            <label for="inputNome" class="sr-only">Seu nome</label>
+            <input type="text" id="inputNome" placeholder="Digite seu nome" maxlength="14" autocomplete="off">
+            <button id="btnEntrar" class="btn-modo"><i class="fas fa-robot"></i> Jogar contra a máquina</button>
+        </div>
+    </div>
+
+    <!-- JOGO -->
+    <div id="jogo" class="escondido">
+        <div id="topbar">
+            <div id="radio">
+                <button id="btnRadio" aria-label="Tocar rádio"><i class="fas fa-play"></i></button>
+                <button id="btnProx" aria-label="Próxima rádio"><i class="fas fa-forward"></i></button>
+                <input type="range" id="vol" min="0" max="1" step="0.05" value="0.6" aria-label="Volume">
+                <span id="radioNome">Rádio desligada</span>
+            </div>
+            <div id="status" role="status" aria-live="polite"></div>
+        </div>
+
+        <div id="mesa">
+            <div id="j2" class="oponente"></div>
+            <div id="j1" class="oponente"></div>
+            <div id="j3" class="oponente"></div>
+            <div id="areaCentral">
+                <div id="carta-2" class="posicao-carta"></div>
+                <div id="carta-1" class="posicao-carta"></div>
+                <div id="carta-3" class="posicao-carta"></div>
+                <div id="carta-0" class="posicao-carta"></div>
+            </div>
+            <div id="j0" class="oponente"></div>
+        </div>
+
+        <div id="maoJogador" aria-label="Sua mão"></div>
+
+        <!-- Aparece SOMENTE quando a Q♠ é jogada -->
+        <img id="efeitoQ" class="escondido" src="qspades.png" alt="Rainha de Espadas na mesa!">
+
+        <div id="modal" class="escondido"><div class="modal-box" id="modalBox"></div></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
