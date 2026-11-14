@@ -133,6 +133,30 @@ const PERSONAGENS = [
     'Big Z','Samuel','Raphael','Metello','Dezinho','Xandão','Gordo','Ronaldo'
 ].map((nome, i) => ({ id: i + 1, nome, foto: `fotos/${i + 1}.png`, total: 0, pontosRank: 0 }));
 
+// Rank geral: persiste entre partidas (só zera no botão de resetar do troféu)
+try {
+    const salvo = JSON.parse(localStorage.getItem('copasRankGeral') || '{}');
+    PERSONAGENS.forEach(p => { if (typeof salvo[p.id] === 'number') p.pontosRank = salvo[p.id]; });
+} catch (e) {}
+function salvarRankGeral() {
+    try {
+        const o = {}; PERSONAGENS.forEach(p => { o[p.id] = p.pontosRank; });
+        localStorage.setItem('copasRankGeral', JSON.stringify(o));
+    } catch (e) {}
+}
+// Posição (1º, 2º…) com empates: quem empata divide a mesma posição.
+// modo 'geral': empatados ficam na pior posição do grupo (todos começam em último);
+// modo 'partida': empatados ficam na melhor posição do grupo.
+function posicoes(lista, chave, modo) {
+    const ord = [...lista].sort((a, b) => chave(a) - chave(b));
+    const mapa = new Map();
+    ord.forEach((p, i) => {
+        const iguais = ord.map((q, j) => chave(q) === chave(p) ? j : -1).filter(j => j >= 0);
+        mapa.set(p, (modo === 'geral' ? Math.max(...iguais) : Math.min(...iguais)) + 1);
+    });
+    return mapa;
+}
+
 let jogadorHumano = null;
 let filaMaquinas = [];
 let maquinasEliminadas = [];
@@ -164,7 +188,7 @@ function iniciarPartida() {
     if (!jogadorHumano) return;
     ultimoCliqueCarta = { id: null, tempo: 0 };
     cartaSelecionadaId = null;
-    PERSONAGENS.forEach(p => { p.total = 0; p.pontosRank = 0; });
+    PERSONAGENS.forEach(p => { p.total = 0; });
     const disponiveis = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id).slice());
     const bots = disponiveis.splice(0, 3);
     filaMaquinas = disponiveis;
@@ -175,13 +199,14 @@ function iniciarPartida() {
     $('jogo').classList.remove('escondido');
     pararIntro();
     ajustarEscala();
+    selecionarRadioInicial();
     G = {
         nomes: participantes.map(p => p.nome),
         personagens: participantes,
         totais: participantes.map(p => p.total),
         rodada: 0,
         fila: filaMaquinas,
-        rankingGeral: PERSONAGENS,
+        participantes: new Set(participantes),
         luaConquistada: false,
         renunciaConquistada: false,
         nivel: nivelIA,
@@ -583,48 +608,21 @@ function fimRodada() {
         };
     });
 
-    const classificacaoMesa = [...jogadoresMesaRodada].sort((a, b) =>
-        a.ganhoRodada - b.ganhoRodada || a.totalPartida - b.totalPartida
-    );
-
-    classificacaoMesa.forEach((item, idx) => {
-        let posEfetiva = idx;
-        while (
-            posEfetiva > 0 &&
-            classificacaoMesa[posEfetiva - 1].ganhoRodada === item.ganhoRodada
-        ) {
-            posEfetiva--;
-        }
-        // Menos pontos na rodada é melhor: 0, 1, 2 e 4 pontos.
-        const pontuacaoPorPosicao = [0, 1, 2, 4];
-        const ptsRankGanho = pontuacaoPorPosicao[Math.min(posEfetiva, 3)];
-        item.ptsRankGanho = ptsRankGanho;
-        item.personagem.pontosRank += ptsRankGanho;
-    });
-
     const eliminadosAgora = [];
     for (let i = 1; i < 4; i++) {
         if (G.personagens[i].total >= LIMITE) eliminadosAgora.push({ indice: i, nome: G.personagens[i].nome });
     }
-    let entrouIntegranteNovo = false;
     eliminadosAgora.forEach(({ indice: i }) => {
         const saiu = G.personagens[i];
         maquinasEliminadas.push(saiu);
         const proxima = G.fila.shift();
         if (proxima) {
             G.personagens[i] = proxima;
+            G.participantes.add(proxima);
             G.nomes[i] = proxima.nome;
             G.totais[i] = proxima.total;
-            entrouIntegranteNovo = true;
         }
     });
-
-    // Quando alguém sai e uma nova máquina assume a vaga, os pontos do
-    // placar da mesa recomeçam para os quatro participantes atuais.
-    if (entrouIntegranteNovo) {
-        G.personagens.forEach(p => { p.pontosRank = 0; });
-        jogadoresMesaRodada.forEach(item => { item.ptsRankGanho = 0; });
-    }
 
     if (lua >= 0) G.luaConquistada = true;
     if (ganho[0] === 0) ESTAT.zeros++;
@@ -641,32 +639,47 @@ function fimRodada() {
     else if (lua >= 0) h += `<p>🌕 <b>${jogadoresMesaRodada[lua].nome}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
     if (eliminadosAgora.length) h += `<p>🚪 Saíram da mesa: ${eliminadosAgora.map(p => p.nome).join(', ')}. ${G.fila.length ? 'Novas máquinas entram na próxima rodada.' : 'Não há mais reservas.'}</p>`;
 
-    h += '<h3>Classificação da Mesa</h3><table><tr><th>#</th><th>Jogador</th><th>Total</th><th>Rank Geral</th><th>Situação</th></tr>';
-    classificacaoMesa.forEach((item, pos) => {
-        const p = item.personagem;
+    // Classificação da PARTIDA: quem tem menos pontos fica em primeiro.
+    const ganhoDe = new Map(jogadoresMesaRodada.map(item => [item.personagem, item.ganhoRodada]));
+    const linhas = (fim ? [...G.participantes] : jogadoresMesaRodada.map(item => item.personagem))
+        .map(p => ({ personagem: p, nome: p.nome, ganho: ganhoDe.get(p) || 0, total: p.total }))
+        .sort((x, y) => x.total - y.total || x.ganho - y.ganho);
+    const posPartida = posicoes(linhas, l => l.total, 'partida');
+
+    h += fim ? '<h3>Classificação final da partida</h3>' : '<h3>Classificação da partida</h3>';
+    h += '<table><tr><th>#</th><th>Jogador</th><th>Total</th><th>Rodada</th><th>Situação</th></tr>';
+    linhas.forEach(l => {
+        const p = l.personagem;
         const ehEu = p.id === jogadorHumano.id;
         const situacao = ehEu ? 'Você' : (p.total >= LIMITE ? 'Eliminado' : 'Na mesa');
         h += `<tr class="${p.total >= LIMITE ? 'perdeu ' : ''}${ehEu ? 'eu' : ''}">
-            <td>${pos + 1}º</td>
+            <td>${posPartida.get(l)}º</td>
             <td>${p.nome}</td>
-            <td>${item.totalPartida}</td>
-            <td><b>+${item.ptsRankGanho}</b> (${p.pontosRank})</td>
+            <td><b>${l.total}</b></td>
+            <td>+${l.ganho}</td>
             <td>${situacao}</td>
         </tr>`;
     });
-    h += '</table><p class="legenda-pontos">Pontuação da rodada: ' + jogadoresMesaRodada.map(item => `${item.nome} +${item.ganhoRodada}`).join(' · ') + '</p>';
+    h += '</table>';
 
     if (fim) {
+        const menor = linhas[0].total;
+        const vencedores = linhas.filter(l => l.total === menor);
         h += `<p>${G.personagens[0].total >= LIMITE ? 'Você atingiu 60 pontos ou mais. Fim de jogo!' : 'Todas as máquinas foram eliminadas.'}</p>`;
-        const rankingFinal = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total);
+        h += `<p class="vencedor">🏆 <b>${vencedores.length > 1 ? 'Vencedores' : 'Vencedor'}: ${vencedores.map(l => l.nome + (l.personagem.id === jogadorHumano.id ? ' (Você)' : '')).join(' e ')}</b> com ${menor} ponto${menor === 1 ? '' : 's'}.</p>`;
         ESTAT.partidas++;
-        if (rankingFinal[0].id === jogadorHumano.id) ESTAT.vitorias++;
-        h += '<h3>🏆 Ranking Geral Final</h3><table><tr><th>#</th><th>Jogador</th><th>Pts Rank</th><th>Pts Mesa</th></tr>';
-        rankingFinal.forEach((p, pos) => {
-            const ehEu = p.id === jogadorHumano.id;
-            h += `<tr class="${ehEu ? 'eu' : ''}"><td>${pos + 1}º</td><td>${p.nome}${ehEu ? ' (Você)' : ''}</td><td><b>${p.pontosRank}</b></td><td>${p.total}</td></tr>`;
+        if (vencedores.some(l => l.personagem.id === jogadorHumano.id)) ESTAT.vitorias++;
+
+        // Rank geral (só aparece ao tocar no troféu):
+        // 1º lugar -1 · lugares do meio +1 · último lugar +2
+        const ultimo = linhas[linhas.length - 1].total;
+        linhas.forEach(l => {
+            let delta = 1;
+            if (l.total === menor) delta = -1;
+            else if (l.total === ultimo) delta = 2;
+            l.personagem.pontosRank += delta;
         });
-        h += '</table>';
+        salvarRankGeral();
     }
 
     salvarEstat();
@@ -693,30 +706,27 @@ function fimRodada() {
 // ================= MODAL DO RANKING GERAL =================
 function abrirRankingGeral() {
     if (!G) return;
-    const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total);
+    const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.nome.localeCompare(b.nome));
+    const posGeral = posicoes(PERSONAGENS, p => p.pontosRank, 'geral');
     let h = '<h2>🏆 Ranking Geral</h2>';
-    h += '<p class="legenda-pontos" style="margin-bottom:10px;">Pontos por rodada: menor pontuação (0) · 2º (1) · 3º (2) · maior pontuação (4)</p>';
+    h += '<p class="legenda-pontos" style="margin-bottom:10px;">Por partida: 1º lugar −1 · 2º e 3º +1 · último +2. Menos pontos = melhor posição.</p>';
     if (G.luaConquistada) {
         h += '<img class="sticker-lua-26" src="26.gif" alt="Lua: 26 pontos para os outros jogadores">';
     }
     if (G.renunciaConquistada) {
         h += '<img class="sticker-renuncia" src="renu.png" alt="Renúncia na partida">';
     }
-    h += '<table><tr><th>#</th><th>Jogador</th><th>Rank</th><th>Mesa</th><th>Situação</th></tr>';
-    ranking.forEach((p, pos) => {
-        const ativo = G.personagens.includes(p);
+    h += '<table><tr><th>#</th><th>Jogador</th><th>Pontos</th></tr>';
+    ranking.forEach(p => {
         const ehEu = jogadorHumano && p.id === jogadorHumano.id;
-        const situacao = ehEu ? 'Você' : (ativo ? 'Na mesa' : (p.total >= LIMITE ? 'Eliminado' : 'Reserva'));
-        h += `<tr class="${p.total >= LIMITE ? 'perdeu ' : ''}${ehEu ? 'eu' : ''}">
-            <td>${pos + 1}º</td>
-            <td>${p.nome}</td>
+        h += `<tr class="${ehEu ? 'eu' : ''}">
+            <td>${posGeral.get(p)}º</td>
+            <td>${p.nome}${ehEu ? ' (Você)' : ''}</td>
             <td><b>${p.pontosRank}</b></td>
-            <td>${p.total}</td>
-            <td>${situacao}</td>
         </tr>`;
     });
     h += '</table>';
-    h += `<p class="legenda-pontos" style="margin-bottom:12px;">Dificuldade: <b>${NOMES_NIVEL[G.nivel] || 'Normal'}</b><br>Seu histórico: ${ESTAT.partidas} partida(s) · ${ESTAT.vitorias} vitória(s) · ${ESTAT.zeros} rodada(s) sem pontos · ${ESTAT.luas} Lua(s)</p>`;
+    h += `<p class="legenda-pontos" style="margin-bottom:12px;">Seu histórico: ${ESTAT.partidas} partida(s) · ${ESTAT.vitorias} vitória(s) · ${ESTAT.zeros} rodada(s) sem pontos · ${ESTAT.luas} Lua(s)</p>`;
     h += '<button type="button" class="btn-modo" id="btnResetarPlacar" style="margin-bottom:8px;">Resetar placar geral e reiniciar jogo</button>';
     h += '<button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
     $('modalRankingBox').innerHTML = h;
@@ -736,6 +746,7 @@ function resetarPlacarGeral() {
         p.total = 0;
         p.pontosRank = 0;
     });
+    salvarRankGeral();
     maquinasEliminadas = [];
     filaMaquinas = [];
     G = null;
@@ -1366,7 +1377,7 @@ function render(piscar) {
     for (let i = 0; i < 4; i++) {
         const box = $(`j${i}`);
         box.classList.toggle('turno-ativo', i === G.turno && !G.ocupado && !G.distribuindo);
-        const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total).findIndex(p => p.id === G.personagens[i].id) + 1;
+        const ranking = posicoes(G.personagens, p => p.total, 'partida').get(G.personagens[i]);
         box.innerHTML = `<img class="avatar-jogador" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
             <div class="info-jogador">
                 <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small></span>
@@ -1428,13 +1439,13 @@ const GENEROS = { pagode: 'Pagode', samba: 'Samba', sertanejo: 'Sertanejo', funk
 // Ex.: { nome: 'Minha rádio', url: 'https://servidor.com/stream', gen: 'pagode' }
 const RADIOS_EXTRAS = [
 ];
-// ⭐ Rádio que sempre abre primeiro nos gêneros pagode/samba
-const PREFERIDA = /gera[cç][aã]o samba/i;
+// ⭐ Rádio (Souto Pagode) que sempre vem selecionada ao iniciar o jogo
+const PREFERIDA = /souto\s*pagode/i;
 function fixarPref(lista, gen) {
     if (gen !== 'pagode' && gen !== 'samba') return lista;
     let pref = lista.find(e => PREFERIDA.test(e.nome));
-    if (!pref) { try { pref = JSON.parse(localStorage.getItem('radioPref') || 'null'); } catch (e) {} if (!pref) return lista; }
-    else try { localStorage.setItem('radioPref', JSON.stringify(pref)); } catch (e) {}
+    if (!pref) { try { pref = JSON.parse(localStorage.getItem('radioPrefSouto') || 'null'); } catch (e) {} if (!pref) return lista; }
+    else try { localStorage.setItem('radioPrefSouto', JSON.stringify(pref)); } catch (e) {}
     return [pref, ...lista.filter(e => e.url !== pref.url)];
 }
 let generoRadio = 'pagode';   // abre em Pagode, sem filtro de estado
@@ -1455,7 +1466,8 @@ function preencherLista() {
     const s = $('selRadio'); if (!s) return;
     s.innerHTML = R.est.length ? '<option value="" disabled selected>Escolher rádio…</option>' + R.est.map((e, i) => `<option value="${i}">${e.ok ? '' : '⚪ '}${e.nome.replace(/</g, '&lt;')}</option>`).join('')
         : '<option value="" disabled selected>Carregando rádios…</option>';
-    if (R.on && R.i >= 0) s.value = R.i;
+    const ix = R.lastUrl ? R.est.findIndex(e => e.url === R.lastUrl) : -1;
+    if (ix >= 0) s.value = ix;
 }
 function acharEstacoes(gen = generoRadio) {
     const k = gen, atual = () => gen === generoRadio;
@@ -1467,7 +1479,7 @@ function acharEstacoes(gen = generoRadio) {
         const rs = await Promise.allSettled([
             buscaRB(`${tag}&limit=100`),
             buscaRB(`name=${encodeURIComponent(gen)}&limit=60`),
-            ...(gen === 'pagode' || gen === 'samba' ? [buscaRB('name=' + encodeURIComponent('Geração Samba') + '&limit=20'), buscaRB('name=' + encodeURIComponent('Geracao Samba') + '&limit=20')] : [])
+            ...(gen === 'pagode' || gen === 'samba' ? [buscaRB('name=' + encodeURIComponent('Souto Pagode') + '&limit=20'), buscaRB('name=' + encodeURIComponent('Studio Souto') + '&limit=20')] : [])
         ]);
         const vistos = new Set(), lista = [];
         rs.forEach(x => (x.value || []).forEach(s => {
@@ -1485,10 +1497,15 @@ function acharEstacoes(gen = generoRadio) {
 $('selGenero').innerHTML = Object.entries(GENEROS).map(([k, v]) => `<option value="${k}"${k === generoRadio ? ' selected' : ''}>${v}</option>`).join('');
 acharEstacoes();   // já busca ao abrir o jogo, para o play ser imediato
 async function ligarRadio() {
-    R.on = true; R.tent = 0; R.i = -1; R.dir = 1; marcarBotao(); setR('Procurando rádio…');
+    R.on = true; R.tent = 0; R.dir = 1; marcarBotao(); setR('Procurando rádio…');
     if (!R.est.length) await acharEstacoes();
-    if (R.est[0] && PREFERIDA.test(R.est[0].nome)) bloq.delete(R.est[0].url);
-    if (R.on) tentarEstacao();
+    // Retoma da rádio em que estávamos (ou da Souto Pagode, se for a primeira vez)
+    let ix = R.lastUrl ? R.est.findIndex(e => e.url === R.lastUrl) : -1;
+    if (ix < 0) ix = R.est.findIndex(e => PREFERIDA.test(e.nome));
+    if (ix >= 0 && PREFERIDA.test(R.est[ix].nome)) bloq.delete(R.est[ix].url);
+    if (ix >= 0) bloq.delete(R.est[ix].url);
+    R.i = ix >= 0 ? ix - 1 : -1;
+    if (R.on) tentarEstacao(1);
 }
 function tentarEstacao(dir) {
     if (dir === 1 || dir === -1) R.dir = dir; else if (!R.dir) R.dir = 1;
@@ -1497,6 +1514,7 @@ function tentarEstacao(dir) {
     let g = 0; do { R.i = (R.i + R.dir + R.est.length) % R.est.length; g++; } while (bloq.has(R.est[R.i].url) && g < R.est.length);
     R.tent++;
     const e = R.est[R.i];
+    R.lastUrl = e.url;
     R.a.src = e.url; setR('Conectando: ' + e.nome);
     R.t = setTimeout(tentarEstacao, 4000);
     R.a.play().catch(err => {
@@ -1520,6 +1538,19 @@ const recarregarRadios = async () => {
     if (R.on) tentarEstacao();
 };
 $('selGenero').onchange = recarregarRadios;
+// Ao iniciar o jogo: seleciona a rádio Souto Pagode (e sintoniza, se a rádio já estiver ligada).
+async function selecionarRadioInicial() {
+    try {
+        if (generoRadio !== 'pagode') { $('selGenero').value = 'pagode'; await recarregarRadios(); }
+        else if (!R.est.length) await acharEstacoes();
+        const ix = R.est.findIndex(e => PREFERIDA.test(e.nome));
+        if (ix < 0) return;
+        bloq.delete(R.est[ix].url);
+        R.lastUrl = R.est[ix].url;
+        preencherLista();
+        if (R.on) { R.i = ix - 1; R.tent = 0; tentarEstacao(1); }
+    } catch (e) {}
+}
 let volumePercentual = 60;
 function aplicarVolume() {
     R.a.volume = volumePercentual / 100;
