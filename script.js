@@ -92,77 +92,31 @@ const ESTAT = { partidas: 0, vitorias: 0, zeros: 0, luas: 0 };
 try { Object.assign(ESTAT, JSON.parse(localStorage.getItem('miq_estat') || '{}')); } catch (e) {}
 const salvarEstat = () => { try { localStorage.setItem('miq_estat', JSON.stringify(ESTAT)); } catch (e) {} };
 
-// ================= ÁUDIO DA TELA INICIAL =================
-// intro.mp3 toca UMA vez cada vez que a tela do Miquilino aparece (ao abrir a
-// página e ao voltar pelo reset). Para ao clicar em Iniciar e não repete.
-// Se o navegador bloquear o som automático, toca mudo e libera o som no
-// primeiro toque/tecla (regra do navegador, não dá para contornar).
+// ================= ÁUDIO DA INTRO =================
+// intro.mp3 está ligado SOMENTE ao botão Iniciar: toca uma única vez a cada
+// clique nele. Não há autoplay, loop, repetição nem checagem periódica.
 const audioIntro = new Audio('intro.mp3');
 audioIntro.preload = 'auto';
 audioIntro.loop = false;
-let introConcluida = false;   // já tocou inteira, com som, nesta visita à tela
 
-audioIntro.addEventListener('ended', () => { if (!audioIntro.muted) introConcluida = true; });
-
-function telaInicialVisivel() {
-    return !$('telaInicial').classList.contains('escondido');
-}
-
-function tentarTocarIntro() {
-    if (!telaInicialVisivel() || introConcluida || !audioIntro.paused) return;
-    audioIntro.muted = false;
-    let p;
-    try { p = audioIntro.play(); } catch (e) { p = null; }
-    if (p && typeof p.catch === 'function') {
-        p.catch(() => {
-            audioIntro.muted = true;   // autoplay mudo é sempre permitido
-            try {
-                const q = audioIntro.play();
-                if (q && typeof q.catch === 'function') q.catch(() => {});
-            } catch (e) {}
-        });
-    }
-}
-
-// Libera o som no primeiro gesto do usuário (só se estava tocando mudo).
-function liberarSomIntro(ev) {
-    if (!telaInicialVisivel() || introConcluida) return;
-    if (ev && ev.target && ev.target.closest && ev.target.closest('#btnIniciarMiquilino')) return;
-    if (audioIntro.paused) { try { audioIntro.currentTime = 0; } catch (e) {} tentarTocarIntro(); return; }
-    if (audioIntro.muted) {
-        audioIntro.muted = false;
-        try { audioIntro.currentTime = 0; } catch (e) {}
+function tocarIntroUmaVez() {
+    try {
+        audioIntro.currentTime = 0;
         const p = audioIntro.play();
-        if (p && typeof p.catch === 'function') p.catch(() => { audioIntro.muted = true; });
-    }
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) {}
 }
 
 function pararIntro() {
     audioIntro.pause();
-    audioIntro.muted = false;
-    introConcluida = false;
     try { audioIntro.currentTime = 0; } catch (e) {}
 }
 
-function tocarIntroSeNecessario() { tentarTocarIntro(); }
-
-tentarTocarIntro();
-['pointerup', 'touchend', 'click', 'keydown', 'wheel'].forEach(ev =>
-    document.addEventListener(ev, liberarSomIntro, true));
-['canplay', 'loadeddata'].forEach(ev => audioIntro.addEventListener(ev, tentarTocarIntro));
-window.addEventListener('pageshow', tentarTocarIntro);
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { if (telaInicialVisivel() && !audioIntro.paused) audioIntro.pause(); }
-    else tentarTocarIntro();
-});
-
 // ================= TELA INICIAL MIQUILINO =================
-// Ao recarregar a página, a tela inicial é sempre exibida primeiro.
 $('btnIniciarMiquilino').addEventListener('click', async () => {
-    // Troca de tela primeiro, para a intro não reiniciar durante a tela cheia.
+    tocarIntroUmaVez();
     $('telaInicial').classList.add('escondido');
     $('telaLogin').classList.remove('escondido');
-    pararIntro();   // a intro termina aqui: não toca na tela de personagens
     // O clique em Iniciar também solicita tela cheia.
     try {
         if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -787,9 +741,7 @@ function resetarPlacarGeral() {
     $('jogo').classList.add('escondido');
     $('telaLogin').classList.add('escondido');
     $('telaInicial').classList.remove('escondido');
-    // Reinicia o áudio imediatamente ao voltar para a tela inicial pelo reset.
     pararIntro();
-    tocarIntroSeNecessario();
     $('personagemEscolhido').textContent = 'Escolha seu personagem';
     $('btnComecar').disabled = true;
     document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
@@ -847,7 +799,7 @@ document.addEventListener('drop', e => {
     if (cartaObj) tentarJogar(cartaObj);
 });
 
-// ================= IA V9 (níveis Difícil e Mestre) =================
+// ================= IA V11 (níveis Difícil e Mestre) =================
 // Trabalha com cartas em formato numérico: código = naipe*13 + valor
 // (0-12 Espadas, 13-25 Copas, 26-38 Ouros, 39-51 Paus). Dama de Espadas = 10, 2♣ = 39.
 // A IA só usa informação PÚBLICA: a própria mão, cartas já jogadas, mesa, pontos
