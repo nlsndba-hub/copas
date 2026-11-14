@@ -15,6 +15,8 @@ const $ = id => document.getElementById(id);
 
 let nomeJogador = '', G = null;
 let cartaSelecionadaId = null;
+const JANELA_DUPLO_CLIQUE = 600;
+let ultimoCliqueCarta = { id: null, tempo: 0 };
 
 // ================= BARALHO =================
 function criarBaralho() {
@@ -41,9 +43,58 @@ function criarElementoCarta(c, extra = '') {
     return d;
 }
 
+// ================= ÁUDIO DA TELA INICIAL =================
+// Toca intro.mp3 enquanto a tela do Miquilino estiver visível.
+// A reprodução automática pode ser bloqueada pelo navegador; nesse caso,
+// a primeira interação do usuário libera o áudio.
+const audioIntro = new Audio('intro.mp3');
+audioIntro.preload = 'auto';
+let intervaloIntro = null;
+let introLiberada = false;
+function telaInicialVisivel() {
+    return !$('telaInicial').classList.contains('escondido');
+}
+function pararIntro() {
+    if (intervaloIntro !== null) {
+        clearInterval(intervaloIntro);
+        intervaloIntro = null;
+    }
+    audioIntro.pause();
+    try { audioIntro.currentTime = 0; } catch (e) {}
+}
+async function tocarIntroSeNecessario() {
+    if (!telaInicialVisivel()) return;
+    if (!audioIntro.paused) return;
+    try {
+        await audioIntro.play();
+        introLiberada = true;
+        if (intervaloIntro === null) {
+            intervaloIntro = setInterval(() => {
+                if (!telaInicialVisivel()) {
+                    pararIntro();
+                    return;
+                }
+                // Não corta uma reprodução em andamento; reinicia quando estiver parada.
+                if (audioIntro.paused) {
+                    audioIntro.currentTime = 0;
+                    audioIntro.play().catch(() => {});
+                }
+            }, 10000);
+        }
+    } catch (e) {
+        // Aguarda um gesto do usuário para contornar o bloqueio de autoplay.
+    }
+}
+// Tenta iniciar ao abrir e, se o navegador bloquear, tenta novamente no primeiro toque/clique.
+tocarIntroSeNecessario();
+document.addEventListener('pointerdown', () => {
+    if (telaInicialVisivel()) tocarIntroSeNecessario();
+}, true);
+
 // ================= TELA INICIAL MIQUILINO =================
 // Ao recarregar a página, a tela inicial é sempre exibida primeiro.
 $('btnIniciarMiquilino').addEventListener('click', async () => {
+    pararIntro();
     // O clique em Iniciar também solicita tela cheia antes de abrir personagens.
     try {
         if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -85,16 +136,14 @@ function montarSelecao() {
     });
 }
 $('btnComecar').onclick = () => {
-    // A tela cheia precisa ser solicitada durante um toque/clique do usuário.
-    if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {});
-    }
     iniciarPartida();
 };
 montarSelecao();
 
 function iniciarPartida() {
     if (!jogadorHumano) return;
+    ultimoCliqueCarta = { id: null, tempo: 0 };
+    cartaSelecionadaId = null;
     PERSONAGENS.forEach(p => { p.total = 0; p.pontosRank = 0; });
     const disponiveis = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id).slice());
     const bots = disponiveis.splice(0, 3);
@@ -401,9 +450,18 @@ function resetarPlacarGeral() {
     maquinasEliminadas = [];
     filaMaquinas = [];
     G = null;
+    jogadorHumano = null;
+    cartaSelecionadaId = null;
+    ultimoCliqueCarta = { id: null, tempo: 0 };
     $('modalRanking').classList.add('escondido');
     $('modal').classList.add('escondido');
-    iniciarPartida();
+    $('jogo').classList.add('escondido');
+    $('telaLogin').classList.add('escondido');
+    $('telaInicial').classList.remove('escondido');
+    tocarIntroSeNecessario();
+    $('personagemEscolhido').textContent = 'Escolha seu personagem';
+    $('btnComecar').disabled = true;
+    document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
 }
 
 $('btnRanking').onclick = abrirRankingGeral;
@@ -651,16 +709,22 @@ function render(piscar) {
             if (cartaSelecionadaId === c.id) el.classList.add('selecionada');
 
             el.onclick = () => {
-                // Um clique apenas seleciona/sobe a carta; outro clique simples
-                // pode recolhê-la, sem jogá-la acidentalmente.
+                const agora = Date.now();
+                const mesmoClique = ultimoCliqueCarta.id === c.id &&
+                    agora - ultimoCliqueCarta.tempo <= JANELA_DUPLO_CLIQUE;
+                if (mesmoClique) {
+                    ultimoCliqueCarta = { id: null, tempo: 0 };
+                    cartaSelecionadaId = null;
+                    tentarJogar(c);
+                    return;
+                }
+                ultimoCliqueCarta = { id: c.id, tempo: agora };
+                // Um clique seleciona a carta; dois cliques na mesma carta
+                // em até 600 ms jogam a carta (janela mais lenta).
                 cartaSelecionadaId = cartaSelecionadaId === c.id ? null : c.id;
                 document.querySelectorAll('#maoJogador .carta').forEach(cardEl => {
                     cardEl.classList.toggle('selecionada', cardEl === el && cartaSelecionadaId === c.id);
                 });
-            };
-            el.ondblclick = e => {
-                e.preventDefault();
-                tentarJogar(c);
             };
             el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tentarJogar(c); } };
 
