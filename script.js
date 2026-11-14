@@ -636,15 +636,17 @@ function render(piscar) {
             if (cartaSelecionadaId === c.id) el.classList.add('selecionada');
 
             el.onclick = () => {
-                if (cartaSelecionadaId === c.id) {
-                    tentarJogar(c);
-                } else {
-                    cartaSelecionadaId = c.id;
-                    document.querySelectorAll('#maoJogador .carta').forEach(cardEl => cardEl.classList.remove('selecionada'));
-                    el.classList.add('selecionada');
-                }
+                // Um clique apenas seleciona/sobe a carta; outro clique simples
+                // pode recolhê-la, sem jogá-la acidentalmente.
+                cartaSelecionadaId = cartaSelecionadaId === c.id ? null : c.id;
+                document.querySelectorAll('#maoJogador .carta').forEach(cardEl => {
+                    cardEl.classList.toggle('selecionada', cardEl === el && cartaSelecionadaId === c.id);
+                });
             };
-            el.ondblclick = () => tentarJogar(c);
+            el.ondblclick = e => {
+                e.preventDefault();
+                tentarJogar(c);
+            };
             el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tentarJogar(c); } };
 
             el.draggable = true;
@@ -703,25 +705,40 @@ function render(piscar) {
     if (G.distribuindo) st.textContent = 'Distribuindo as cartas…';
     else if (G.aviso) st.textContent = G.aviso;
     else if (G.vazas === 0 && G.mesa.length === 0) st.textContent = `Rodada ${G.rodada}: ${G.nomes[G.turno]} tem o 2♣ e começa.`;
-    else if (minha) st.textContent = G.mesa.length ? `Sua vez — siga ${NAIPES[G.lider].nome} ${NAIPES[G.lider].s} (1 clique sobe · 2 cliques/arraste joga).` : 'Sua vez — abra a mesa (1 clique sobe · 2 cliques/arraste joga).';
+    else if (minha) st.textContent = G.mesa.length ? `Sua vez — siga ${NAIPES[G.lider].nome} ${NAIPES[G.lider].s} (1 clique seleciona · duplo clique/arraste joga).` : 'Sua vez — abra a mesa (1 clique seleciona · duplo clique/arraste joga).';
     else st.textContent = `Vez de ${G.nomes[G.turno]}…`;
 }
 
 function mostrarQ() {
-    const e = $('efeitoQ');
-    e.classList.remove('escondido');
+    $('efeitoQ').classList.remove('escondido');
+}
+function esconderQ() {
     clearTimeout(mostrarQ.t);
-    mostrarQ.t = setTimeout(() => e.classList.add('escondido'), 2500);
+    $('efeitoQ').classList.add('escondido');
 }
 
 // ================= RÁDIO =================
 const R = { a: new Audio(), est: [], i: -1, on: false, tent: 0, t: null, ctx: null, synth: null };
 const audioDama = new Audio('fotos/dama-espadas.ogg');
+audioDama.preload = 'auto';
+audioDama.addEventListener('ended', esconderQ);
+audioDama.addEventListener('error', esconderQ);
+let damaMutada = false;
 function tocarAudioDama() {
-    audioDama.pause();
+    mostrarQ();
+    if (damaMutada) {
+        // Sem áudio, mantém o efeito visível por um breve intervalo.
+        clearTimeout(mostrarQ.t);
+        mostrarQ.t = setTimeout(esconderQ, 2500);
+        return;
+    }
+    clearTimeout(mostrarQ.t);
+    if (!audioDama.paused) return; // Nunca corta uma reprodução em andamento.
     audioDama.currentTime = 0;
     audioDama.volume = Math.min(1, Math.max(0.2, R.a ? R.a.volume * 2 : 1));
-    audioDama.play().catch(() => {});
+    audioDama.play().catch(() => {
+        mostrarQ.t = setTimeout(esconderQ, 2500);
+    });
 }
 R.a.volume = 0.6;
 const setR = t => $('radioNome').textContent = t;
@@ -732,14 +749,12 @@ function marcarBotao() {
 }
 const HOSTS = ['de1', 'nl1', 'at1'];
 const API = '/json/stations/search?countrycode=BR&order=clickcount&reverse=true';   // sem hidebroken: traz rádios online e off
-const ESTADOS = { RJ: 'Rio de Janeiro', SP: 'São Paulo' };
-const REGEX_UF = { RJ: /^(rj|rio de janeiro)$/i, SP: /^(sp|s[aã]o paulo)$/i };
 const GENEROS = { pagode: 'Pagode', samba: 'Samba', sertanejo: 'Sertanejo', funk: 'Funk', mpb: 'MPB', forro: 'Forró', axe: 'Axé', pop: 'Pop', rock: 'Rock', gospel: 'Gospel', 'hip hop': 'Hip hop', electronic: 'Eletrônica', jazz: 'Jazz', classical: 'Clássica', news: 'Notícias' };
-// ➕ SUAS RÁDIOS: cole aqui links diretos de stream (sem login). uf: 'RJ', 'SP' ou '*'; gen: gênero (padrão 'pagode')
-// Ex.: { nome: 'Minha rádio', url: 'https://servidor.com/stream', uf: 'RJ', gen: 'pagode' }
+// ➕ SUAS RÁDIOS: cole aqui links diretos de stream (sem login). gen: gênero (padrão 'pagode')
+// Ex.: { nome: 'Minha rádio', url: 'https://servidor.com/stream', gen: 'pagode' }
 const RADIOS_EXTRAS = [
 ];
-// ⭐ Rádio que sempre abre primeiro (em qualquer estado, nos gêneros pagode/samba)
+// ⭐ Rádio que sempre abre primeiro nos gêneros pagode/samba
 const PREFERIDA = /gera[cç][aã]o samba/i;
 function fixarPref(lista, gen) {
     if (gen !== 'pagode' && gen !== 'samba') return lista;
@@ -748,7 +763,7 @@ function fixarPref(lista, gen) {
     else try { localStorage.setItem('radioPref', JSON.stringify(pref)); } catch (e) {}
     return [pref, ...lista.filter(e => e.url !== pref.url)];
 }
-let estadoRadio = 'RJ', generoRadio = 'pagode';   // abre em RJ + Pagode
+let generoRadio = 'pagode';   // abre em Pagode, sem filtro de estado
 const buscaRB = qs => Promise.any(HOSTS.map(async h => {
     const r = await fetch(`https://${h}.api.radio-browser.info${API}&${qs}`);
     if (!r.ok) throw 0; return r.json();
@@ -757,11 +772,9 @@ let bloq = new Set(); try { bloq = new Set(JSON.parse(localStorage.getItem('radi
 function bloquear(url) { if (!url) return; bloq.add(url); try { localStorage.setItem('radioBloq', JSON.stringify([...bloq].slice(-200))); } catch (e) {} }
 const pedeLogin = u => /@|token|login|auth|passw|[?&](user|key|pass)/i.test(u);
 const protoOk = u => u.startsWith('https://') || (location.protocol !== 'https:' && u.startsWith('http://'));
-// prioridade: 0 = 98 FM (RJ) · 1 = estado escolhido · 2 = resto do Brasil; dentro: online antes de off
-function pontuar(s, uf) {
-    if (PREFERIDA.test(s.name)) return -2;
-    if (uf === 'RJ' && /\b98\b/.test(s.name) && REGEX_UF.RJ.test((s.state || '').trim())) return 0;
-    return REGEX_UF[uf].test((s.state || '').trim()) ? 1 : 2;
+// Prioriza apenas a rádio favorita; a busca considera rádios de todo o Brasil.
+function pontuar(s) {
+    return PREFERIDA.test(s.name) ? -2 : 0;
 }
 R.cache = {}; R.prom = {};
 function preencherLista() {
@@ -770,19 +783,16 @@ function preencherLista() {
         : '<option value="" disabled selected>Carregando rádios…</option>';
     if (R.on && R.i >= 0) s.value = R.i;
 }
-function acharEstacoes(gen = generoRadio, uf = estadoRadio) {
-    const k = gen + '|' + uf, atual = () => gen === generoRadio && uf === estadoRadio;
+function acharEstacoes(gen = generoRadio) {
+    const k = gen, atual = () => gen === generoRadio;
     if (R.cache[k] && R.cache[k].length) { R.est = R.cache[k]; preencherLista(); return Promise.resolve(); }
     try { const c = JSON.parse(localStorage.getItem('estRadio_' + k) || 'null'); if (c && c.length) { R.cache[k] = fixarPref(c, gen); if (atual()) { R.est = R.cache[k]; preencherLista(); } } } catch (e) {}
     if (R.prom[k]) return R.prom[k];
-    const tag = 'tag=' + encodeURIComponent(gen), st = 'state=' + encodeURIComponent(ESTADOS[uf]);
+    const tag = 'tag=' + encodeURIComponent(gen);
     R.prom[k] = (async () => {
         const rs = await Promise.allSettled([
-            buscaRB(`${st}&${tag}&limit=60`),
-            buscaRB(`${tag}&limit=80`),
-            buscaRB(`${st}&name=${encodeURIComponent(gen)}&limit=40`),
-            buscaRB(`name=${encodeURIComponent(gen)}&limit=40`),
-            ...(uf === 'RJ' && gen === 'pagode' ? [buscaRB(`${st}&name=98&limit=15`)] : []),
+            buscaRB(`${tag}&limit=100`),
+            buscaRB(`name=${encodeURIComponent(gen)}&limit=60`),
             ...(gen === 'pagode' || gen === 'samba' ? [buscaRB('name=' + encodeURIComponent('Geração Samba') + '&limit=20'), buscaRB('name=' + encodeURIComponent('Geracao Samba') + '&limit=20')] : [])
         ]);
         const vistos = new Set(), lista = [];
@@ -790,9 +800,9 @@ function acharEstacoes(gen = generoRadio, uf = estadoRadio) {
             const u = s.url_resolved || s.url;
             if (!u || !protoOk(u) || s.hls === 1 || pedeLogin(u) || vistos.has(u)) return;
             vistos.add(u);
-            lista.push({ nome: s.name.trim(), url: u, p: pontuar(s, uf), ok: s.lastcheckok === 1, c: s.clickcount || 0 });
+            lista.push({ nome: s.name.trim(), url: u, p: pontuar(s), ok: s.lastcheckok === 1, c: s.clickcount || 0 });
         }));
-        RADIOS_EXTRAS.filter(x => (x.uf === uf || x.uf === '*') && (x.gen || 'pagode') === gen).forEach(x => { if (!vistos.has(x.url)) { vistos.add(x.url); lista.push({ nome: x.nome, url: x.url, p: -1, ok: true, c: 0 }); } });
+        RADIOS_EXTRAS.filter(x => (x.gen || 'pagode') === gen).forEach(x => { if (!vistos.has(x.url)) { vistos.add(x.url); lista.push({ nome: x.nome, url: x.url, p: -1, ok: true, c: 0 }); } });
         lista.sort((x, y) => x.p - y.p || y.ok - x.ok || y.c - x.c);
         if (lista.length) { lista.splice(0, lista.length, ...fixarPref(lista, gen)); R.cache[k] = lista; if (atual()) { R.est = lista; preencherLista(); } try { localStorage.setItem('estRadio_' + k, JSON.stringify(lista.slice(0, 80))); } catch (e) {} }
     })();
@@ -827,13 +837,12 @@ function desligarRadio() {
 $('btnRadio').onclick = () => R.on ? desligarRadio() : ligarRadio();
 $('btnProx').onclick = () => { if (!R.on) return ligarRadio(); if (R.a.paused && R.est[R.i]) bloquear(R.est[R.i].url); R.tent = 0; tentarEstacao(); };
 const recarregarRadios = async () => {
-    estadoRadio = $('selEstado').value; generoRadio = $('selGenero').value;
+    generoRadio = $('selGenero').value;
     R.est = []; R.i = -1; R.tent = 0; preencherLista();
     if (R.on) { R.a.pause(); setR('Procurando rádio…'); }
     await acharEstacoes();
     if (R.on) tentarEstacao();
 };
-$('selEstado').onchange = recarregarRadios;
 $('selGenero').onchange = recarregarRadios;
 let volumePercentual = 60;
 function aplicarVolume() {
@@ -871,6 +880,16 @@ function configurarBotaoVolume(id, delta) {
 }
 configurarBotaoVolume('volMenos', -1);
 configurarBotaoVolume('volMais', 1);
+const btnMuteDama = $('btnMuteDama');
+if (btnMuteDama) {
+    btnMuteDama.setAttribute('aria-pressed', 'false');
+    btnMuteDama.onclick = () => {
+        damaMutada = !damaMutada;
+        btnMuteDama.classList.toggle('ativo', damaMutada);
+        btnMuteDama.setAttribute('aria-pressed', String(damaMutada));
+        btnMuteDama.textContent = damaMutada ? 'Cala boca Caio: SIM' : 'Cala boca Caio';
+    };
+}
 aplicarVolume();
 
 function musicaInterna() {

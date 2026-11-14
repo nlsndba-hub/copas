@@ -447,8 +447,8 @@ button { font-family: inherit; }
     .personagem-card strong { font-size: 11px; }
 }
 
-/* Seletor de estado da rádio */
-#selEstado, #selGenero { background: #111; color: #ffd54f; border: 1px solid #666; border-radius: 6px; height: 30px; padding: 0 4px; font-weight: bold; font-size: 12px; }
+/* Filtros da rádio: apenas gênero */
+#selGenero { background: #111; color: #ffd54f; border: 1px solid #666; border-radius: 6px; height: 30px; padding: 0 4px; font-weight: bold; font-size: 12px; }
 #selRadio { background: #111; color: #fff; border: 1px solid #666; border-radius: 6px; height: 30px; padding: 0 4px; font-size: 12px; max-width: 38vw; min-width: 0; }
 #radio { flex-wrap: wrap; }
 #selGenero { max-width: 26vw; }
@@ -484,4 +484,23 @@ button { font-family: inherit; }
     #jogo { min-height: 100dvh; }
     #topbar { padding-top: 2px; padding-bottom: 2px; }
     #maoJogador { padding-bottom: max(2px, env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Botão para silenciar o áudio da Dama de Espadas */
+#btnMuteDama {
+    width: auto !important;
+    min-width: 0;
+    height: 30px;
+    padding: 0 9px;
+    border: 1px solid #d5b65b !important;
+    border-radius: 6px !important;
+    background: #263b29 !important;
+    color: #fff;
+    font-size: 11px !important;
+    font-weight: 700;
+    white-space: nowrap;
+}
+#btnMuteDama.ativo {
+    background: #a51f1f !important;
+    border-color: #ff8a80 !important;
 }
