@@ -597,64 +597,45 @@ function fimRodada() {
         : G.pts.map((p, i) => lua >= 0 ? (i === lua ? 0 : 26) : p);
     G.pts = ganho.slice();
 
-    const jogadoresMesaRodada = G.personagens.map((p, i) => {
+    G.personagens.forEach((p, i) => {
         p.total += ganho[i];
         G.totais[i] = p.total;
-        return {
-            personagem: p,
-            nome: G.nomes[i],
-            ganhoRodada: ganho[i],
-            totalPartida: p.total
-        };
-    });
-
-    const eliminadosAgora = [];
-    for (let i = 1; i < 4; i++) {
-        if (G.personagens[i].total >= LIMITE) eliminadosAgora.push({ indice: i, nome: G.personagens[i].nome });
-    }
-    eliminadosAgora.forEach(({ indice: i }) => {
-        const saiu = G.personagens[i];
-        maquinasEliminadas.push(saiu);
-        const proxima = G.fila.shift();
-        if (proxima) {
-            G.personagens[i] = proxima;
-            G.participantes.add(proxima);
-            G.nomes[i] = proxima.nome;
-            G.totais[i] = proxima.total;
-        }
     });
 
     if (lua >= 0) G.luaConquistada = true;
     if (ganho[0] === 0) ESTAT.zeros++;
     if (lua === 0) ESTAT.luas++;
 
-    const humanoPerdeu = G.personagens[0].total >= LIMITE;
-    const fim = humanoPerdeu || (!G.fila.length && eliminadosAgora.length > 0);
+    // A partida acaba assim que alguém chega a 60 pontos ou mais.
+    const fim = G.personagens.some(p => p.total >= LIMITE);
 
-    let h = fim ? '<h2>🏁 Fim de jogo!</h2>' : `<h2>Fim da rodada ${G.rodada}</h2>`;
+    // Classificação da PARTIDA: quem tem menos pontos fica em primeiro.
+    const linhas = G.personagens
+        .map((p, i) => ({ personagem: p, nome: G.nomes[i], ganho: ganho[i], total: p.total }))
+        .sort((x, y) => x.total - y.total || x.ganho - y.ganho);
+    const posPartida = posicoes(linhas, l => l.total, 'partida');
+
+    let h = fim ? '<h2>🏁 Fim da partida!</h2>' : `<h2>Fim da rodada ${G.rodada}</h2>`;
     const menorPontuacao = Math.min(...ganho);
     if (ganho[0] === menorPontuacao) h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.gif" alt="Sticker comemorativo">`;
     if (renunciante >= 0) h += `<img class="sticker-renuncia" src="renu.png" alt="Imagem de renúncia">`;
-    if (renunciante >= 0) h += `<p>⚠️ <b>${jogadoresMesaRodada[renunciante].nome} RENUNCIOU!</b> Por jogar fora do naipe tendo cartas do naipe solicitado, recebeu os 26 pontos da rodada.</p>`;
-    else if (lua >= 0) h += `<p>🌕 <b>${jogadoresMesaRodada[lua].nome}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
-    if (eliminadosAgora.length) h += `<p>🚪 Saíram da mesa: ${eliminadosAgora.map(p => p.nome).join(', ')}. ${G.fila.length ? 'Novas máquinas entram na próxima rodada.' : 'Não há mais reservas.'}</p>`;
+    if (renunciante >= 0) h += `<p>⚠️ <b>${G.nomes[renunciante]} RENUNCIOU!</b> Por jogar fora do naipe tendo cartas do naipe solicitado, recebeu os 26 pontos da rodada.</p>`;
+    else if (lua >= 0) h += `<p>🌕 <b>${G.nomes[lua]}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
 
-    // Classificação da PARTIDA: quem tem menos pontos fica em primeiro.
-    const ganhoDe = new Map(jogadoresMesaRodada.map(item => [item.personagem, item.ganhoRodada]));
-    const linhas = (fim ? [...G.participantes] : jogadoresMesaRodada.map(item => item.personagem))
-        .map(p => ({ personagem: p, nome: p.nome, ganho: ganhoDe.get(p) || 0, total: p.total }))
-        .sort((x, y) => x.total - y.total || x.ganho - y.ganho);
-    const posPartida = posicoes(linhas, l => l.total, 'partida');
+    // Máquinas que chegaram a 60 saem; o humano sempre continua jogando.
+    const saindo = [];
+    if (fim) for (let i = 1; i < 4; i++) if (G.personagens[i].total >= LIMITE) saindo.push(i);
 
     h += fim ? '<h3>Classificação final da partida</h3>' : '<h3>Classificação da partida</h3>';
     h += '<table><tr><th>#</th><th>Jogador</th><th>Total</th><th>Rodada</th><th>Situação</th></tr>';
     linhas.forEach(l => {
         const p = l.personagem;
         const ehEu = p.id === jogadorHumano.id;
-        const situacao = ehEu ? 'Você' : (p.total >= LIMITE ? 'Eliminado' : 'Na mesa');
-        h += `<tr class="${p.total >= LIMITE ? 'perdeu ' : ''}${ehEu ? 'eu' : ''}">
+        const estourou = p.total >= LIMITE;
+        const situacao = ehEu ? 'Você' : (estourou ? 'Eliminado' : 'Na mesa');
+        h += `<tr class="${estourou ? 'perdeu ' : ''}${ehEu ? 'eu' : ''}">
             <td>${posPartida.get(l)}º</td>
-            <td>${p.nome}</td>
+            <td>${l.nome}</td>
             <td><b>${l.total}</b></td>
             <td>+${l.ganho}</td>
             <td>${situacao}</td>
@@ -665,37 +646,45 @@ function fimRodada() {
     if (fim) {
         const menor = linhas[0].total;
         const vencedores = linhas.filter(l => l.total === menor);
-        h += `<p>${G.personagens[0].total >= LIMITE ? 'Você atingiu 60 pontos ou mais. Fim de jogo!' : 'Todas as máquinas foram eliminadas.'}</p>`;
+        const estourados = linhas.filter(l => l.total >= LIMITE).map(l => l.nome);
+        h += `<p>${estourados.join(' e ')} ${estourados.length > 1 ? 'atingiram' : 'atingiu'} ${LIMITE} pontos ou mais. A partida terminou e o placar da partida será zerado.</p>`;
+        if (saindo.length) {
+            const entram = G.fila.slice(0, saindo.length).map(p => p.nome);
+            h += `<p>🚪 Saem da mesa: ${saindo.map(i => G.nomes[i]).join(', ')}.${entram.length ? ' Entram: ' + entram.join(', ') + '.' : ''}</p>`;
+        }
         h += `<p class="vencedor">🏆 <b>${vencedores.length > 1 ? 'Vencedores' : 'Vencedor'}: ${vencedores.map(l => l.nome + (l.personagem.id === jogadorHumano.id ? ' (Você)' : '')).join(' e ')}</b> com ${menor} ponto${menor === 1 ? '' : 's'}.</p>`;
+        h += '<p class="legenda-pontos">O ranking geral foi atualizado. Toque no 🏆 para ver.</p>';
         ESTAT.partidas++;
         if (vencedores.some(l => l.personagem.id === jogadorHumano.id)) ESTAT.vitorias++;
 
         // Rank geral (só aparece ao tocar no troféu):
-        // 1º lugar -1 · lugares do meio +1 · último lugar +2
-        const ultimo = linhas[linhas.length - 1].total;
-        linhas.forEach(l => {
-            let delta = 1;
-            if (l.total === menor) delta = -1;
-            else if (l.total === ultimo) delta = 2;
-            l.personagem.pontosRank += delta;
-        });
+        // 1º lugar -1 · 2º e 3º +1 · último lugar +2
+        const DELTA_RANK = [-1, 1, 1, 2];
+        linhas.forEach((l, k) => { l.personagem.pontosRank += DELTA_RANK[k]; });
         salvarRankGeral();
     }
 
     salvarEstat();
-    h += `<button class="btn-modo" id="btnModal">${fim ? 'Escolher personagens novamente' : 'Próxima rodada'}</button>`;
+    h += `<button class="btn-modo" id="btnModal">${fim ? 'Nova partida' : 'Próxima rodada'}</button>`;
     G.rodadaEncerrada = true;
     $('modalBox').innerHTML = h;
     $('modal').classList.remove('escondido');
     $('btnModal').focus();
-    $('btnModal').onclick = fim ? () => {
-        ocultarPalco();
-        G = null; jogadorHumano = null; $('jogo').classList.add('escondido');
-        $('telaLogin').classList.remove('escondido');
-        $('personagemEscolhido').textContent = 'Escolha seu personagem';
-        $('btnComecar').disabled = true;
-        document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
-    } : () => {
+    $('btnModal').onclick = () => {
+        if (fim) {
+            // Quem estourou sai (vai para o fim da fila de reservas) e o placar da partida zera.
+            saindo.forEach(i => {
+                const saiu = G.personagens[i];
+                maquinasEliminadas.push(saiu);
+                G.fila.push(saiu);
+                const proxima = G.fila.shift();
+                G.personagens[i] = proxima;
+                G.participantes.add(proxima);
+            });
+            PERSONAGENS.forEach(p => { p.total = 0; });
+            G.rodada = 0;
+            G.carteador = (G.carteador + 1) % 4;
+        }
         G.nomes = G.personagens.map(p => p.nome);
         G.totais = G.personagens.map(p => p.total);
         novaRodada();
@@ -709,7 +698,7 @@ function abrirRankingGeral() {
     const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.nome.localeCompare(b.nome));
     const posGeral = posicoes(PERSONAGENS, p => p.pontosRank, 'geral');
     let h = '<h2>🏆 Ranking Geral</h2>';
-    h += '<p class="legenda-pontos" style="margin-bottom:10px;">Por partida: 1º lugar −1 · 2º e 3º +1 · último +2. Menos pontos = melhor posição.</p>';
+    h += '<p class="legenda-pontos" style="margin-bottom:10px;">Ao fim de cada partida (quando alguém faz 60 ou mais): 1º lugar −1 · 2º e 3º +1 · último +2. Menos pontos = melhor posição.</p>';
     if (G.luaConquistada) {
         h += '<img class="sticker-lua-26" src="26.gif" alt="Lua: 26 pontos para os outros jogadores">';
     }

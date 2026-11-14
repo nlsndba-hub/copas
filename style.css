@@ -277,7 +277,7 @@ button { font-family: inherit; }
 .carta .base { bottom: calc(var(--w) * .05); transform: rotate(180deg); }
 .carta .valor { font-size: calc(var(--w) * .29); }
 .carta .np { font-size: calc(var(--w) * .23); }
-.carta .centro { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: calc(var(--w) * .62); pointer-events: none; }
+.carta .centro { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: calc(var(--w) * .52); pointer-events: none; }
 .badge { position: absolute; top: calc(var(--w) * .04); right: calc(var(--w) * .06); font-size: calc(var(--w) * .24); font-weight: 900; font-family: 'Segoe UI', sans-serif; pointer-events: none; }
 
 /* Cartas na mão: mostram só a parte de cima; a selecionada sobe inteira */
@@ -582,7 +582,7 @@ button { font-family: inherit; }
     content: ''; position: absolute; inset: calc(var(--w) * .035); pointer-events: none;
     border: 1px solid rgba(0, 0, 0, .09); border-radius: calc(var(--w) * .06);
 }
-.carta.figura .centro { font-size: calc(var(--w) * .46); top: 57%; }
+.carta.figura .centro { font-size: calc(var(--w) * .40); top: 57%; }
 .carta .coroa {
     position: absolute; top: 25%; left: 50%; transform: translateX(-50%); pointer-events: none;
     font-size: calc(var(--w) * .3); line-height: 1; opacity: .9;
