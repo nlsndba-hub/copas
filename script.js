@@ -43,7 +43,15 @@ function criarElementoCarta(c, extra = '') {
 
 // ================= TELA INICIAL MIQUILINO =================
 // Ao recarregar a página, a tela inicial é sempre exibida primeiro.
-$('btnIniciarMiquilino').addEventListener('click', () => {
+$('btnIniciarMiquilino').addEventListener('click', async () => {
+    // O clique em Iniciar também solicita tela cheia antes de abrir personagens.
+    try {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+        }
+    } catch (err) {
+        console.warn('Não foi possível ativar tela cheia:', err);
+    }
     $('telaInicial').classList.add('escondido');
     $('telaLogin').classList.remove('escondido');
 });
@@ -928,9 +936,31 @@ const camuflagem = document.createElement('div');
 camuflagem.id = 'camuflagem';
 document.body.appendChild(camuflagem);
 let camuflado = false;
+
+// Atalhos disponíveis em qualquer tela do site:
+// Ctrl + botão direito: alterna a tela preta.
+// Ctrl + botão esquerdo: alterna o modo de tela cheia.
+function alternarTelaCheia() {
+    if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    } else if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+}
 document.addEventListener('contextmenu', e => {
-    if (e.ctrlKey) { e.preventDefault(); camuflado = !camuflado; camuflagem.classList.toggle('ativa', camuflado); }
-});
+    if (e.ctrlKey && e.button === 2) {
+        e.preventDefault();
+        camuflado = !camuflado;
+        camuflagem.classList.toggle('ativa', camuflado);
+    }
+}, true);
+document.addEventListener('click', e => {
+    if (e.ctrlKey && e.button === 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        alternarTelaCheia();
+    }
+}, true);
 // escolher rádio direto na lista
 $('selRadio').onchange = e => {
     const i = +e.target.value; if (!R.est[i]) return;
