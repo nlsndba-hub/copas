@@ -469,13 +469,13 @@ function varrerVaza(w) {
 function validar(i, c) {
     const mao = G.maos[i];
     if (G.mesa.length === 0) {
-        if (G.vazas === 0 && !(c.naipe === PAU && c.valor === 0)) return 'A primeira carta da rodada deve ser o 2♣.';
+        if (G.vazas === 0 && !(c.naipe === PAU && c.valor === 0)) return 'Comece com o 2♣';
         if (c.naipe === COP && !G.quebrada && mao.some(x => x.naipe !== COP))
-            return 'Copas só podem ser jogadas depois que alguém descartar uma (ou se você só tiver copas).';
+            return 'Copas ainda não foram quebradas';
         return null;
     }
     if (c.naipe !== G.lider && mao.some(x => x.naipe === G.lider))
-        return `Você precisa seguir o naipe puxado: ${NAIPES[G.lider].nome} ${NAIPES[G.lider].s}.`;
+        return `Siga o naipe ${NAIPES[G.lider].s}`;
     return null;
 }
 
@@ -491,7 +491,8 @@ function jogar(i, c) {
         G.renunciou[i] = true;
     }
 
-    if (G.mesa.length > 0 && c.naipe !== G.lider) G.vazios[i][G.lider] = true;   // a IA anota quem ficou sem o naipe
+    const descartou = G.mesa.length > 0 && c.naipe !== G.lider;   // sem o naipe puxado (e sem renunciar)
+    if (descartou) G.vazios[i][G.lider] = true;   // a IA anota quem ficou sem o naipe
     G.jogadas[c.naipe * 13 + c.valor] = 1;
     G.maos[i] = G.maos[i].filter(x => x.id !== c.id);
     G.mesa.push({ jogador: i, carta: c });
@@ -512,16 +513,20 @@ function jogar(i, c) {
 
     if (renuncia) {
         G.ocupado = true;
-        G.aviso = `${G.nomes[i]} RENUNCIOU! Recebeu os 26 pontos da rodada.`;
+        G.aviso = `⚠ ${G.nomes[i]} renunciou! Tá querendo roubar de ladrão?`;
         clearTimeout(G.timer);
         render();
         G.timer = setTimeout(() => {
             fimRodada();
-        }, 1100);
+        }, 1800);
         return;
     }
 
+    // Legenda curta e temporária (só isto aparece além da vez de quem joga)
     G.aviso = '';
+    clearTimeout(G.tAviso);
+    if (ehDama(c)) avisoTemp('Ihhhh, olha a Miquilina aí…', 1800);
+    else if (descartou) avisoTemp('Eita, mas já?', 1600);
     G.turno = (G.turno + 1) % 4;
 
     if (G.mesa.length === 4) {
@@ -543,7 +548,8 @@ function resolverVaza() {
     G.pts[w] += pontos;
     G.mesa.forEach(j => { if (pontosCarta(j.carta)) G.pegas[w].push(j.carta); });
     $(`carta-${w}`).firstChild.classList.add('carta-vencedora');
-    G.aviso = `${G.nomes[w]} levou a mesa${pontos ? ` (+${pontos} pt${pontos > 1 ? 's' : ''})` : ''}`;
+    clearTimeout(G.tAviso);
+    G.aviso = w === 0 ? 'Sua vez' : `Vez de ${G.nomes[w]}`;
     render();
     G.vazas++;
     G.timer = setTimeout(() => {
@@ -1244,6 +1250,41 @@ if (screen.orientation && screen.orientation.addEventListener) {
 if (window.visualViewport) visualViewport.addEventListener('resize', reajustar);
 
 // ================= TELA =================
+function avisoTemp(msg, ms) {
+    if (!G) return;
+    G.aviso = msg;
+    clearTimeout(G.tAviso);
+    G.tAviso = setTimeout(() => {
+        if (G && G.aviso === msg) { G.aviso = ''; atualizarStatus(); }
+    }, ms);
+    atualizarStatus();
+}
+
+function atualizarStatus() {
+    if (!G) return;
+    const minha = G.turno === 0 && !G.ocupado && G.mesa.length < 4;
+    const st = $('status');
+    st.classList.toggle('aviso', G.aviso.startsWith('⚠'));
+    let txt;
+    if (G.distribuindo) txt = G.distMsg || 'Preparando o baralho…';
+    else if (G.aviso) txt = G.aviso;
+    else if (minha) txt = 'Sua vez';
+    else txt = `Vez de ${G.nomes[G.turno]}`;
+    st.textContent = txt;
+    ajustarFonteStatus(st);
+}
+
+// Se o texto não couber na caixa, reduz a fonte até caber.
+function ajustarFonteStatus(st) {
+    st.style.fontSize = '';
+    let px = parseFloat(getComputedStyle(st).fontSize);
+    let guarda = 0;
+    while ((st.scrollHeight > st.clientHeight + 1 || st.scrollWidth > st.clientWidth + 1) && px > 8 && guarda++ < 30) {
+        px -= 0.5;
+        st.style.fontSize = px + 'px';
+    }
+}
+
 function render(piscar) {
     const minha = G.turno === 0 && !G.ocupado && G.mesa.length < 4;
     const div = $('maoJogador'); div.innerHTML = '';
@@ -1339,13 +1380,7 @@ function render(piscar) {
         }
     }
 
-    // Status
-    const st = $('status');
-    st.classList.toggle('aviso', G.aviso.startsWith('⚠'));
-    if (G.distribuindo) st.textContent = G.distMsg || 'Preparando o baralho…';
-    else if (G.aviso) st.textContent = G.aviso;
-    else if (minha) st.textContent = 'Sua vez';
-    else st.textContent = `Vez de ${G.nomes[G.turno]}`;
+    atualizarStatus();
 }
 
 function mostrarQ() {

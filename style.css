@@ -533,7 +533,7 @@ button { font-family: inherit; }
 }
 
 /* =====================================================================
-   V13 — ACABAMENTO PROFISSIONAL
+   V14 — ACABAMENTO PROFISSIONAL
    ===================================================================== */
 
 
@@ -613,7 +613,7 @@ button { font-family: inherit; }
 }
 
 
-/* V13: volume na mesma linha da legenda de status (celular) */
+/* V14: volume na mesma linha da legenda de status (celular) */
 @media (max-width: 768px) {
     #controleVolume { padding: 0 4px; gap: 3px; }
     #controleVolume button { width: 26px; height: 32px; }
