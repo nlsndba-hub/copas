@@ -12,7 +12,7 @@ const ehDama = c => c.naipe === ESP && c.valor === 10;
 const pontosCarta = c => c.naipe === COP ? 1 : (ehDama(c) ? 13 : 0);
 const $ = id => document.getElementById(id);
 
-let G = null;
+let nomeJogador = '', G = null;
 let cartaSelecionadaId = null;
 
 // ================= BARALHO =================
@@ -68,13 +68,8 @@ function montarSelecao() {
         grade.appendChild(card);
     });
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    montarSelecao();
-    if ($('btnComecar')) {
-        $('btnComecar').onclick = iniciarPartida;
-    }
-});
+if ($('btnComecar')) $('btnComecar').onclick = iniciarPartida;
+montarSelecao();
 
 function iniciarPartida() {
     if (!jogadorHumano) return;
@@ -84,10 +79,10 @@ function iniciarPartida() {
     filaMaquinas = disponiveis;
     maquinasEliminadas = [];
     const participantes = [jogadorHumano, ...bots];
-    
+    nomeJogador = jogadorHumano.nome;
     $('telaLogin').classList.add('escondido');
     $('jogo').classList.remove('escondido');
-    
+    ajustarEscala();
     G = {
         nomes: participantes.map(p => p.nome),
         personagens: participantes,
@@ -108,10 +103,14 @@ function novaRodada() {
     G.pts = [0, 0, 0, 0]; G.pegas = [[], [], [], []]; G.renunciou = [false, false, false, false]; G.ocupado = false; G.aviso = '';
     G.turno = G.maos.findIndex(m => m.some(c => c.naipe === PAU && c.valor === 0));
     G.distribuindo = true; G.rodadaEncerrada = false; G.cartasReveladas = 0;
-    
+    G.ordemDistribuicao = [];
+    for (let rodada = 0; rodada < 13; rodada++) for (let jogador = 0; jogador < 4; jogador++)
+        G.ordemDistribuicao.push({ jogador, carta: G.maos[jogador][rodada] });
     for (let i = 0; i < 4; i++) $(`carta-${i}`).innerHTML = '';
-    if($('modal')) $('modal').classList.add('escondido');
-    if($('modalRanking')) $('modalRanking').classList.add('escondido');
+    $('modal').classList.add('escondido');
+    $('modalRanking').classList.add('escondido');
+    render();
+    ajustarEscala();
     render();
     G.timer = setTimeout(revelarProximaCarta, 180);
 }
@@ -166,7 +165,7 @@ function jogar(i, c) {
 
     if (renuncia) {
         G.ocupado = true;
-        G.aviso = `${G.nomes[i]} RENUNCIOU! Recebeu 26 pontos.`;
+        G.aviso = `${G.nomes[i]} RENUNCIOU! Recebeu os 26 pontos.`;
         clearTimeout(G.timer);
         render();
         G.timer = setTimeout(() => { fimRodada(); }, 1100);
@@ -194,8 +193,8 @@ function resolverVaza() {
     const pontos = G.mesa.reduce((s, j) => s + pontosCarta(j.carta), 0);
     G.pts[w] += pontos;
     G.mesa.forEach(j => { if (pontosCarta(j.carta)) G.pegas[w].push(j.carta); });
-    if ($(`carta-${w}`).firstChild) $(`carta-${w}`).firstChild.classList.add('carta-vencedora');
-    G.aviso = `${G.nomes[w]} levou a mesa (+${pontos} pts)`;
+    $(`carta-${w}`).firstChild.classList.add('carta-vencedora');
+    G.aviso = `${G.nomes[w]} levou a mesa${pontos ? ` (+${pontos} pts)` : ''}`;
     render();
     G.vazas++;
     G.timer = setTimeout(() => {
@@ -220,19 +219,21 @@ function fimRodada() {
         return { personagem: p, nome: G.nomes[i], ganhoRodada: ganho[i], totalPartida: p.total };
     });
 
+    // REQUISITO 1: Pontuação da Mesa (0, 1, 2, 4 pontos de rank conforme colocação)
     const classificacaoMesa = [...jogadoresMesaRodada].sort((a, b) =>
-        a.totalPartida - b.totalPartida || a.ganhoRodada - b.ganhoRodada
+        a.ganhoRodada - b.ganhoRodada || a.totalPartida - b.totalPartida
     );
 
+    const tabelaPontosRankRodada = [0, 1, 2, 4];
     classificacaoMesa.forEach((item, idx) => {
         let posEfetiva = idx;
         while (
             posEfetiva > 0 &&
-            classificacaoMesa[posEfetiva - 1].totalPartida === item.totalPartida &&
             classificacaoMesa[posEfetiva - 1].ganhoRodada === item.ganhoRodada
         ) { posEfetiva--; }
-        item.ptsRankGanho = posEfetiva + 1;
-        item.personagem.pontosRank += item.ptsRankGanho;
+        const ptsRankGanho = tabelaPontosRankRodada[Math.min(posEfetiva, 3)];
+        item.ptsRankGanho = ptsRankGanho;
+        item.personagem.pontosRank += ptsRankGanho;
     });
 
     const eliminadosAgora = [];
@@ -240,11 +241,13 @@ function fimRodada() {
         if (G.personagens[i].total >= LIMITE) eliminadosAgora.push({ indice: i, nome: G.personagens[i].nome });
     }
     
+    // REQUISITO 1 (Parte 2): Novos integrantes da reserva entram com pontos zerados na mesa
     eliminadosAgora.forEach(({ indice: i }) => {
         const saiu = G.personagens[i];
         maquinasEliminadas.push(saiu);
         const proxima = G.fila.shift();
         if (proxima) {
+            proxima.total = 0; // zera ao entrar na mesa
             G.personagens[i] = proxima;
             G.nomes[i] = proxima.nome;
             G.totais[i] = proxima.total;
@@ -256,17 +259,38 @@ function fimRodada() {
 
     let h = fim ? '<h2>🏁 Fim de jogo!</h2>' : `<h2>Fim da rodada ${G.rodada}</h2>`;
     const menorPontuacao = Math.min(...ganho);
-    if (ganho[0] === menorPontuacao) h += `<img class="sticker-menor-pontuacao" src="26.gif" alt="26 pontos">`;
-    if (renunciante >= 0) h += `<p>⚠️ <b>${jogadoresMesaRodada[renunciante].nome} RENUNCIOU!</b></p>`;
-    else if (lua >= 0) h += `<p>🌕 <b>${jogadoresMesaRodada[lua].nome}</b> fechou a lua!</p>`;
+    
+    // REQUISITO 3: Exibir 26.gif se alguém pegou todos os pontos
+    if (ganho.some(p => p === 26)) {
+        h += `<img class="sticker-menor-pontuacao" src="26.gif" alt="26 pontos">`;
+    } else if (ganho[0] === menorPontuacao) {
+        h += `<img class="sticker-menor-pontuacao" src="26.gif" alt="Menor pontuação">`;
+    }
 
-    h += '<h3>Classificação</h3><table><tr><th>#</th><th>Jogador</th><th>Total</th><th>Rank</th></tr>';
+    if (renunciante >= 0) h += `<p>⚠️ <b>${jogadoresMesaRodada[renunciante].nome} RENUNCIOU!</b> Recebeu 26 pontos.</p>`;
+    else if (lua >= 0) h += `<p>🌕 <b>${jogadoresMesaRodada[lua].nome}</b> pegou todos os 26 pontos!</p>`;
+
+    h += '<h3>Classificação da Mesa</h3><table><tr><th>#</th><th>Jogador</th><th>Pts Rodada</th><th>Pts Rank</th><th>Total</th></tr>';
     classificacaoMesa.forEach((item, pos) => {
-        h += `<tr><td>${pos + 1}º</td><td>${item.personagem.nome}</td><td>${item.totalPartida}</td><td><b>+${item.ptsRankGanho}</b></td></tr>`;
+        const p = item.personagem;
+        const ehEu = p.id === jogadorHumano.id;
+        h += `<tr class="${ehEu ? 'eu' : ''}">
+            <td>${pos + 1}º</td><td>${p.nome}</td><td>+${item.ganhoRodada}</td><td><b>+${item.ptsRankGanho}</b></td><td>${item.totalPartida}</td>
+        </tr>`;
     });
     h += '</table>';
 
-    h += `<button class="btn-modo" id="btnModal">${fim ? 'Recomeçar' : 'Próxima rodada'}</button>`;
+    if (fim) {
+        const rankingFinal = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total);
+        h += '<h3>🏆 Ranking Geral Final</h3><table><tr><th>#</th><th>Jogador</th><th>Pts Rank</th><th>Total Mesa</th></tr>';
+        rankingFinal.forEach((p, pos) => {
+            const ehEu = p.id === jogadorHumano.id;
+            h += `<tr class="${ehEu ? 'eu' : ''}"><td>${pos + 1}º</td><td>${p.nome}${ehEu ? ' (Você)' : ''}</td><td><b>${p.pontosRank}</b></td><td>${p.total}</td></tr>`;
+        });
+        h += '</table>';
+    }
+
+    h += `<button class="btn-modo" id="btnModal">${fim ? 'Escolher personagens novamente' : 'Próxima rodada'}</button>`;
     G.rodadaEncerrada = true;
     $('modalBox').innerHTML = h;
     $('modal').classList.remove('escondido');
@@ -285,23 +309,43 @@ function fimRodada() {
     render();
 }
 
-// ================= RANKING GERAL =================
+// ================= REQUISITO 2: BOTÃO RESET NO RANKING GERAL =================
 function abrirRankingGeral() {
     if (!G) return;
     const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total);
     let h = '<h2>🏆 Ranking Geral</h2>';
-    h += '<table><tr><th>#</th><th>Nome</th><th>Rank</th><th>Mesa</th></tr>';
+    h += '<table><tr><th>#</th><th>Jogador</th><th>Rank</th><th>Mesa</th></tr>';
     ranking.forEach((p, pos) => {
-        h += `<tr><td>${pos + 1}º</td><td>${p.nome}</td><td><b>${p.pontosRank}</b></td><td>${p.total}</td></tr>`;
+        const ehEu = jogadorHumano && p.id === jogadorHumano.id;
+        h += `<tr class="${ehEu ? 'eu' : ''}">
+            <td>${pos + 1}º</td><td>${p.nome}${ehEu ? ' (Você)' : ''}</td><td><b>${p.pontosRank}</b></td><td>${p.total}</td>
+        </tr>`;
     });
-    h += '</table><button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
+    h += '</table>';
+    h += '<div style="display:flex; gap:10px; margin-top:10px;">';
+    h += '<button type="button" class="btn-modo" id="btnResetGeral" style="background:#c62828;">Zerar Placar e Reiniciar</button>';
+    h += '<button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
+    h += '</div>';
+
     $('modalRankingBox').innerHTML = h;
     $('modalRanking').classList.remove('escondido');
+
+    $('btnResetGeral').onclick = () => {
+        PERSONAGENS.forEach(p => { p.total = 0; p.pontosRank = 0; });
+        $('modalRanking').classList.add('escondido');
+        $('jogo').classList.add('escondido');
+        $('telaLogin').classList.remove('escondido');
+        G = null; jogadorHumano = null;
+        $('personagemEscolhido').textContent = 'Escolha seu personagem';
+        $('btnComecar').disabled = true;
+        document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
+    };
+
     $('btnFecharRanking').onclick = () => $('modalRanking').classList.add('escondido');
 }
 if ($('btnRanking')) $('btnRanking').onclick = abrirRankingGeral;
 
-// ================= FLUXO E IA ESTRATÉGICA =================
+// ================= FLUXO E IA ESTRATÉGICA (REQUISITO 4) =================
 function agendar() {
     clearTimeout(G.timer);
     render();
@@ -323,27 +367,59 @@ function tentarJogar(c) {
     jogar(0, c);
 }
 
+// IA Estratégica
 function escolherBot(i) {
-    const mao = G.maos[i], v = mao.filter(c => !validar(i, c));
-    const ord = (a, b) => a.valor - b.valor;
+    const mao = G.maos[i];
+    const validas = mao.filter(c => !validar(i, c));
+    if (!validas.length) return mao[0];
+
+    // Identifica se alguém está em perigo de fechar a lua (já acumulou cartas de pontos na rodada)
+    const riscoLua = G.pts.some(p => p > 0 && p < 26);
+    const liderComMaisPontos = G.totais.indexOf(Math.max(...G.totais));
+
+    // Se abrir a mesa
     if (G.mesa.length === 0) {
-        if (G.vazas === 0) return v[0];
-        const sem = v.filter(c => c.naipe !== COP), base = sem.length ? sem : v;
-        const seg = base.filter(c => c.naipe !== ESP || !mao.some(x => x.naipe === ESP && x.valor >= 10));
-        return [...(seg.length ? seg : base)].sort(ord)[0];
+        if (G.vazas === 0) return validas.find(c => c.naipe === PAU && c.valor === 0) || validas[0];
+        
+        // Evita liderar copas se não necessário, tenta dar cartas altas para quem tem mais pontos
+        const semCopas = validas.filter(c => c.naipe !== COP);
+        const pool = semCopas.length ? semCopas : validas;
+        return pool.sort((a, b) => b.valor - a.valor)[0]; // Joga carta alta para tentar pontuar quem tem mais
     }
-    const seguem = v.filter(c => c.naipe === G.lider);
+
+    // Seguindo o naipe
+    const seguem = validas.filter(c => c.naipe === G.lider);
     if (seguem.length) {
-        const maior = Math.max(...G.mesa.filter(j => j.carta.naipe === G.lider).map(j => j.carta.valor));
-        const baixas = seguem.filter(c => c.valor < maior).sort(ord);
-        if (baixas.length) return baixas[baixas.length - 1];
-        const mesaPts = G.mesa.reduce((s, j) => s + pontosCarta(j.carta), 0);
-        const s = [...seguem].sort(ord), semQ = s.filter(c => !ehDama(c)), pool = semQ.length ? semQ : s;
-        return (G.mesa.length === 3 && mesaPts === 0) ? pool[pool.length - 1] : pool[0];
+        const maiorMesa = Math.max(...G.mesa.filter(j => j.carta.naipe === G.lider).map(j => j.carta.valor));
+        const cartasBaixas = seguem.filter(c => c.valor < maiorMesa).sort((a, b) => b.valor - a.valor);
+        const cartasAltas = seguem.filter(c => c.valor > maiorMesa).sort((a, b) => a.valor - b.valor);
+
+        // Se há risco de alguém fechar a lua, a IA evita somar pontos e descarta a menor possível
+        if (riscoLua) {
+            if (cartasBaixas.length) return cartasBaixas[0];
+            return seguem.sort((a, b) => a.valor - b.valor)[0];
+        }
+
+        // Caso normal: tenta dar a vaza (e pontos) para quem tem mais pontos na partida se a mesa tiver pontos
+        const mesaTemPontos = G.mesa.some(j => pontosCarta(j.carta) > 0);
+        if (mesaTemPontos && cartasAltas.length && i !== liderComMaisPontos) {
+            return cartasAltas[cartasAltas.length - 1]; // Tenta pegar com carta alta
+        }
+        
+        if (cartasBaixas.length) return cartasBaixas[0];
+        return seguem[0];
     }
-    const q = v.find(ehDama); if (q && G.mesa.length >= 2) return q;
-    const cops = v.filter(c => c.naipe === COP).sort(ord); if (cops.length) return cops[cops.length - 1];
-    return [...v].sort(ord)[v.length - 1];
+
+    // Descates (não pode seguir o naipe)
+    const dama = validas.find(ehDama);
+    const copas = validas.filter(c => c.naipe === COP).sort((a, b) => b.valor - a.valor);
+
+    // Se tiver a Dama de Espadas e não houver risco de lua, tenta empurrar para alguém
+    if (dama && !riscoLua) return dama;
+    if (copas.length && !riscoLua) return copas[0];
+
+    // Descarta a carta mais alta indesejada
+    return validas.sort((a, b) => b.valor - a.valor)[0];
 }
 
 function render() {
@@ -401,20 +477,4 @@ function mostrarQ() {
     if (!e) return;
     e.classList.remove('escondido');
     clearTimeout(mostrarQ.t);
-    mostrarQ.t = setTimeout(() => e.classList.add('escondido'), 2500);
-}
-
-const audioDama = new Audio('fotos/dama-espadas.ogg');
-function tocarAudioDama() {
-    audioDama.play().catch(() => {});
-}
-
-if ($('btnRadio')) {
-    let rOn = false;
-    $('btnRadio').onclick = () => {
-        rOn = !rOn;
-        $('btnRadio').classList.toggle('on', rOn);
-        $('radioNome').textContent = rOn ? 'Rádio ativa' : 'Rádio desligada';
-    };
-      }
-                                     
+    mostra
