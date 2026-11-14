@@ -2,15 +2,6 @@
    JOGO DE COPAS - CSS RESPONSIVO
    ---------------------------------------------------------------------
    Toda a tela é medida em uma unidade --u (definida pelo script.js).
-   O script testa tamanhos até achar o MAIOR que cabe na tela sem que
-   nenhum personagem encoste na área das cartas. Por isso o jogo se
-   adapta a PC, tablet e celular (em pé ou deitado).
-
-   ORDEM DAS CAMADAS (de baixo para cima):
-     1  personagens (painéis)
-     10 cartas jogadas no meio da mesa
-     20 mão do jogador  (carta selecionada = 25, arrastando = 26)
-     50 barra do topo
    ===================================================================== */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
@@ -42,16 +33,135 @@ body {
 button { font-family: inherit; }
 :focus-visible { outline: 3px solid var(--ouro); outline-offset: 2px; }
 
-/* LOGIN */
-#telaLogin { position: absolute; inset: 0; background: rgba(0,0,0,.88); display: flex; justify-content: center; align-items: center; z-index: 100; }
-.login-box { background: #1e1e1e; padding: 36px; border-radius: 15px; text-align: center; width: min(350px, 92vw); box-shadow: 0 10px 30px #000; border: 1px solid #333; }
-.login-box h1 { margin-bottom: 8px; color: var(--ok); font-size: 26px; }
-.login-box .sub { margin-bottom: 20px; font-size: 14px; color: #bbb; }
-.login-box input { padding: 12px; font-size: 16px; width: 100%; margin-bottom: 18px; border-radius: 8px; background: #333; color: #fff; border: 1px solid #555; }
-.btn-modo { padding: 14px; font-size: 17px; background: #2e7d32; color: #fff; border: none; cursor: pointer; border-radius: 8px; font-weight: bold; width: 100%; }
-.btn-modo:hover { background: #1b5e20; }
+/* SELEÇÃO DE PERSONAGEM */
+#telaLogin { 
+    position: absolute; 
+    inset: 0; 
+    background: rgba(0,0,0,.88); 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    z-index: 100; 
+    overflow-y: auto; 
+    padding: 12px; 
+}
 
-/* TOPBAR */
+.selecao-box {
+    width: min(1120px, 98vw);
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    padding: clamp(12px, 2vh, 22px);
+    border: 2px solid #c8a64b;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(255,255,255,.06), transparent 35%), radial-gradient(ellipse at 50% 0%, #344638 0%, #151b17 62%, #090d0b 100%);
+    box-shadow: 0 0 0 4px #111, 0 14px 45px #000d, inset 0 0 24px #0009;
+    text-align: center;
+    display: flex; 
+    flex-direction: column;
+}
+
+.selecao-box h1 {
+    margin: 0 0 4px; 
+    color: #f5d46b; 
+    font-size: clamp(22px, 3vw, 34px);
+    letter-spacing: 1.5px; 
+    text-transform: uppercase; 
+    text-shadow: 0 3px 0 #5b3d0b, 0 0 18px #e7b83d88;
+}
+
+.selecao-box .sub { margin: 0 0 12px; color: #d7d7c8; font-size: 13px; }
+
+.grade-personagens {
+    display: grid; 
+    grid-template-columns: repeat(5, minmax(0, 1fr)); 
+    gap: 10px; 
+    padding: 10px;
+    border: 1px solid #7d6938; 
+    border-radius: 8px; 
+    background: #080b0ad9; 
+    box-shadow: inset 0 0 20px #000;
+    flex: 1 1 auto; 
+    min-height: 0; 
+    overflow-y: auto; 
+    -webkit-overflow-scrolling: touch; 
+    grid-auto-rows: max-content; 
+    align-content: start;
+}
+
+.personagem-card {
+    position: relative; 
+    min-height: 0; 
+    padding: 7px; 
+    gap: 6px; 
+    border: 2px solid #4b514b; 
+    border-radius: 5px;
+    background: linear-gradient(145deg, #353b35, #151916); 
+    box-shadow: 0 3px 7px #000a, inset 0 0 0 1px #ffffff0b;
+    overflow: hidden; 
+    cursor: pointer; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    font: inherit;
+}
+
+.personagem-card:hover { border-color: #e7c45c; transform: translateY(-2px); }
+
+.personagem-card.escolhido {
+    border-color: #ffe27a; 
+    background: linear-gradient(145deg, #64501e, #25200f);
+    box-shadow: 0 0 0 2px #d5a82f, 0 0 22px #ffcf4c99;
+}
+
+.personagem-card img {
+    width: 100%; 
+    height: clamp(60px, 11vh, 100px); 
+    object-fit: contain; 
+    object-position: center;
+    background: linear-gradient(145deg, #485248, #111712); 
+    border-radius: 3px;
+}
+
+.personagem-card strong {
+    width: 100%; 
+    padding: 3px 2px; 
+    color: #f5e9c5; 
+    background: #0008; 
+    font-size: 13px;
+    text-transform: uppercase; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap;
+}
+
+.escolha-status { margin: 8px 0 !important; font-size: 13px; color: #ffd54f; }
+
+#btnComecar { 
+    margin: 8px auto 0; 
+    width: min(340px, 100%); 
+    padding: 11px 18px; 
+    border: 1px solid #f3d36c; 
+    border-radius: 5px; 
+    text-transform: uppercase; 
+    letter-spacing: 1px; 
+    background: linear-gradient(#98762a, #594316); 
+    cursor: pointer;
+}
+
+#btnComecar:disabled { opacity: .4; cursor: not-allowed; }
+#btnComecar:not(:disabled):hover { background: linear-gradient(#c49b37, #76591b); }
+.regra-selecao { margin-top: 7px; font-size: 11px; color: #bbb; }
+
+/* JOGO */
+#jogo {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+    overflow: hidden;
+}
+
 #topbar {
     position: relative;
     z-index: 50;
@@ -92,7 +202,6 @@ button { font-family: inherit; }
 }
 #btnRanking:hover { background: rgba(255, 213, 79, .18); box-shadow: 0 0 12px rgba(255, 213, 79, .45); transform: translateY(-1px); }
 
-/* MESA */
 #mesa {
     position: relative;
     flex: 1 1 0;
@@ -280,55 +389,8 @@ button { font-family: inherit; }
     border-radius: 12px;
 }
 
-#telaLogin { overflow-y: auto; align-items: center; justify-content: center; padding: 12px; z-index: 100; position: absolute; inset: 0; }
-.selecao-box {
-    width: min(1120px, 98vw);
-    max-height: calc(100dvh - 24px);
-    overflow: auto;
-    padding: clamp(12px, 2vh, 22px);
-    border: 2px solid #c8a64b;
-    border-radius: 10px;
-    background: linear-gradient(135deg, rgba(255,255,255,.06), transparent 35%), radial-gradient(ellipse at 50% 0%, #344638 0%, #151b17 62%, #090d0b 100%);
-    box-shadow: 0 0 0 4px #111, 0 14px 45px #000d, inset 0 0 24px #0009;
-    text-align: center;
-    display: flex; flex-direction: column;
-}
-.selecao-box h1 {
-    margin: 0 0 4px; color: #f5d46b; font-size: clamp(22px, 3vw, 34px);
-    letter-spacing: 1.5px; text-transform: uppercase; text-shadow: 0 3px 0 #5b3d0b, 0 0 18px #e7b83d88;
-}
-.selecao-box .sub { margin: 0 0 12px; color: #d7d7c8; font-size: 13px; }
-.grade-personagens {
-    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 10px;
-    border: 1px solid #7d6938; border-radius: 8px; background: #080b0ad9; box-shadow: inset 0 0 20px #000;
-    flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; grid-auto-rows: max-content; align-content: start;
-}
-.personagem-card {
-    position: relative; min-height: 0; padding: 7px; gap: 6px; border: 2px solid #4b514b; border-radius: 5px;
-    background: linear-gradient(145deg, #353b35, #151916); box-shadow: 0 3px 7px #000a, inset 0 0 0 1px #ffffff0b;
-    overflow: hidden; cursor: pointer; display: flex; flex-direction: column; align-items: center; font: inherit;
-}
-.personagem-card:hover { border-color: #e7c45c; transform: translateY(-2px); }
-.personagem-card.escolhido {
-    border-color: #ffe27a; background: linear-gradient(145deg, #64501e, #25200f);
-    box-shadow: 0 0 0 2px #d5a82f, 0 0 22px #ffcf4c99;
-}
-.personagem-card img {
-    width: 100%; height: clamp(60px, 11vh, 100px); object-fit: contain; object-position: center;
-    background: linear-gradient(145deg, #485248, #111712); border-radius: 3px;
-}
-.personagem-card strong {
-    width: 100%; padding: 3px 2px; color: #f5e9c5; background: #0008; font-size: 13px;
-    text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.escolha-status { margin: 8px 0 !important; font-size: 13px; color: #ffd54f; }
-#btnComecar { margin: 8px auto 0; width: min(340px, 100%); padding: 11px 18px; border: 1px solid #f3d36c; border-radius: 5px; text-transform: uppercase; letter-spacing: 1px; background: linear-gradient(#98762a, #594316); }
-#btnComecar:disabled { opacity: .4; cursor: not-allowed; }
-#btnComecar:not(:disabled):hover { background: linear-gradient(#c49b37, #76591b); }
-.regra-selecao { margin-top: 7px; font-size: 11px; color: #bbb; }
-
 #selEstado, #selGenero { background: #111; color: #ffd54f; border: 1px solid #666; border-radius: 6px; height: 30px; padding: 0 4px; font-weight: bold; font-size: 12px; }
 #selRadio { background: #111; color: #fff; border: 1px solid #666; border-radius: 6px; height: 30px; padding: 0 4px; font-size: 12px; max-width: 38vw; min-width: 0; }
 #radio { flex-wrap: wrap; }
 #selGenero { max-width: 26vw; }
-      
+                   
