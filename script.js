@@ -1328,7 +1328,7 @@ function render(piscar) {
         const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total).findIndex(p => p.id === G.personagens[i].id) + 1;
         box.innerHTML = `<img class="avatar-jogador" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
             <div class="info-jogador">
-                <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small>${i === G.carteador ? '<small class="dealer" title="Carteador">D</small>' : ''}</span>
+                <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small></span>
                 <span class="tot">Total: ${G.totais[i]}</span>
                 <span class="rod">Rodada: ${G.pts[i]}</span>
             </div>`;
@@ -1344,9 +1344,8 @@ function render(piscar) {
     st.classList.toggle('aviso', G.aviso.startsWith('⚠'));
     if (G.distribuindo) st.textContent = G.distMsg || 'Preparando o baralho…';
     else if (G.aviso) st.textContent = G.aviso;
-    else if (G.vazas === 0 && G.mesa.length === 0) st.textContent = `Rodada ${G.rodada}: ${G.nomes[G.turno]} tem o 2♣ e começa.`;
-    else if (minha) st.textContent = G.mesa.length ? `Sua vez — siga ${NAIPES[G.lider].nome} ${NAIPES[G.lider].s} (1 clique seleciona · duplo clique/arraste joga).` : 'Sua vez — abra a mesa (1 clique seleciona · duplo clique/arraste joga).';
-    else st.textContent = `Vez de ${G.nomes[G.turno]}…`;
+    else if (minha) st.textContent = 'Sua vez';
+    else st.textContent = `Vez de ${G.nomes[G.turno]}`;
 }
 
 function mostrarQ() {

@@ -131,8 +131,7 @@ button { font-family: inherit; }
     flex: 1; min-width: 160px; height: 50px;
     background: rgba(0,0,0,.75); border: 2px solid var(--ok); border-radius: 10px;
     padding: 5px 12px; font-size: 15px; line-height: 1.25; font-weight: 600;
-    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
-    -webkit-box-pack: center; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden;
 }
 #status.aviso { border-color: #ff5252; background: rgba(120,0,0,.85); }
 
@@ -317,8 +316,9 @@ button { font-family: inherit; }
     cursor: default;
 }
 .carta.verso::after {
-    content: "♥  ♠"; position: absolute; inset: 0; display: grid; place-items: center;
-    color: #fff; font-size: calc(var(--w) * .2); text-shadow: 1px 2px 3px #000;
+    content: "♠ ♥\A ♦ ♣"; white-space: pre; text-align: center; line-height: 1.1;
+    position: absolute; inset: 0; display: grid; place-items: center;
+    color: #fff; font-size: calc(var(--w) * .24); text-shadow: 1px 2px 3px #000;
 }
 
 /* EFEITO Q♠ (não bloqueia toque, fica acima da mão, no canto) */
@@ -533,7 +533,7 @@ button { font-family: inherit; }
 }
 
 /* =====================================================================
-   V11 — ACABAMENTO PROFISSIONAL
+   V13 — ACABAMENTO PROFISSIONAL
    ===================================================================== */
 
 
@@ -613,11 +613,11 @@ button { font-family: inherit; }
 }
 
 
-/* V11: volume na mesma linha da legenda de status (celular) */
+/* V13: volume na mesma linha da legenda de status (celular) */
 @media (max-width: 768px) {
     #controleVolume { padding: 0 4px; gap: 3px; }
     #controleVolume button { width: 26px; height: 32px; }
     #controleVolume output { min-width: 24px; }
-    #status { min-width: 0; font-size: 13px; line-height: 1.15; padding: 4px 8px; -webkit-line-clamp: 3; line-clamp: 3; }
+    #status { min-width: 0; font-size: 13px; line-height: 1.15; padding: 4px 8px; }
     #btnSom, #btnRanking { min-width: 40px; padding: 0 6px; }
 }
