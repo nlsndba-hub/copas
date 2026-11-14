@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#14461a">
-    <meta name="description" content="Miquilino V8 — jogo de Copas com IA em três níveis, baralho animado e efeitos sonoros.">
+    <meta name="description" content="Miquilino V9 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Miquilino V8</title>
+    <title>Miquilino V9</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -25,13 +25,6 @@
         <div class="selecao-box">
             <h1>♥ Jogo de Copas ♠</h1>
             <p class="sub">Escolha seu personagem. Três máquinas serão sorteadas para jogar com você.</p>
-            <div class="nivel-box" role="radiogroup" aria-label="Dificuldade das máquinas">
-                <span class="rotulo">Dificuldade</span>
-                <button type="button" class="nivel" data-nivel="normal" role="radio" aria-checked="false">Normal</button>
-                <button type="button" class="nivel" data-nivel="dificil" role="radio" aria-checked="true">Difícil</button>
-                <button type="button" class="nivel" data-nivel="mestre" role="radio" aria-checked="false">Mestre</button>
-            </div>
-            <p id="nivelDescricao" class="nivel-desc"></p>
             <button id="btnComecar" class="btn-modo" disabled><i class="fas fa-play"></i> Começar partida</button>
             <p id="personagemEscolhido" class="escolha-status">Escolha seu personagem</p>
             <div id="gradePersonagens" class="grade-personagens"></div>

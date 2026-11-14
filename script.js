@@ -83,30 +83,9 @@ const SFX = (() => {
 })();
 
 // ================= NÍVEL DE DIFICULDADE =================
-let nivelIA = 'dificil';
-try { const sv = localStorage.getItem('miq_nivel'); if (['normal', 'dificil', 'mestre'].includes(sv)) nivelIA = sv; } catch (e) {}
+// Fixo: as máquinas sempre jogam no nível Mestre.
+const nivelIA = 'mestre';
 const NOMES_NIVEL = { normal: 'Normal', dificil: 'Difícil', mestre: 'Mestre' };
-const DESC_NIVEL = {
-    normal: 'As máquinas jogam como na V7: boas, mas previsíveis.',
-    dificil: 'Contam cartas, deduzem quem ficou sem naipe, fogem das vazas com pontos e descartam a Dama na hora certa.',
-    mestre: 'Simulam centenas de partidas a cada jogada, deduzem suas cartas e defendem contra a Lua. Quase não erram.'
-};
-function marcarNivel() {
-    document.querySelectorAll('.nivel').forEach(b => {
-        const ativo = b.dataset.nivel === nivelIA;
-        b.classList.toggle('ativo', ativo);
-        b.setAttribute('aria-checked', String(ativo));
-    });
-    $('nivelDescricao').textContent = DESC_NIVEL[nivelIA];
-}
-document.querySelectorAll('.nivel').forEach(b => {
-    b.onclick = () => {
-        nivelIA = b.dataset.nivel;
-        try { localStorage.setItem('miq_nivel', nivelIA); } catch (e) {}
-        marcarNivel();
-    };
-});
-marcarNivel();
 
 // ================= ESTATÍSTICAS DO JOGADOR (salvas no aparelho) =================
 const ESTAT = { partidas: 0, vitorias: 0, zeros: 0, luas: 0 };
@@ -114,70 +93,50 @@ try { Object.assign(ESTAT, JSON.parse(localStorage.getItem('miq_estat') || '{}')
 const salvarEstat = () => { try { localStorage.setItem('miq_estat', JSON.stringify(ESTAT)); } catch (e) {} };
 
 // ================= ÁUDIO DA TELA INICIAL =================
-// Sempre que a tela Miquilino aparece, tenta tocar intro.mp3 imediatamente
-// e agenda novas tentativas a cada 10 segundos enquanto ela permanecer visível.
-// Se o navegador bloquear autoplay, a primeira interação do usuário libera o áudio.
+// intro.mp3 toca SEMPRE que o jogo está nas telas de menu (Miquilino e escolha
+// de personagem), em loop, e só para quando a partida começa. Se o navegador
+// bloquear o autoplay, qualquer toque/tecla/foco libera o áudio imediatamente.
 const audioIntro = new Audio('intro.mp3');
 audioIntro.preload = 'auto';
-let intervaloIntro = null;
+audioIntro.loop = true;
 
 function telaInicialVisivel() {
-    return !$('telaInicial').classList.contains('escondido');
+    return !$('telaInicial').classList.contains('escondido') ||
+           !$('telaLogin').classList.contains('escondido');
+}
+
+function tentarTocarIntro() {
+    if (!telaInicialVisivel() || !audioIntro.paused) return;
+    try {
+        const p = audioIntro.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) {}
 }
 
 function pararIntro() {
-    if (intervaloIntro !== null) {
-        clearInterval(intervaloIntro);
-        intervaloIntro = null;
-    }
     audioIntro.pause();
     try { audioIntro.currentTime = 0; } catch (e) {}
 }
 
-function tocarIntroSeNecessario() {
-    if (!telaInicialVisivel()) return;
-    if (!audioIntro.paused) return;
+function tocarIntroSeNecessario() { tentarTocarIntro(); }
 
-    // Tenta tocar imediatamente, inclusive quando a tela acabou de ser reaberta.
-    try {
-        const tentativa = audioIntro.play();
-        if (tentativa && typeof tentativa.catch === 'function') {
-            tentativa.catch(() => {
-                // Autoplay pode ser bloqueado até o primeiro gesto do usuário.
-            });
-        }
-    } catch (e) {
-        // O navegador pode exigir uma interação do usuário.
-    }
-
-    // O relógio começa ao entrar na tela inicial, não depende do play() funcionar.
-    if (intervaloIntro === null) {
-        intervaloIntro = setInterval(() => {
-            if (!telaInicialVisivel()) {
-                pararIntro();
-                return;
-            }
-            // Não interrompe um áudio que ainda esteja tocando.
-            if (audioIntro.paused) {
-                try { audioIntro.currentTime = 0; } catch (e) {}
-                const tentativa = audioIntro.play();
-                if (tentativa && typeof tentativa.catch === 'function') tentativa.catch(() => {});
-            }
-        }, 10000);
-    }
-}
-
-// Executa ao abrir/atualizar a página e tenta novamente no primeiro toque/clique
-// caso o navegador tenha bloqueado a reprodução automática.
-tocarIntroSeNecessario();
-document.addEventListener('pointerdown', () => {
-    if (telaInicialVisivel()) tocarIntroSeNecessario();
-}, true);
+tentarTocarIntro();
+['pointerdown', 'touchstart', 'click', 'keydown'].forEach(ev =>
+    document.addEventListener(ev, tentarTocarIntro, true));
+['canplay', 'loadeddata'].forEach(ev => audioIntro.addEventListener(ev, tentarTocarIntro));
+window.addEventListener('focus', tentarTocarIntro);
+window.addEventListener('pageshow', tentarTocarIntro);
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { if (telaInicialVisivel()) audioIntro.pause(); }
+    else tentarTocarIntro();
+});
+// Rede de segurança: se por qualquer motivo parar em um menu, retoma.
+setInterval(tentarTocarIntro, 2000);
 
 // ================= TELA INICIAL MIQUILINO =================
 // Ao recarregar a página, a tela inicial é sempre exibida primeiro.
 $('btnIniciarMiquilino').addEventListener('click', async () => {
-    pararIntro();
+    // O áudio da intro continua tocando na tela de personagens.
     // O clique em Iniciar também solicita tela cheia antes de abrir personagens.
     try {
         if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -236,6 +195,7 @@ function iniciarPartida() {
     nomeJogador = jogadorHumano.nome;
     $('telaLogin').classList.add('escondido');
     $('jogo').classList.remove('escondido');
+    pararIntro();
     ajustarEscala();
     G = {
         nomes: participantes.map(p => p.nome),
@@ -863,7 +823,7 @@ document.addEventListener('drop', e => {
     if (cartaObj) tentarJogar(cartaObj);
 });
 
-// ================= IA V8 (níveis Difícil e Mestre) =================
+// ================= IA V9 (níveis Difícil e Mestre) =================
 // Trabalha com cartas em formato numérico: código = naipe*13 + valor
 // (0-12 Espadas, 13-25 Copas, 26-38 Ouros, 39-51 Paus). Dama de Espadas = 10, 2♣ = 39.
 // A IA só usa informação PÚBLICA: a própria mão, cartas já jogadas, mesa, pontos
