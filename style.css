@@ -465,3 +465,23 @@ button { font-family: inherit; }
     border-radius: 12px;
     box-shadow: 0 4px 18px #0009;
 }
+
+
+/* Imagem mostrada quando ocorre uma renúncia, no resultado e no ranking. */
+.sticker-renuncia {
+    display: block;
+    width: min(220px, 58vw);
+    max-height: 220px;
+    height: auto;
+    object-fit: contain;
+    margin: 8px auto 14px;
+    border-radius: 12px;
+    box-shadow: 0 4px 18px #0009;
+}
+
+/* Reforço do layout em aparelhos deitados, inclusive telas maiores. */
+@media (orientation: landscape) and (max-height: 700px) {
+    #jogo { min-height: 100dvh; }
+    #topbar { padding-top: 2px; padding-bottom: 2px; }
+    #maoJogador { padding-bottom: max(2px, env(safe-area-inset-bottom, 0px)); }
+}

@@ -69,7 +69,13 @@ function montarSelecao() {
         grade.appendChild(card);
     });
 }
-$('btnComecar').onclick = iniciarPartida;
+$('btnComecar').onclick = () => {
+    // A tela cheia precisa ser solicitada durante um toque/clique do usuário.
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+    iniciarPartida();
+};
 montarSelecao();
 
 function iniciarPartida() {
@@ -91,7 +97,8 @@ function iniciarPartida() {
         rodada: 0,
         fila: filaMaquinas,
         rankingGeral: PERSONAGENS,
-        luaConquistada: false
+        luaConquistada: false,
+        renunciaConquistada: false
     };
     novaRodada();
 }
@@ -214,6 +221,7 @@ function resolverVaza() {
 
 function fimRodada() {
     const renunciante = G.renunciou.findIndex(Boolean);
+    if (renunciante >= 0) G.renunciaConquistada = true;
     const lua = renunciante >= 0 ? -1 : G.pts.findIndex(p => p === 26);
     const ganho = renunciante >= 0
         ? G.pts.map((p, i) => i === renunciante ? 26 : 0)
@@ -282,6 +290,7 @@ function fimRodada() {
     let h = fim ? '<h2>🏁 Fim de jogo!</h2>' : `<h2>Fim da rodada ${G.rodada}</h2>`;
     const menorPontuacao = Math.min(...ganho);
     if (ganho[0] === menorPontuacao) h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.gif" alt="Sticker comemorativo">`;
+    if (renunciante >= 0) h += `<img class="sticker-renuncia" src="renu.png" alt="Imagem de renúncia">`;
     if (renunciante >= 0) h += `<p>⚠️ <b>${jogadoresMesaRodada[renunciante].nome} RENUNCIOU!</b> Por jogar fora do naipe tendo cartas do naipe solicitado, recebeu os 26 pontos da rodada.</p>`;
     else if (lua >= 0) h += `<p>🌕 <b>${jogadoresMesaRodada[lua].nome}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
     if (eliminadosAgora.length) h += `<p>🚪 Saíram da mesa: ${eliminadosAgora.map(p => p.nome).join(', ')}. ${G.fila.length ? 'Novas máquinas entram na próxima rodada.' : 'Não há mais reservas.'}</p>`;
@@ -339,6 +348,9 @@ function abrirRankingGeral() {
     h += '<p class="legenda-pontos" style="margin-bottom:10px;">Pontos por rodada: menor pontuação (0) · 2º (1) · 3º (2) · maior pontuação (4)</p>';
     if (G.luaConquistada) {
         h += '<img class="sticker-lua-26" src="26.gif" alt="Lua: 26 pontos para os outros jogadores">';
+    }
+    if (G.renunciaConquistada) {
+        h += '<img class="sticker-renuncia" src="renu.png" alt="Renúncia na partida">';
     }
     h += '<table><tr><th>#</th><th>Jogador</th><th>Rank</th><th>Mesa</th><th>Situação</th></tr>';
     ranking.forEach((p, pos) => {
@@ -580,12 +592,26 @@ function ajustarEscala() {
 }
 
 let rafEscala = 0;
+function atualizarOrientacao() {
+    // Usa a orientação informada pelo sistema (e o tamanho da janela como fallback).
+    // Não precisa ler os movimentos do giroscópio, apenas detectar a rotação da tela.
+    const tipo = screen.orientation && screen.orientation.type;
+    const deitada = tipo ? tipo.includes('landscape') :
+        (window.matchMedia && window.matchMedia('(orientation: landscape)').matches);
+    document.documentElement.classList.toggle('orientacao-deitada', !!deitada);
+    document.documentElement.classList.toggle('orientacao-em-pe', !deitada);
+}
 function reajustar() {
+    atualizarOrientacao();
     cancelAnimationFrame(rafEscala);
     rafEscala = requestAnimationFrame(() => { ajustarEscala(); if (G) render(); });
 }
+atualizarOrientacao();
 addEventListener('resize', reajustar);
 addEventListener('orientationchange', () => setTimeout(reajustar, 300));
+if (screen.orientation && screen.orientation.addEventListener) {
+    screen.orientation.addEventListener('change', reajustar);
+}
 if (window.visualViewport) visualViewport.addEventListener('resize', reajustar);
 
 // ================= TELA =================
