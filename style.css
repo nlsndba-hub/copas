@@ -43,6 +43,52 @@ body {
 button { font-family: inherit; }
 :focus-visible { outline: 3px solid var(--ouro); outline-offset: 2px; }
 
+/* TELA DE ABERTURA MIQUILINO */
+#telaInicial {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(14px, 2.5vh, 24px); padding: 22px; overflow: hidden;
+    background: radial-gradient(circle at 50% 42%, #2e7d32 0%, #14461a 72%);
+}
+#imagemMiquilino {
+    display: block; width: auto; height: min(53vh, 520px); max-width: min(72vw, 330px);
+    object-fit: contain; border-radius: 18px;
+    box-shadow: 0 16px 42px rgba(0,0,0,.55);
+    opacity: 0; transform: translateY(34px) scale(.82) rotate(-7deg);
+    animation: miqCartaEntrada .95s cubic-bezier(.2,.8,.2,1) .12s forwards;
+}
+#tituloMiquilino {
+    color: #fff; font-size: clamp(42px, 10vw, 72px); line-height: 1;
+    font-weight: 900; letter-spacing: 1px; text-align: center;
+    text-shadow: 0 4px 0 #0b2b10, 0 8px 22px rgba(0,0,0,.55);
+    opacity: 0; transform: translateY(18px);
+    animation: miqTextoEntrada .65s ease-out 1.02s forwards;
+}
+#btnIniciarMiquilino {
+    min-width: min(260px, 76vw); padding: 15px 30px; border: 2px solid #ffe082;
+    border-radius: 12px; background: linear-gradient(180deg, #43a047, #1b5e20);
+    color: #fff; font-size: 22px; font-weight: 800; cursor: pointer;
+    box-shadow: 0 7px 0 #0b3510, 0 12px 24px rgba(0,0,0,.35);
+    opacity: 0; transform: translateY(16px);
+    animation: miqTextoEntrada .55s ease-out 1.42s forwards;
+}
+#btnIniciarMiquilino:active { transform: translateY(3px); box-shadow: 0 3px 0 #0b3510; }
+@keyframes miqCartaEntrada {
+    0% { opacity: 0; transform: translateY(34px) scale(.82) rotate(-7deg); }
+    70% { opacity: 1; transform: translateY(-5px) scale(1.025) rotate(1deg); }
+    100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+@keyframes miqTextoEntrada { to { opacity: 1; transform: translateY(0); } }
+@media (max-height: 620px) {
+    #telaInicial { gap: 10px; padding: 10px; }
+    #imagemMiquilino { height: 43vh; max-width: 34vw; }
+    #tituloMiquilino { font-size: clamp(34px, 7vh, 54px); }
+    #btnIniciarMiquilino { padding: 10px 24px; font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #imagemMiquilino, #tituloMiquilino, #btnIniciarMiquilino { animation: none; opacity: 1; transform: none; }
+}
+
 /* LOGIN */
 #telaLogin { position: absolute; inset: 0; background: rgba(0,0,0,.88); display: flex; justify-content: center; align-items: center; z-index: 100; }
 .login-box { background: #1e1e1e; padding: 36px; border-radius: 15px; text-align: center; width: min(350px, 92vw); box-shadow: 0 10px 30px #000; border: 1px solid #333; }

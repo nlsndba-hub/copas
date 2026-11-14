@@ -41,6 +41,13 @@ function criarElementoCarta(c, extra = '') {
     return d;
 }
 
+// ================= TELA INICIAL MIQUILINO =================
+// Ao recarregar a página, a tela inicial é sempre exibida primeiro.
+$('btnIniciarMiquilino').addEventListener('click', () => {
+    $('telaInicial').classList.add('escondido');
+    $('telaLogin').classList.remove('escondido');
+});
+
 // ================= PERSONAGENS E INÍCIO =================
 const PERSONAGENS = [
     'Alcy','Nelson','Caio','Marcio','Julio','Motoboy','Alex',
