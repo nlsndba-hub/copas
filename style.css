@@ -22,8 +22,9 @@
     --tw: 64px;                          /* largura da carta na mesa  */
     --th: calc(var(--tw) * 1.4375);      /* altura da carta na mesa   */
     --av: max(34px, calc(var(--u) * 5.2));   /* foto do personagem   */
-    --mao-h: calc(var(--ch) * .55);      /* parte da mão sempre visível */
-    --desce: calc(var(--ch) - var(--mao-h));
+    --mao-h: var(--ch);                  /* mão inteira visível (carta completa) */
+    --desce: 0px;
+    --folga: 24px;                       /* respiro embaixo: longe da barra/gestos do celular */
     --safe-b: env(safe-area-inset-bottom, 0px);
     --verm: #c62828; --pret: #111; --ouro: #ffd54f; --ok: #4CAF50;
 }
@@ -168,9 +169,9 @@ button { font-family: inherit; }
     padding: calc(var(--u) * .6) max(calc(var(--u) * .8), env(safe-area-inset-right, 0px)) calc(var(--u) * .6) max(calc(var(--u) * .8), env(safe-area-inset-left, 0px));
 }
 #j2 { grid-column: 2; grid-row: 1; justify-self: center; }
-#j1 { grid-column: 1; grid-row: 2; align-self: center; }
-#j3 { grid-column: 3; grid-row: 2; align-self: center; }
-#areaCentral { grid-column: 2; grid-row: 2; place-self: center; }
+#j1 { grid-column: 1; grid-row: 2; align-self: center; margin-bottom: calc(var(--u) * 4); }
+#j3 { grid-column: 3; grid-row: 2; align-self: center; margin-bottom: calc(var(--u) * 4); }
+#areaCentral { grid-column: 2; grid-row: 2; place-self: center; margin-bottom: calc(var(--u) * 4); }
 #j0 { grid-column: 1 / -1; grid-row: 3; justify-self: center; }
 
 /* PERSONAGENS (camada 1: sempre ATRÁS das cartas) */
@@ -242,8 +243,8 @@ button { font-family: inherit; }
     z-index: 20;
     flex: none;
     width: 100%;
-    height: calc(var(--mao-h) + var(--safe-b));
-    padding: 0 8px var(--safe-b);
+    height: calc(var(--mao-h) + var(--safe-b) + var(--folga));
+    padding: 0 8px calc(var(--safe-b) + var(--folga));
     display: flex;
     justify-content: center;
     align-items: flex-end;
@@ -527,7 +528,8 @@ button { font-family: inherit; }
 @media (orientation: landscape) and (max-height: 700px) {
     #jogo { min-height: 100dvh; }
     #topbar { padding-top: 2px; padding-bottom: 2px; }
-    #maoJogador { padding-bottom: max(2px, env(safe-area-inset-bottom, 0px)); }
+    :root { --folga: 6px; }
+    #j1, #j3, #areaCentral { margin-bottom: 0; }
 }
 
 /* =====================================================================
