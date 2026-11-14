@@ -44,16 +44,17 @@ function criarElementoCarta(c, extra = '') {
 }
 
 // ================= ÁUDIO DA TELA INICIAL =================
-// Toca intro.mp3 enquanto a tela do Miquilino estiver visível.
-// A reprodução automática pode ser bloqueada pelo navegador; nesse caso,
-// a primeira interação do usuário libera o áudio.
+// Sempre que a tela Miquilino aparece, tenta tocar intro.mp3 imediatamente
+// e agenda novas tentativas a cada 10 segundos enquanto ela permanecer visível.
+// Se o navegador bloquear autoplay, a primeira interação do usuário libera o áudio.
 const audioIntro = new Audio('intro.mp3');
 audioIntro.preload = 'auto';
 let intervaloIntro = null;
-let introLiberada = false;
+
 function telaInicialVisivel() {
     return !$('telaInicial').classList.contains('escondido');
 }
+
 function pararIntro() {
     if (intervaloIntro !== null) {
         clearInterval(intervaloIntro);
@@ -62,30 +63,42 @@ function pararIntro() {
     audioIntro.pause();
     try { audioIntro.currentTime = 0; } catch (e) {}
 }
-async function tocarIntroSeNecessario() {
+
+function tocarIntroSeNecessario() {
     if (!telaInicialVisivel()) return;
     if (!audioIntro.paused) return;
+
+    // Tenta tocar imediatamente, inclusive quando a tela acabou de ser reaberta.
     try {
-        await audioIntro.play();
-        introLiberada = true;
-        if (intervaloIntro === null) {
-            intervaloIntro = setInterval(() => {
-                if (!telaInicialVisivel()) {
-                    pararIntro();
-                    return;
-                }
-                // Não corta uma reprodução em andamento; reinicia quando estiver parada.
-                if (audioIntro.paused) {
-                    audioIntro.currentTime = 0;
-                    audioIntro.play().catch(() => {});
-                }
-            }, 10000);
+        const tentativa = audioIntro.play();
+        if (tentativa && typeof tentativa.catch === 'function') {
+            tentativa.catch(() => {
+                // Autoplay pode ser bloqueado até o primeiro gesto do usuário.
+            });
         }
     } catch (e) {
-        // Aguarda um gesto do usuário para contornar o bloqueio de autoplay.
+        // O navegador pode exigir uma interação do usuário.
+    }
+
+    // O relógio começa ao entrar na tela inicial, não depende do play() funcionar.
+    if (intervaloIntro === null) {
+        intervaloIntro = setInterval(() => {
+            if (!telaInicialVisivel()) {
+                pararIntro();
+                return;
+            }
+            // Não interrompe um áudio que ainda esteja tocando.
+            if (audioIntro.paused) {
+                try { audioIntro.currentTime = 0; } catch (e) {}
+                const tentativa = audioIntro.play();
+                if (tentativa && typeof tentativa.catch === 'function') tentativa.catch(() => {});
+            }
+        }, 10000);
     }
 }
-// Tenta iniciar ao abrir e, se o navegador bloquear, tenta novamente no primeiro toque/clique.
+
+// Executa ao abrir/atualizar a página e tenta novamente no primeiro toque/clique
+// caso o navegador tenha bloqueado a reprodução automática.
 tocarIntroSeNecessario();
 document.addEventListener('pointerdown', () => {
     if (telaInicialVisivel()) tocarIntroSeNecessario();
@@ -458,6 +471,8 @@ function resetarPlacarGeral() {
     $('jogo').classList.add('escondido');
     $('telaLogin').classList.add('escondido');
     $('telaInicial').classList.remove('escondido');
+    // Reinicia o áudio imediatamente ao voltar para a tela inicial pelo reset.
+    pararIntro();
     tocarIntroSeNecessario();
     $('personagemEscolhido').textContent = 'Escolha seu personagem';
     $('btnComecar').disabled = true;

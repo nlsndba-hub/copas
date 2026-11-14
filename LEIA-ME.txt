@@ -1,23 +1,19 @@
-JOGO DE COPAS - VERSÃO COM PERSONAGENS E RANKING
+MIQUILINO V7
 
-COMO ABRIR
-1. Extraia todo o conteúdo do ZIP para uma pasta.
-2. Coloque as 14 fotos na pasta fotos, usando os nomes listados em fotos/LEIA-ME.txt.
-3. Abra index.html no Chrome, Edge ou Firefox.
-4. Escolha seu personagem e clique em Começar partida.
+Arquivos de código:
+- index.html
+- script.js
+- style.css
 
-REGRAS DA ROTATIVIDADE
-- O personagem escolhido é o jogador humano.
-- Três máquinas são sorteadas entre os outros 13 personagens.
-- Os demais ficam na fila de reserva, em ordem aleatória.
-- Ao fim de cada rodada, qualquer máquina com 60 pontos ou mais é eliminada.
-- A próxima máquina da reserva ocupa a vaga na rodada seguinte.
-- O ranking geral mantém os pontos de todos os 14 personagens, inclusive reservas e eliminados.
-- Se as reservas acabarem e uma máquina for eliminada, a partida termina porque não há substituto para manter quatro participantes.
-- Se o jogador humano chegar a 60 pontos ou mais, a partida termina.
+Áudio da tela inicial:
+- Coloque intro.mp3 na mesma pasta do index.html (raiz do site).
+- O áudio é solicitado imediatamente ao carregar/atualizar a página.
+- Ao retornar à tela inicial pelo reset do placar, o áudio é reiniciado imediatamente.
+- Enquanto a tela inicial estiver visível, há uma nova tentativa a cada 10 segundos.
+- Ao clicar em Iniciar, o áudio é interrompido.
 
-ÁUDIO
-O arquivo fotos/dama-espadas.ogg toca sempre que a Dama de Espadas é jogada. O volume do efeito é configurado em até duas vezes o volume da rádio/música, limitado ao máximo do navegador.
+Observação: navegadores podem bloquear reprodução automática com som até que o usuário
+interaja com a página. O código tenta novamente no primeiro toque/clique.
 
-OBSERVAÇÃO SOBRE AS FOTOS
-O ZIP original não continha as fotos individuais dos 14 jogadores. Por isso, a pasta fotos vem preparada com as instruções e o áudio recebido; basta adicionar as imagens com os nomes indicados.
+Os demais arquivos de mídia do jogo (miq.png, fotos/, sons etc.) devem permanecer
+nas mesmas pastas/posições usadas pela versão atual do site.
