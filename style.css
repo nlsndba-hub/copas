@@ -352,7 +352,7 @@ button { font-family: inherit; }
 #camuflagem.ativa { display: block; }
 
 /* Controle de volume */
-#controleVolume { display: flex; align-items: center; gap: 5px; }
+#controleVolume { display: flex; align-items: center; gap: 4px; flex: none; background: rgba(0,0,0,.75); border: 1px solid #666; border-radius: 10px; padding: 0 6px; min-height: 44px; font-size: 13px; }
 #controleVolume button { width: 25px; height: 28px; border: 1px solid #777; border-radius: 5px; background: #263b29; color: #fff; font-size: 20px; line-height: 1; font-weight: 700; cursor: pointer; touch-action: none; user-select: none; }
 #controleVolume button:hover { background: #356d3b; }
 #controleVolume output { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; color: #fff; }
@@ -530,26 +530,6 @@ button { font-family: inherit; }
     #maoJogador { padding-bottom: max(2px, env(safe-area-inset-bottom, 0px)); }
 }
 
-/* Botão para silenciar o áudio da Dama de Espadas */
-#btnMuteDama {
-    width: auto !important;
-    min-width: 0;
-    height: 30px;
-    padding: 0 9px;
-    border: 1px solid #d5b65b !important;
-    border-radius: 6px !important;
-    background: #263b29 !important;
-    color: #fff;
-    font-size: 11px !important;
-    font-weight: 700;
-    white-space: nowrap;
-}
-#btnMuteDama.ativo {
-    background: #a51f1f !important;
-    border-color: #ff8a80 !important;
-}
-
-
 /* =====================================================================
    V9 — ACABAMENTO PROFISSIONAL
    ===================================================================== */
@@ -628,4 +608,14 @@ button { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
     #maoJogador .carta.virar { animation: none; }
     .oponente.recebeu { transform: none; }
+}
+
+
+/* V9: volume na mesma linha da legenda de status (celular) */
+@media (max-width: 768px) {
+    #controleVolume { padding: 0 4px; gap: 3px; }
+    #controleVolume button { width: 26px; height: 32px; }
+    #controleVolume output { min-width: 24px; }
+    #status { min-width: 0; font-size: 13px; line-height: 1.15; padding: 4px 8px; -webkit-line-clamp: 3; line-clamp: 3; }
+    #btnSom, #btnRanking { min-width: 40px; padding: 0 6px; }
 }

@@ -40,14 +40,13 @@
                 <button id="btnProx" aria-label="Próxima rádio"><i class="fas fa-forward"></i></button>
                 <select id="selGenero" aria-label="Gênero da rádio"></select>
                 <select id="selRadio" aria-label="Escolher rádio"><option value="" disabled selected>Carregando rádios…</option></select>
-                <div id="controleVolume" aria-label="Controle de volume">
+                <span id="radioNome">Rádio desligada</span>
+            </div>
+            <div id="controleVolume" aria-label="Controle de volume">
                     <button type="button" id="volMenos" aria-label="Diminuir volume">−</button>
                     <output id="volValor" for="volMenos volMais">60</output>
                     <button type="button" id="volMais" aria-label="Aumentar volume">+</button>
                 </div>
-                <button type="button" id="btnMuteDama" aria-label="Silenciar áudio da dama" aria-pressed="false">Cala boca Caio</button>
-                <span id="radioNome">Rádio desligada</span>
-            </div>
             <div id="status" role="status" aria-live="polite"></div>
             <button type="button" id="btnSom" title="Efeitos sonoros" aria-label="Ligar ou desligar efeitos sonoros" aria-pressed="false"><i class="fas fa-volume-high"></i></button>
             <button type="button" id="btnRanking" title="Ver Ranking Geral" aria-label="Ver Ranking Geral">

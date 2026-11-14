@@ -119,7 +119,6 @@ function tentarTocarIntro() {
                 const q = audioIntro.play();
                 if (q && typeof q.catch === 'function') q.catch(() => {});
             } catch (e) {}
-            mostrarDicaSom(true);
         });
     }
 }
@@ -134,24 +133,9 @@ function liberarSomIntro() {
         const p = audioIntro.play();
         if (p && typeof p.catch === 'function') p.catch(() => { audioIntro.muted = true; });
     }
-    if (!audioIntro.muted && !audioIntro.paused) mostrarDicaSom(false);
-}
-
-let dicaSom = null;
-function mostrarDicaSom(mostrar) {
-    if (!dicaSom) {
-        dicaSom = document.createElement('div');
-        dicaSom.textContent = '🔊 Toque na tela para ativar o som';
-        dicaSom.style.cssText = 'position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);' +
-            'z-index:9999;background:rgba(0,0,0,.75);color:#f5e9c5;border:1px solid #c9a227;border-radius:999px;' +
-            'padding:6px 16px;font:700 13px sans-serif;pointer-events:none;white-space:nowrap;';
-        document.body.appendChild(dicaSom);
-    }
-    dicaSom.style.display = (mostrar && telaInicialVisivel()) ? 'block' : 'none';
 }
 
 function pararIntro() {
-    if (dicaSom) dicaSom.style.display = 'none';
     audioIntro.pause();
     audioIntro.muted = false;
     try { audioIntro.currentTime = 0; } catch (e) {}
@@ -1583,16 +1567,6 @@ function configurarBotaoVolume(id, delta) {
 }
 configurarBotaoVolume('volMenos', -1);
 configurarBotaoVolume('volMais', 1);
-const btnMuteDama = $('btnMuteDama');
-if (btnMuteDama) {
-    btnMuteDama.setAttribute('aria-pressed', 'false');
-    btnMuteDama.onclick = () => {
-        damaMutada = !damaMutada;
-        btnMuteDama.classList.toggle('ativo', damaMutada);
-        btnMuteDama.setAttribute('aria-pressed', String(damaMutada));
-        btnMuteDama.textContent = damaMutada ? 'Cala boca Caio: SIM' : 'Cala boca Caio';
-    };
-}
 aplicarVolume();
 
 function musicaInterna() {
