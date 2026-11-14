@@ -107,22 +107,61 @@ function telaInicialVisivel() {
 
 function tentarTocarIntro() {
     if (!telaInicialVisivel() || !audioIntro.paused) return;
-    try {
+    audioIntro.muted = false;
+    let p;
+    try { p = audioIntro.play(); } catch (e) { p = null; }
+    if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+            // Autoplay com som foi bloqueado: toca MUDO (sempre permitido)
+            // e libera o som no primeiro toque/tecla do usuário.
+            audioIntro.muted = true;
+            try {
+                const q = audioIntro.play();
+                if (q && typeof q.catch === 'function') q.catch(() => {});
+            } catch (e) {}
+            mostrarDicaSom(true);
+        });
+    }
+}
+
+// Libera o som (sai do mudo) no primeiro gesto válido do usuário.
+function liberarSomIntro() {
+    if (!telaInicialVisivel()) return;
+    if (audioIntro.paused) { tentarTocarIntro(); return; }
+    if (audioIntro.muted) {
+        audioIntro.muted = false;
+        try { audioIntro.currentTime = 0; } catch (e) {}
         const p = audioIntro.play();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch (e) {}
+        if (p && typeof p.catch === 'function') p.catch(() => { audioIntro.muted = true; });
+    }
+    if (!audioIntro.muted && !audioIntro.paused) mostrarDicaSom(false);
+}
+
+let dicaSom = null;
+function mostrarDicaSom(mostrar) {
+    if (!dicaSom) {
+        dicaSom = document.createElement('div');
+        dicaSom.textContent = '🔊 Toque na tela para ativar o som';
+        dicaSom.style.cssText = 'position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);' +
+            'z-index:9999;background:rgba(0,0,0,.75);color:#f5e9c5;border:1px solid #c9a227;border-radius:999px;' +
+            'padding:6px 16px;font:700 13px sans-serif;pointer-events:none;white-space:nowrap;';
+        document.body.appendChild(dicaSom);
+    }
+    dicaSom.style.display = (mostrar && telaInicialVisivel()) ? 'block' : 'none';
 }
 
 function pararIntro() {
+    if (dicaSom) dicaSom.style.display = 'none';
     audioIntro.pause();
+    audioIntro.muted = false;
     try { audioIntro.currentTime = 0; } catch (e) {}
 }
 
 function tocarIntroSeNecessario() { tentarTocarIntro(); }
 
 tentarTocarIntro();
-['pointerdown', 'touchstart', 'click', 'keydown'].forEach(ev =>
-    document.addEventListener(ev, tentarTocarIntro, true));
+['pointerdown', 'touchstart', 'touchend', 'click', 'keydown', 'wheel'].forEach(ev =>
+    document.addEventListener(ev, liberarSomIntro, true));
 ['canplay', 'loadeddata'].forEach(ev => audioIntro.addEventListener(ev, tentarTocarIntro));
 window.addEventListener('focus', tentarTocarIntro);
 window.addEventListener('pageshow', tentarTocarIntro);

@@ -201,10 +201,8 @@ button { font-family: inherit; }
 .rod { display: block; color: #ddd; white-space: nowrap; }
 .ranking { color: var(--ouro); font-size: .85em; margin-left: 4px; }
 
-/* Você (embaixo): foto à esquerda, dados à direita */
-#j0 { width: auto; min-width: calc(var(--u) * 10.5); display: flex; align-items: center; gap: calc(var(--u) * .8); text-align: left; border-color: var(--ok); }
-#j0 .avatar-jogador { margin: 0; width: max(32px, calc(var(--u) * 4.2)); height: max(32px, calc(var(--u) * 4.2)); }
-#j0 .nome { overflow: visible; }
+/* Você (embaixo): mesmo tamanho e layout dos demais jogadores; só a borda é verde */
+#j0 { border-color: var(--ok); }
 
 .pt-cop, .pt-q { margin: 0 3px; }
 .pt-cop, .badge.cop { color: var(--verm); text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff; }
@@ -476,9 +474,9 @@ button { font-family: inherit; }
 @media (max-height: 520px) {
     #topbar { padding-bottom: 2px; }
     #status { height: 44px; }
-    .oponente:not(#j0) { width: calc(var(--u) * 14); display: flex; align-items: center; gap: calc(var(--u) * .6); text-align: left; padding: calc(var(--u) * .4) calc(var(--u) * .6); }
-    .oponente:not(#j0) .avatar-jogador { margin: 0; width: max(30px, calc(var(--u) * 4)); height: max(30px, calc(var(--u) * 4)); }
-    .oponente:not(#j0) .info-jogador { flex: 1; }
+    .oponente { width: calc(var(--u) * 14); display: flex; align-items: center; gap: calc(var(--u) * .6); text-align: left; padding: calc(var(--u) * .4) calc(var(--u) * .6); }
+    .oponente .avatar-jogador { margin: 0; width: max(30px, calc(var(--u) * 4)); height: max(30px, calc(var(--u) * 4)); }
+    .oponente .info-jogador { flex: 1; }
     .grade-personagens { gap: 6px; }
     .personagem-card img { height: auto; }
     .selecao-box .sub, .regra-selecao { display: none; }
@@ -556,17 +554,6 @@ button { font-family: inherit; }
    V9 — ACABAMENTO PROFISSIONAL
    ===================================================================== */
 
-/* Seletor de dificuldade (tela de personagens) */
-.nivel-box { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 4px auto 2px; }
-.nivel-box .rotulo { color: #d7d7c8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; }
-.nivel {
-    min-width: 92px; padding: 7px 14px; border: 1px solid #7d6938; border-radius: 5px;
-    background: #1b211d; color: #f5e9c5; font-size: 14px; font-weight: 700; cursor: pointer;
-    transition: background .15s, box-shadow .15s, transform .15s;
-}
-.nivel:hover { background: #2a3a2e; transform: translateY(-1px); }
-.nivel.ativo { background: linear-gradient(#98762a, #594316); border-color: #f3d36c; color: #fff; box-shadow: 0 0 12px rgba(255, 207, 76, .45); }
-.nivel-desc { margin: 4px auto 8px; max-width: 560px; min-height: 2.6em; font-size: 12px; line-height: 1.3; color: #c9c9b8; }
 
 /* Botão de efeitos sonoros */
 #btnSom {
@@ -637,8 +624,6 @@ button { font-family: inherit; }
 
 /* Telas baixas (celular deitado): seletor mais compacto */
 @media (max-height: 520px) {
-    .nivel-desc { display: none; }
-    .nivel { padding: 5px 10px; min-width: 80px; font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) {
     #maoJogador .carta.virar { animation: none; }
