@@ -533,7 +533,7 @@ button { font-family: inherit; }
 }
 
 /* =====================================================================
-   V14 — ACABAMENTO PROFISSIONAL
+   V15 — ACABAMENTO PROFISSIONAL
    ===================================================================== */
 
 
@@ -613,7 +613,7 @@ button { font-family: inherit; }
 }
 
 
-/* V14: volume na mesma linha da legenda de status (celular) */
+/* V15: volume na mesma linha da legenda de status (celular) */
 @media (max-width: 768px) {
     #controleVolume { padding: 0 4px; gap: 3px; }
     #controleVolume button { width: 26px; height: 32px; }
@@ -621,3 +621,10 @@ button { font-family: inherit; }
     #status { min-width: 0; font-size: 13px; line-height: 1.15; padding: 4px 8px; }
     #btnSom, #btnRanking { min-width: 40px; padding: 0 6px; }
 }
+
+
+/* V15: controles da rádio distribuídos de forma uniforme e nome centralizado */
+#radio { justify-content: space-evenly; }
+#radio #selGenero { max-width: 24vw; min-width: 0; }
+#radio #selRadio { max-width: 34vw; min-width: 0; }
+#radio #radioNome { flex: 0 0 100%; max-width: 100%; text-align: center; }

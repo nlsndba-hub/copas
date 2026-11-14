@@ -1485,15 +1485,16 @@ function acharEstacoes(gen = generoRadio) {
 $('selGenero').innerHTML = Object.entries(GENEROS).map(([k, v]) => `<option value="${k}"${k === generoRadio ? ' selected' : ''}>${v}</option>`).join('');
 acharEstacoes();   // já busca ao abrir o jogo, para o play ser imediato
 async function ligarRadio() {
-    R.on = true; R.tent = 0; R.i = -1; marcarBotao(); setR('Procurando rádio…');
+    R.on = true; R.tent = 0; R.i = -1; R.dir = 1; marcarBotao(); setR('Procurando rádio…');
     if (!R.est.length) await acharEstacoes();
     if (R.est[0] && PREFERIDA.test(R.est[0].nome)) bloq.delete(R.est[0].url);
     if (R.on) tentarEstacao();
 }
-function tentarEstacao() {
+function tentarEstacao(dir) {
+    if (dir === 1 || dir === -1) R.dir = dir; else if (!R.dir) R.dir = 1;
     clearTimeout(R.t); pararSynth();
     if (!R.est.length || R.tent >= Math.min(R.est.length, 8)) return musicaInterna();
-    let g = 0; do { R.i = (R.i + 1) % R.est.length; g++; } while (bloq.has(R.est[R.i].url) && g < R.est.length);
+    let g = 0; do { R.i = (R.i + R.dir + R.est.length) % R.est.length; g++; } while (bloq.has(R.est[R.i].url) && g < R.est.length);
     R.tent++;
     const e = R.est[R.i];
     R.a.src = e.url; setR('Conectando: ' + e.nome);
@@ -1509,10 +1510,11 @@ function desligarRadio() {
     marcarBotao(); setR('Rádio desligada');
 }
 $('btnRadio').onclick = () => R.on ? desligarRadio() : ligarRadio();
-$('btnProx').onclick = () => { if (!R.on) return ligarRadio(); if (R.a.paused && R.est[R.i]) bloquear(R.est[R.i].url); R.tent = 0; tentarEstacao(); };
+$('btnProx').onclick = () => { if (!R.on) return ligarRadio(); if (R.a.paused && R.est[R.i]) bloquear(R.est[R.i].url); R.tent = 0; tentarEstacao(1); };
+$('btnAnt').onclick = () => { if (!R.on) return ligarRadio(); R.tent = 0; tentarEstacao(-1); };
 const recarregarRadios = async () => {
     generoRadio = $('selGenero').value;
-    R.est = []; R.i = -1; R.tent = 0; preencherLista();
+    R.est = []; R.i = -1; R.dir = 1; R.tent = 0; preencherLista();
     if (R.on) { R.a.pause(); setR('Procurando rádio…'); }
     await acharEstacoes();
     if (R.on) tentarEstacao();
@@ -1614,6 +1616,6 @@ document.addEventListener('click', e => {
 $('selRadio').onchange = e => {
     const i = +e.target.value; if (!R.est[i]) return;
     bloq.delete(R.est[i].url); R.on = true; marcarBotao();
-    R.i = i - 1; R.tent = 0; tentarEstacao();
+    R.i = i - 1; R.tent = 0; tentarEstacao(1);
 };
 preencherLista();
