@@ -1,19 +1,65 @@
-MIQUILINO V7
+MIQUILINO V8
 
-Arquivos de código:
+Arquivos de código (substitua os da V7 por estes):
 - index.html
 - script.js
 - style.css
 
-Áudio da tela inicial:
+Os demais arquivos (miq.png, intro.mp3, fotos/, qspades.png, renu.png, 26.gif,
+menor-pontuacao.gif, fotos/dama-espadas.ogg etc.) continuam iguais e nas mesmas
+pastas da V7. Nenhum arquivo novo de mídia é necessário.
+
+==================== NOVIDADES DA V8 ====================
+
+1) EMBARALHAR, CORTAR E DAR AS CARTAS
+   - No início de cada rodada o baralho aparece na mesa:
+     o carteador embaralha (riffle intercalando as duas metades),
+     o jogador à direita do carteador corta, e as cartas são dadas
+     uma a uma, no sentido horário, voando até cada jogador.
+   - O carteador é indicado por uma bolinha dourada "D" ao lado do nome
+     e passa para o jogador seguinte a cada rodada.
+   - As cartas chegam viradas para baixo na sua mão e são viradas
+     uma a uma ao final da distribuição.
+   - Botão "Pular" (ou tecla Esc) resolve tudo na hora.
+   - Na 1ª rodada o baralho é embaralhado 3 vezes; nas seguintes, 2 vezes.
+   - Respeita a configuração "reduzir movimento" do aparelho.
+
+2) DIFICULDADE MAIOR (escolha na tela de personagens; padrão: Difícil)
+   - Normal : a IA da V7, sem alterações.
+   - Difícil: conta cartas, deduz quem ficou sem naipe, calcula a chance de
+              ganhar cada vaza, foge de vazas com pontos, entrega a Dama de
+              Espadas e as Copas a quem vai levar a vaza, protege-se de quem
+              tenta a Lua e quebra a Lua quando necessário.
+   - Mestre : tudo do Difícil + simula centenas de fim de rodada a cada
+              jogada (Monte Carlo) sobre as cartas que ainda podem estar nas
+              suas mãos, respeitando o que já foi deduzido.
+   - As máquinas continuam sem "enxergar" as suas cartas: usam só informação
+     pública (cartas já jogadas, mesa, pontos e naipes que cada um não tem).
+   - Em testes simulados (milhares de rodadas), a pontuação média por rodada
+     de uma máquina contra três da V7 foi: Difícil ~5,3 · Mestre ~3,5-4,4
+     (jogo equilibrado = 6,5; quanto menor, melhor).
+
+3) ACABAMENTO PROFISSIONAL
+   - Cartas voam da sua mão (ou do painel de cada máquina) até a mesa e a
+     vaza é recolhida em direção a quem a levou.
+   - Efeitos sonoros sintetizados (embaralhar, cortar, dar, jogar carta,
+     recolher vaza), sem arquivos extras. Botão de alto-falante na barra
+     superior liga/desliga. O volume acompanha o controle de volume do jogo.
+   - Cartas com acabamento de baralho de cassino (borda interna, figuras J/Q/K
+     com coroa) e novo verso quadriculado com filete dourado.
+   - Tempo de reflexão das máquinas mais natural (varia a cada jogada).
+   - Histórico pessoal salvo no aparelho (partidas, vitórias, rodadas sem
+     pontos e Luas), visível no Ranking Geral junto com a dificuldade.
+   - Quem tem o 2♣ não é mais revelado durante a distribuição.
+   - A dificuldade e a opção de som ficam salvas para a próxima visita.
+
+Tudo da V7 foi mantido: regras, renúncia, Lua, ranking geral, reservas,
+rádio, Dama de Espadas com áudio, atalhos Ctrl+clique etc.
+
+==================== ÁUDIO DA TELA INICIAL (igual à V7) ====================
 - Coloque intro.mp3 na mesma pasta do index.html (raiz do site).
-- O áudio é solicitado imediatamente ao carregar/atualizar a página.
-- Ao retornar à tela inicial pelo reset do placar, o áudio é reiniciado imediatamente.
-- Enquanto a tela inicial estiver visível, há uma nova tentativa a cada 10 segundos.
-- Ao clicar em Iniciar, o áudio é interrompido.
-
-Observação: navegadores podem bloquear reprodução automática com som até que o usuário
-interaja com a página. O código tenta novamente no primeiro toque/clique.
-
-Os demais arquivos de mídia do jogo (miq.png, fotos/, sons etc.) devem permanecer
-nas mesmas pastas/posições usadas pela versão atual do site.
+- O áudio é solicitado ao carregar/atualizar a página e reiniciado ao voltar
+  à tela inicial pelo reset do placar. Nova tentativa a cada 10 s enquanto a
+  tela inicial estiver visível. Ao clicar em Iniciar, o áudio é interrompido.
+- Navegadores podem bloquear som automático até a primeira interação; o código
+  tenta novamente no primeiro toque/clique.

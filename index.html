@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#14461a">
-    <title>Miquilino</title>
+    <meta name="description" content="Miquilino V8 — jogo de Copas com IA em três níveis, baralho animado e efeitos sonoros.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Miquilino V8</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -22,6 +25,13 @@
         <div class="selecao-box">
             <h1>♥ Jogo de Copas ♠</h1>
             <p class="sub">Escolha seu personagem. Três máquinas serão sorteadas para jogar com você.</p>
+            <div class="nivel-box" role="radiogroup" aria-label="Dificuldade das máquinas">
+                <span class="rotulo">Dificuldade</span>
+                <button type="button" class="nivel" data-nivel="normal" role="radio" aria-checked="false">Normal</button>
+                <button type="button" class="nivel" data-nivel="dificil" role="radio" aria-checked="true">Difícil</button>
+                <button type="button" class="nivel" data-nivel="mestre" role="radio" aria-checked="false">Mestre</button>
+            </div>
+            <p id="nivelDescricao" class="nivel-desc"></p>
             <button id="btnComecar" class="btn-modo" disabled><i class="fas fa-play"></i> Começar partida</button>
             <p id="personagemEscolhido" class="escolha-status">Escolha seu personagem</p>
             <div id="gradePersonagens" class="grade-personagens"></div>
@@ -46,6 +56,7 @@
                 <span id="radioNome">Rádio desligada</span>
             </div>
             <div id="status" role="status" aria-live="polite"></div>
+            <button type="button" id="btnSom" title="Efeitos sonoros" aria-label="Ligar ou desligar efeitos sonoros" aria-pressed="false"><i class="fas fa-volume-high"></i></button>
             <button type="button" id="btnRanking" title="Ver Ranking Geral" aria-label="Ver Ranking Geral">
                 <i class="fas fa-trophy"></i>
             </button>
@@ -65,6 +76,15 @@
         </div>
 
         <div id="maoJogador" aria-label="Sua mão"></div>
+
+        <!-- Palco do baralho: embaralhar, cortar e dar as cartas -->
+        <div id="palcoBaralho" class="escondido" aria-hidden="true">
+            <div id="baralhoMesa"></div>
+            <div id="legendaBaralho">
+                <span id="legendaTexto"></span>
+                <button type="button" id="btnPular">Pular ▸▸</button>
+            </div>
+        </div>
 
         <!-- Aparece SOMENTE quando a Q♠ é jogada -->
         <img id="efeitoQ" class="escondido" src="qspades.png" alt="Rainha de Espadas na mesa!">

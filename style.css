@@ -550,3 +550,97 @@ button { font-family: inherit; }
     background: #a51f1f !important;
     border-color: #ff8a80 !important;
 }
+
+
+/* =====================================================================
+   V8 — ACABAMENTO PROFISSIONAL
+   ===================================================================== */
+
+/* Seletor de dificuldade (tela de personagens) */
+.nivel-box { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 4px auto 2px; }
+.nivel-box .rotulo { color: #d7d7c8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; }
+.nivel {
+    min-width: 92px; padding: 7px 14px; border: 1px solid #7d6938; border-radius: 5px;
+    background: #1b211d; color: #f5e9c5; font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: background .15s, box-shadow .15s, transform .15s;
+}
+.nivel:hover { background: #2a3a2e; transform: translateY(-1px); }
+.nivel.ativo { background: linear-gradient(#98762a, #594316); border-color: #f3d36c; color: #fff; box-shadow: 0 0 12px rgba(255, 207, 76, .45); }
+.nivel-desc { margin: 4px auto 8px; max-width: 560px; min-height: 2.6em; font-size: 12px; line-height: 1.3; color: #c9c9b8; }
+
+/* Botão de efeitos sonoros */
+#btnSom {
+    background: rgba(0,0,0,.78); border: 2px solid #8fd19e; color: #8fd19e; border-radius: 10px;
+    padding: 0 14px; min-width: 46px; min-height: 44px; cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, background .15s, box-shadow .15s;
+}
+#btnSom:hover { background: rgba(143, 209, 158, .18); box-shadow: 0 0 12px rgba(143, 209, 158, .45); transform: translateY(-1px); }
+#btnSom[aria-pressed="true"] { border-color: #888; color: #888; }
+@media (max-width: 768px) { #btnSom { min-width: 44px; min-height: 44px; padding: 0 10px; font-size: 16px; } }
+
+/* Palco do baralho (embaralhar / cortar / dar) */
+#palcoBaralho { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
+#baralhoMesa { position: absolute; width: 0; height: 0; }
+#baralhoMesa .carta, #palcoBaralho .carta.voando { --w: var(--tw); position: absolute; cursor: default; will-change: transform; }
+#baralhoMesa .carta { left: calc(var(--tw) / -2); top: calc(var(--tw) * -.7143); box-shadow: 0 1px 2px rgba(0,0,0,.45); }
+#palcoBaralho .carta.voando { z-index: 40; box-shadow: 0 8px 16px rgba(0,0,0,.45); }
+#legendaBaralho { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#legendaTexto {
+    background: rgba(0,0,0,.72); border: 1px solid var(--ouro); color: var(--ouro);
+    padding: 4px 14px; border-radius: 999px; font-weight: 700; white-space: nowrap;
+    font-size: max(12px, calc(var(--u) * 1.15));
+}
+#legendaTexto:empty { display: none; }
+#btnPular {
+    pointer-events: auto; padding: 5px 16px; border: 1px solid #ffffff55; border-radius: 999px;
+    background: rgba(0,0,0,.55); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+#btnPular:hover { background: rgba(255,255,255,.2); }
+
+/* Carteador (D) e pulso quando recebe carta */
+.dealer {
+    display: inline-block; margin-left: 5px; width: 1.55em; height: 1.55em; line-height: 1.55em;
+    border-radius: 50%; background: var(--ouro); color: #222; font-weight: 900; font-size: .78em; text-align: center;
+    box-shadow: 0 0 6px rgba(255, 213, 79, .7); vertical-align: middle;
+}
+.oponente { transition: border-color .3s, box-shadow .3s, transform .12s; }
+.oponente.recebeu { transform: scale(1.04); border-color: var(--ouro); }
+
+/* Cartas: acabamento de baralho de casino */
+.carta:not(.verso) { background: linear-gradient(160deg, #ffffff 0%, #f5f0e3 100%); }
+.carta:not(.verso)::before {
+    content: ''; position: absolute; inset: calc(var(--w) * .035); pointer-events: none;
+    border: 1px solid rgba(0, 0, 0, .09); border-radius: calc(var(--w) * .06);
+}
+.carta.figura .centro { font-size: calc(var(--w) * .46); top: 57%; }
+.carta .coroa {
+    position: absolute; top: 25%; left: 50%; transform: translateX(-50%); pointer-events: none;
+    font-size: calc(var(--w) * .3); line-height: 1; opacity: .9;
+    font-family: 'Segoe UI Symbol', 'DejaVu Sans', 'Noto Sans Symbols 2', serif;
+}
+.carta.verso {
+    background:
+        linear-gradient(45deg, rgba(255,255,255,.16) 25%, transparent 25% 75%, rgba(255,255,255,.16) 75%) 0 0 / 12px 12px,
+        linear-gradient(45deg, rgba(255,255,255,.16) 25%, transparent 25% 75%, rgba(255,255,255,.16) 75%) 6px 6px / 12px 12px,
+        #173b79;
+    border: 3px solid #fff;
+    box-shadow: -3px 5px 10px rgba(0,0,0,.5), inset 0 0 0 3px #173b79, inset 0 0 0 4px #d5b65b;
+}
+
+/* Cartas da mão sendo viradas depois de distribuídas */
+@keyframes virarCarta {
+    from { transform: translateY(var(--desce)) rotateY(90deg); }
+    to   { transform: translateY(var(--desce)) rotateY(0deg); }
+}
+#maoJogador .carta.virar { animation: virarCarta .32s ease-out both; }
+
+/* Telas baixas (celular deitado): seletor mais compacto */
+@media (max-height: 520px) {
+    .nivel-desc { display: none; }
+    .nivel { padding: 5px 10px; min-width: 80px; font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #maoJogador .carta.virar { animation: none; }
+    .oponente.recebeu { transform: none; }
+}

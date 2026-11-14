@@ -33,15 +33,85 @@ function nomeCarta(c) { const f = FACES[c.valor]; return `${NOMES_FACE[f] || f} 
 function criarElementoCarta(c, extra = '') {
     const d = document.createElement('div');
     const f = FACES[c.valor], s = NAIPES[c.naipe].s;
-    d.className = `carta ${NAIPES[c.naipe].cor} ${extra}`;
+    d.className = `carta ${NAIPES[c.naipe].cor} ${c.valor >= 9 && c.valor <= 11 ? 'figura' : ''} ${extra}`;
     const pts = pontosCarta(c);
-    const badge = '';
+    const coroa = { 9: '♞', 10: '♛', 11: '♚' }[c.valor];
+    const badge = coroa ? `<div class="coroa">${coroa}</div>` : '';
     d.innerHTML = `<div class="topo"><span class="valor">${f}</span><span class="np">${s}</span></div>
         <div class="centro">${s}</div>${badge}
         <div class="base"><span class="valor">${f}</span><span class="np">${s}</span></div>`;
     d.setAttribute('aria-label', nomeCarta(c) + (pts ? `, vale ${pts} ponto${pts > 1 ? 's' : ''}` : ''));
     return d;
 }
+
+// ================= EFEITOS SONOROS (sintetizados, sem arquivos) =================
+const SFX = (() => {
+    let ctx = null, ligado = true, ruido = null;
+    try { ligado = localStorage.getItem('miq_sfx') !== '0'; } catch (e) {}
+    const audio = () => {
+        if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        return ctx;
+    };
+    const escala = () => 0.35 + (typeof volumePercentual === 'number' ? volumePercentual / 100 : 0.6) * 0.9;
+    function estalo(freq, q, dur, vol, tipo, atraso) {
+        if (!ligado) return;
+        const c = audio(); if (!c) return;
+        if (!ruido) {
+            ruido = c.createBuffer(1, Math.floor(c.sampleRate * 0.3), c.sampleRate);
+            const d = ruido.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        }
+        const t = c.currentTime + (atraso || 0);
+        const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+        src.buffer = ruido; src.playbackRate.value = 0.8 + Math.random() * 0.5;
+        f.type = tipo || 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+        g.gain.setValueAtTime(vol * escala(), t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        src.connect(f); f.connect(g); g.connect(c.destination);
+        src.start(t, Math.random() * 0.1); src.stop(t + dur + 0.02);
+    }
+    return {
+        get ligado() { return ligado; },
+        alternar() { ligado = !ligado; try { localStorage.setItem('miq_sfx', ligado ? '1' : '0'); } catch (e) {} if (ligado) this.dar(); },
+        dar() { estalo(3600 + Math.random() * 1400, 1.1, 0.05, 0.22, 'bandpass'); },
+        folhear() { estalo(2600 + Math.random() * 1800, 0.9, 0.04, 0.2, 'bandpass'); },
+        cortar() { estalo(900, 0.6, 0.12, 0.45, 'lowpass'); estalo(2200, 0.8, 0.06, 0.25, 'bandpass', 0.02); },
+        jogar() { estalo(1500, 0.7, 0.08, 0.45, 'bandpass'); estalo(240, 0.5, 0.08, 0.55, 'lowpass'); },
+        varrer() { estalo(1800, 0.4, 0.28, 0.28, 'bandpass'); estalo(1200, 0.4, 0.2, 0.2, 'bandpass', 0.07); }
+    };
+})();
+
+// ================= NÍVEL DE DIFICULDADE =================
+let nivelIA = 'dificil';
+try { const sv = localStorage.getItem('miq_nivel'); if (['normal', 'dificil', 'mestre'].includes(sv)) nivelIA = sv; } catch (e) {}
+const NOMES_NIVEL = { normal: 'Normal', dificil: 'Difícil', mestre: 'Mestre' };
+const DESC_NIVEL = {
+    normal: 'As máquinas jogam como na V7: boas, mas previsíveis.',
+    dificil: 'Contam cartas, deduzem quem ficou sem naipe, fogem das vazas com pontos e descartam a Dama na hora certa.',
+    mestre: 'Simulam centenas de partidas a cada jogada, deduzem suas cartas e defendem contra a Lua. Quase não erram.'
+};
+function marcarNivel() {
+    document.querySelectorAll('.nivel').forEach(b => {
+        const ativo = b.dataset.nivel === nivelIA;
+        b.classList.toggle('ativo', ativo);
+        b.setAttribute('aria-checked', String(ativo));
+    });
+    $('nivelDescricao').textContent = DESC_NIVEL[nivelIA];
+}
+document.querySelectorAll('.nivel').forEach(b => {
+    b.onclick = () => {
+        nivelIA = b.dataset.nivel;
+        try { localStorage.setItem('miq_nivel', nivelIA); } catch (e) {}
+        marcarNivel();
+    };
+});
+marcarNivel();
+
+// ================= ESTATÍSTICAS DO JOGADOR (salvas no aparelho) =================
+const ESTAT = { partidas: 0, vitorias: 0, zeros: 0, luas: 0 };
+try { Object.assign(ESTAT, JSON.parse(localStorage.getItem('miq_estat') || '{}')); } catch (e) {}
+const salvarEstat = () => { try { localStorage.setItem('miq_estat', JSON.stringify(ESTAT)); } catch (e) {} };
 
 // ================= ÁUDIO DA TELA INICIAL =================
 // Sempre que a tela Miquilino aparece, tenta tocar intro.mp3 imediatamente
@@ -175,7 +245,9 @@ function iniciarPartida() {
         fila: filaMaquinas,
         rankingGeral: PERSONAGENS,
         luaConquistada: false,
-        renunciaConquistada: false
+        renunciaConquistada: false,
+        nivel: nivelIA,
+        carteador: Math.floor(Math.random() * 4)
     };
     novaRodada();
 }
@@ -188,28 +260,270 @@ function novaRodada() {
     G.mesa = []; G.lider = null; G.quebrada = false; G.vazas = 0;
     G.pts = [0, 0, 0, 0]; G.pegas = [[], [], [], []]; G.renunciou = [false, false, false, false]; G.ocupado = false; G.aviso = '';
     G.turno = G.maos.findIndex(m => m.some(c => c.naipe === PAU && c.valor === 0));
+    if (G.tk) G.tk.pular = true;
+    if (G.rodada > 1) G.carteador = (G.carteador + 1) % 4;
+    G.jogadas = new Uint8Array(52);
+    G.vazios = [0, 1, 2, 3].map(() => [false, false, false, false]);
+    G.recebidas = [0, 0, 0, 0]; G.distMsg = ''; G.virarMao = false;
     G.distribuindo = true; G.rodadaEncerrada = false; G.cartasReveladas = 0;
+    // As cartas são dadas uma a uma, no sentido horário, a partir de quem está à esquerda do carteador.
     G.ordemDistribuicao = [];
-    for (let rodada = 0; rodada < 13; rodada++) for (let jogador = 0; jogador < 4; jogador++)
+    for (let rodada = 0; rodada < 13; rodada++) for (let k = 0; k < 4; k++) {
+        const jogador = (G.carteador + 1 + k) % 4;
         G.ordemDistribuicao.push({ jogador, carta: G.maos[jogador][rodada] });
+    }
     for (let i = 0; i < 4; i++) $(`carta-${i}`).innerHTML = '';
     $('modal').classList.add('escondido');
     $('modalRanking').classList.add('escondido');
     render();
     ajustarEscala();   // mede com os painéis já preenchidos (nome, pontos, foto)
     render();
-    G.timer = setTimeout(revelarProximaCarta, 180);
+    G.tk = { pular: false, acordar: null };
+    sequenciaDistribuicao(G.tk);
 }
 
-function revelarProximaCarta() {
-    if (!G || !G.distribuindo) return;
-    G.cartasReveladas++;
+// ================= EMBARALHAR · CORTAR · DAR AS CARTAS =================
+// Sequência exibida no início de cada rodada:
+//   1) o carteador embaralha (3 vezes, intercalando as duas metades)
+//   2) o jogador à direita do carteador corta o baralho
+//   3) as cartas são dadas uma a uma, no sentido horário
+// O botão "Pular" (ou a tecla Esc) resolve tudo na hora.
+const reduzMovimento = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const viva = tk => !!G && G.tk === tk;
+const nomeNaMesa = i => i === 0 ? 'Você' : G.nomes[i];
+const CARTAS_NO_MONTE = 16;
+let baralhoVisual = [];
+
+function esperar(ms, tk) {
+    return new Promise(res => {
+        if (tk.pular) return res();
+        const t = setTimeout(() => { tk.acordar = null; res(); }, ms);
+        tk.acordar = () => { clearTimeout(t); tk.acordar = null; res(); };
+    });
+}
+
+function centroDe(el) {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
+}
+const larguraCartaMesa = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tw')) || 64;
+
+function pose(el, x, y, rot, dur, atraso) {
+    el.style.transition = dur ? `transform ${dur}ms cubic-bezier(.3,.7,.3,1) ${atraso || 0}ms` : 'none';
+    el.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`;
+}
+
+function legendar(msg) {
+    if (!G) return;
+    G.distMsg = msg;
+    $('legendaTexto').textContent = msg;
     render();
-    if (G.cartasReveladas < 52) {
-        G.timer = setTimeout(revelarProximaCarta, 75);
+}
+
+function prepararPalco() {
+    const tw = larguraCartaMesa();
+    const c = centroDe($('areaCentral'));
+    const deck = $('baralhoMesa');
+    deck.innerHTML = '';
+    deck.style.left = c.x + 'px';
+    deck.style.top = c.y + 'px';
+    const leg = $('legendaBaralho');
+    leg.style.left = c.x + 'px';
+    leg.style.top = (c.y + tw * 0.72 + 14) + 'px';
+    $('palcoBaralho').querySelectorAll('.voando').forEach(e => e.remove());
+    $('palcoBaralho').classList.remove('escondido');
+}
+
+function ocultarPalco() {
+    const palco = $('palcoBaralho');
+    if (!palco) return;
+    palco.classList.add('escondido');
+    $('baralhoMesa').innerHTML = '';
+    palco.querySelectorAll('.voando').forEach(e => e.remove());
+}
+
+async function animEmbaralhar(tk) {
+    if (tk.pular) return;
+    const deck = $('baralhoMesa'), tw = larguraCartaMesa();
+    const cartas = [];
+    for (let k = 0; k < CARTAS_NO_MONTE; k++) {
+        const el = criarVersoCarta();
+        el.style.zIndex = k;
+        pose(el, 0, -k * 0.7, 0, 0, 0);
+        deck.appendChild(el);
+        cartas.push(el);
+    }
+    legendar(`${nomeNaMesa(G.carteador)} embaralha as cartas…`);
+    await esperar(300, tk);
+    let ordem = cartas.slice();
+    const meio = CARTAS_NO_MONTE / 2;
+    const voltas = G.rodada === 1 ? 3 : 2;   // 1ª rodada: show completo; depois, mais ágil
+    for (let rep = 0; rep < voltas && !tk.pular && viva(tk); rep++) {
+        const esq = ordem.slice(0, meio), dir = ordem.slice(meio);
+        // separa o baralho em duas metades
+        esq.forEach((el, k) => pose(el, -tw * 0.62, -k * 0.7, -7, 200, 0));
+        dir.forEach((el, k) => pose(el, tw * 0.62, -k * 0.7, 7, 200, 0));
+        await esperar(240, tk);
+        if (tk.pular || !viva(tk)) break;
+        // intercala as cartas (riffle)
+        const novo = [];
+        for (let k = 0; k < meio; k++) { novo.push(esq[k]); novo.push(dir[k]); }
+        novo.forEach((el, k) => {
+            el.style.zIndex = k;
+            pose(el, 0, -k * 0.7, 0, 140, k * 20);
+            setTimeout(() => { if (!tk.pular) SFX.folhear(); }, k * 20);
+        });
+        await esperar(CARTAS_NO_MONTE * 20 + 180, tk);
+        ordem = novo;
+    }
+    baralhoVisual = ordem;
+}
+
+async function animCortar(tk) {
+    if (tk.pular || !viva(tk)) return;
+    const tw = larguraCartaMesa(), meio = CARTAS_NO_MONTE / 2;
+    const base = baralhoVisual.slice(0, meio), topo = baralhoVisual.slice(meio);
+    legendar(`${nomeNaMesa((G.carteador + 3) % 4)} corta o baralho…`);
+    await esperar(200, tk);
+    // o monte de cima é levantado e posto de lado
+    topo.forEach((el, k) => pose(el, -tw * 0.78, -k * 0.7 - 16, -5, 320, 0));
+    SFX.cortar();
+    await esperar(400, tk);
+    if (tk.pular || !viva(tk)) return;
+    // a metade de baixo é colocada por cima; o monte levantado passa para baixo
+    topo.forEach((el, k) => { el.style.zIndex = k; });
+    base.forEach((el, k) => { el.style.zIndex = meio + k; });
+    topo.forEach((el, k) => pose(el, 0, -k * 0.7, 0, 300, 0));
+    base.forEach((el, k) => pose(el, 0, -(meio + k) * 0.7, 0, 300, 0));
+    SFX.cortar();
+    await esperar(350, tk);
+    baralhoVisual = topo.concat(base);
+}
+
+function voarCarta(tk, jogador, de) {
+    const tw = larguraCartaMesa(), w = tw, h = tw * 1.4286;
+    const palco = $('palcoBaralho');
+    let para;
+    if (jogador === 0) {
+        const r = $('maoJogador').getBoundingClientRect();
+        para = { x: r.left + r.width / 2 + (Math.random() * 30 - 15), y: r.bottom - r.height * 0.3 };
     } else {
-        G.distribuindo = false;
-        G.timer = setTimeout(() => { G.aviso = ''; agendar(); }, 450);
+        para = centroDe($(`j${jogador}`));
+    }
+    const el = criarVersoCarta();
+    el.classList.add('voando');
+    el.style.left = (de.x - w / 2) + 'px';
+    el.style.top = (de.y - h / 2) + 'px';
+    palco.appendChild(el);
+    const dx = para.x - de.x, dy = para.y - de.y;
+    const esc = jogador === 0 ? 1.25 : 0.6;
+    const rot = (jogador === 1 ? -50 : jogador === 3 ? 50 : jogador === 2 ? 20 : 0) + (Math.random() * 24 - 12);
+    const anim = el.animate([
+        { transform: 'translate(0, 0) rotate(0deg) scale(1)' },
+        { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(${esc})` }
+    ], { duration: 280, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'forwards' });
+    anim.finished.then(() => {
+        el.remove();
+        if (!viva(tk) || tk.pular) return;
+        G.cartasReveladas++;
+        G.recebidas[jogador]++;
+        render();
+        const box = $(`j${jogador}`);
+        box.classList.add('recebeu');
+        setTimeout(() => box.classList.remove('recebeu'), 140);
+        SFX.dar();
+    }).catch(() => el.remove());
+}
+
+async function animDistribuir(tk) {
+    if (tk.pular || !viva(tk)) return;
+    legendar(`${nomeNaMesa(G.carteador)} distribui as cartas…`);
+    const de = centroDe($('baralhoMesa'));
+    const monte = baralhoVisual.slice().sort((a, b) => (+a.style.zIndex) - (+b.style.zIndex));
+    const ordem = G.ordemDistribuicao;
+    for (let k = 0; k < ordem.length; k++) {
+        if (tk.pular || !viva(tk)) return;
+        voarCarta(tk, ordem[k].jogador, de);
+        // o monte visual vai diminuindo conforme as cartas saem
+        if (k % 3 === 2 && monte.length) monte.pop().remove();
+        await esperar(58, tk);
+    }
+    await esperar(320, tk);
+}
+
+function finalizarDistribuicao(tk) {
+    if (!viva(tk)) return;
+    const rapido = tk.pular;
+    ocultarPalco();
+    G.distribuindo = false;
+    G.cartasReveladas = 52;
+    G.recebidas = [13, 13, 13, 13];
+    G.distMsg = '';
+    // as cartas da sua mão são viradas uma a uma
+    G.virarMao = !reduzMovimento();
+    render();
+    G.virarMao = false;
+    G.timer = setTimeout(() => { G.aviso = ''; agendar(); }, reduzMovimento() ? 200 : (rapido ? 700 : 900));
+}
+
+async function sequenciaDistribuicao(tk) {
+    if (reduzMovimento()) tk.pular = true;
+    if (!tk.pular) {
+        prepararPalco();
+        $('legendaTexto').textContent = '';
+    }
+    try {
+        await animEmbaralhar(tk);
+        if (viva(tk) && !tk.pular) await animCortar(tk);
+        if (viva(tk) && !tk.pular) await animDistribuir(tk);
+    } catch (e) {
+        console.warn('Animação interrompida:', e);
+    }
+    finalizarDistribuicao(tk);
+}
+
+function pularDistribuicao() {
+    if (G && G.tk && G.distribuindo) {
+        G.tk.pular = true;
+        if (G.tk.acordar) G.tk.acordar();
+    }
+}
+$('btnPular').onclick = pularDistribuicao;
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && G && G.distribuindo) pularDistribuicao();
+});
+
+// ================= CARTA VOA ATÉ A MESA · VAZA É RECOLHIDA =================
+function animarEntrada(el, i, origem) {
+    if (reduzMovimento() || !el.animate) return;
+    const fim = el.getBoundingClientRect();
+    let ini;
+    if (origem && origem.width) {
+        ini = { x: origem.left + origem.width / 2, y: origem.top + origem.height / 2, esc: origem.width / fim.width, rot: 0 };
+    } else {
+        const c = centroDe($(`j${i}`));
+        ini = { x: c.x, y: c.y, esc: 0.55, rot: i === 1 ? -25 : i === 3 ? 25 : 10 };
+    }
+    const dx = ini.x - (fim.left + fim.width / 2), dy = ini.y - (fim.top + fim.height / 2);
+    el.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(${ini.esc}) rotate(${ini.rot}deg)`, opacity: 0.6 },
+        { transform: 'none', opacity: 1 }
+    ], { duration: 280, easing: 'cubic-bezier(.2,.85,.25,1)' });
+}
+
+function varrerVaza(w) {
+    if (reduzMovimento()) return;
+    const alvo = centroDe($(`j${w}`));
+    SFX.varrer();
+    for (let i = 0; i < 4; i++) {
+        const el = $(`carta-${i}`).firstChild;
+        if (!el || !el.animate) continue;
+        const r = el.getBoundingClientRect();
+        const dx = alvo.x - (r.left + r.width / 2), dy = alvo.y - (r.top + r.height / 2);
+        el.animate([
+            { transform: 'none', opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) scale(.35) rotate(${(i - w) * 12}deg)`, opacity: 0 }
+        ], { duration: 340, easing: 'ease-in', fill: 'forwards' });
     }
 }
 
@@ -228,6 +542,9 @@ function validar(i, c) {
 }
 
 function jogar(i, c) {
+    // guarda de onde a carta sai (a mão, no seu caso) para animar o voo até a mesa
+    const origemEl = i === 0 ? document.querySelector(`#maoJogador .carta[data-id="${c.id}"]`) : null;
+    const origemRect = origemEl ? origemEl.getBoundingClientRect() : null;
     if (i === 0) cartaSelecionadaId = null;
     const renuncia = G.mesa.length > 0 && c.naipe !== G.lider &&
         G.maos[i].some(x => x.naipe === G.lider);
@@ -236,6 +553,8 @@ function jogar(i, c) {
         G.renunciou[i] = true;
     }
 
+    if (G.mesa.length > 0 && c.naipe !== G.lider) G.vazios[i][G.lider] = true;   // a IA anota quem ficou sem o naipe
+    G.jogadas[c.naipe * 13 + c.valor] = 1;
     G.maos[i] = G.maos[i].filter(x => x.id !== c.id);
     G.mesa.push({ jogador: i, carta: c });
 
@@ -247,10 +566,11 @@ function jogar(i, c) {
         tocarAudioDama();
     }
 
-    $(`carta-${i}`).appendChild(
-        criarElementoCarta(c, 'jogada' +
-            (G.mesa.length === 1 ? ' carta-lider' : ''))
-    );
+    const elJogada = criarElementoCarta(c, 'jogada' +
+        (G.mesa.length === 1 ? ' carta-lider' : ''));
+    $(`carta-${i}`).appendChild(elJogada);
+    animarEntrada(elJogada, i, origemRect);
+    SFX.jogar();
 
     if (renuncia) {
         G.ocupado = true;
@@ -289,11 +609,14 @@ function resolverVaza() {
     render();
     G.vazas++;
     G.timer = setTimeout(() => {
-        G.mesa = []; G.lider = null; G.ocupado = false; G.aviso = '';
-        for (let i = 0; i < 4; i++) $(`carta-${i}`).innerHTML = '';
-        G.turno = w;
-        if (G.vazas === 13) fimRodada(); else agendar();
-    }, 1100);
+        varrerVaza(w);
+        G.timer = setTimeout(() => {
+            G.mesa = []; G.lider = null; G.ocupado = false; G.aviso = '';
+            for (let i = 0; i < 4; i++) $(`carta-${i}`).innerHTML = '';
+            G.turno = w;
+            if (G.vazas === 13) fimRodada(); else agendar();
+        }, reduzMovimento() ? 0 : 360);
+    }, 760);
 }
 
 function fimRodada() {
@@ -360,6 +683,8 @@ function fimRodada() {
     }
 
     if (lua >= 0) G.luaConquistada = true;
+    if (ganho[0] === 0) ESTAT.zeros++;
+    if (lua === 0) ESTAT.luas++;
 
     const humanoPerdeu = G.personagens[0].total >= LIMITE;
     const fim = humanoPerdeu || (!G.fila.length && eliminadosAgora.length > 0);
@@ -390,6 +715,8 @@ function fimRodada() {
     if (fim) {
         h += `<p>${G.personagens[0].total >= LIMITE ? 'Você atingiu 60 pontos ou mais. Fim de jogo!' : 'Todas as máquinas foram eliminadas.'}</p>`;
         const rankingFinal = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total);
+        ESTAT.partidas++;
+        if (rankingFinal[0].id === jogadorHumano.id) ESTAT.vitorias++;
         h += '<h3>🏆 Ranking Geral Final</h3><table><tr><th>#</th><th>Jogador</th><th>Pts Rank</th><th>Pts Mesa</th></tr>';
         rankingFinal.forEach((p, pos) => {
             const ehEu = p.id === jogadorHumano.id;
@@ -398,12 +725,14 @@ function fimRodada() {
         h += '</table>';
     }
 
+    salvarEstat();
     h += `<button class="btn-modo" id="btnModal">${fim ? 'Escolher personagens novamente' : 'Próxima rodada'}</button>`;
     G.rodadaEncerrada = true;
     $('modalBox').innerHTML = h;
     $('modal').classList.remove('escondido');
     $('btnModal').focus();
     $('btnModal').onclick = fim ? () => {
+        ocultarPalco();
         G = null; jogadorHumano = null; $('jogo').classList.add('escondido');
         $('telaLogin').classList.remove('escondido');
         $('personagemEscolhido').textContent = 'Escolha seu personagem';
@@ -443,6 +772,7 @@ function abrirRankingGeral() {
         </tr>`;
     });
     h += '</table>';
+    h += `<p class="legenda-pontos" style="margin-bottom:12px;">Dificuldade: <b>${NOMES_NIVEL[G.nivel] || 'Normal'}</b><br>Seu histórico: ${ESTAT.partidas} partida(s) · ${ESTAT.vitorias} vitória(s) · ${ESTAT.zeros} rodada(s) sem pontos · ${ESTAT.luas} Lua(s)</p>`;
     h += '<button type="button" class="btn-modo" id="btnResetarPlacar" style="margin-bottom:8px;">Resetar placar geral e reiniciar jogo</button>';
     h += '<button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
     $('modalRankingBox').innerHTML = h;
@@ -456,6 +786,8 @@ function resetarPlacarGeral() {
     if (!jogadorHumano) return;
     if (!confirm('Isso vai zerar o placar geral e reiniciar a partida. Continuar?')) return;
     if (G && G.timer) clearTimeout(G.timer);
+    if (G && G.tk) G.tk.pular = true;
+    ocultarPalco();
     PERSONAGENS.forEach(p => {
         p.total = 0;
         p.pontosRank = 0;
@@ -480,6 +812,14 @@ function resetarPlacarGeral() {
 }
 
 $('btnRanking').onclick = abrirRankingGeral;
+function marcarSom() {
+    const b = $('btnSom');
+    b.innerHTML = `<i class="fas fa-volume-${SFX.ligado ? 'high' : 'xmark'}"></i>`;
+    b.setAttribute('aria-pressed', String(!SFX.ligado));
+    b.title = SFX.ligado ? 'Efeitos sonoros ligados' : 'Efeitos sonoros desligados';
+}
+$('btnSom').onclick = () => { SFX.alternar(); marcarSom(); };
+marcarSom();
 $('modalRanking').addEventListener('click', e => {
     if (e.target === $('modalRanking')) $('modalRanking').classList.add('escondido');
 });
@@ -493,7 +833,7 @@ function agendar() {
         if (G.vazas === 0 && G.mesa.length === 0)
             G.timer = setTimeout(() => jogar(0, G.maos[0].find(c => c.naipe === PAU && c.valor === 0)), 900);
     } else {
-        G.timer = setTimeout(() => { const c = escolherBot(G.turno); jogar(G.turno, c); }, 900);
+        G.timer = setTimeout(() => { const c = escolherBot(G.turno); jogar(G.turno, c); }, 700 + Math.random() * 450);
     }
 }
 
@@ -523,7 +863,272 @@ document.addEventListener('drop', e => {
     if (cartaObj) tentarJogar(cartaObj);
 });
 
-// ================= IA ESTRATÉGICA =================
+// ================= IA V8 (níveis Difícil e Mestre) =================
+// Trabalha com cartas em formato numérico: código = naipe*13 + valor
+// (0-12 Espadas, 13-25 Copas, 26-38 Ouros, 39-51 Paus). Dama de Espadas = 10, 2♣ = 39.
+// A IA só usa informação PÚBLICA: a própria mão, cartas já jogadas, mesa, pontos
+// e quem já ficou sem algum naipe. Ela não enxerga a mão dos outros jogadores.
+const IA = (() => {
+    const DAMA = 10, DOIS_PAUS = 39;
+    const suit = c => (c / 13) | 0, val = c => c % 13;
+    const pts = c => (c >= 13 && c < 26) ? 1 : (c === DAMA ? 13 : 0);
+
+    function legais(S, i) {
+        const h = S.hands[i], m = S.mesa;
+        if (m.length === 0) {
+            if (S.vazas === 0 && h.includes(DOIS_PAUS)) return [DOIS_PAUS];
+            if (!S.quebrada) {
+                const sem = h.filter(c => suit(c) !== 1);
+                if (sem.length) return sem;
+            }
+            return h.slice();
+        }
+        const seg = h.filter(c => suit(c) === S.lider);
+        return seg.length ? seg : h.slice();
+    }
+
+    function visto(S, i) {
+        const v = new Uint8Array(52);
+        v.set(S.jogadas);
+        const h = S.hands[i];
+        for (let k = 0; k < h.length; k++) v[h[k]] = 1;
+        return v;
+    }
+
+    // Jogador que já levou TODOS os pontos até agora (possível "lua")
+    function ameacaLua(S) {
+        let tot = 0, mx = -1, mj = -1;
+        for (let j = 0; j < 4; j++) { tot += S.pts[j]; if (S.pts[j] > mx) { mx = S.pts[j]; mj = j; } }
+        return (mx >= 13 && mx === tot) ? mj : -1;
+    }
+
+    function abrir(S, i, L, ruido) {
+        const vis = visto(S, i), h = S.hands[i];
+        const qFora = !vis[DAMA], temQ = h.includes(DAMA);
+        let melhor = L[0], mc = Infinity;
+        for (const c of L) {
+            const s = suit(c), v = val(c);
+            let unseen = 0, maiores = 0;
+            for (let x = 0; x < 13; x++) {
+                if (!vis[s * 13 + x]) { unseen++; if (x > v) maiores++; }
+            }
+            const pOver = unseen === 0 ? 0 : 1 - Math.pow(1 - maiores / unseen, 3);
+            const pWin = 1 - pOver;
+            let esp = 0.3;
+            for (let j = 0; j < 4; j++) if (j !== i && S.vazios[j][s]) esp += 1.3;
+            if (s === 0 && qFora) esp += 13 * 0.4;
+            if (s === 1) esp += 1.2;
+            let custo = pWin * esp + (s === 1 ? 0 : v * 0.03);
+            if (s === 0 && qFora && !temQ && v < 10 && !h.includes(11) && !h.includes(12)) custo -= 1.5;
+            if (s === 0 && temQ) custo += 1.5;
+            let cnt = 0;
+            for (let k = 0; k < h.length; k++) if (suit(h[k]) === s) cnt++;
+            if (cnt <= 3) custo -= (4 - cnt) * 0.1;
+            custo += Math.random() * ruido;
+            if (custo < mc) { mc = custo; melhor = c; }
+        }
+        return melhor;
+    }
+
+    function seguir(S, i, L, ruido) {
+        const m = S.mesa, n = m.length, rest = 3 - n, lider = S.lider, h = S.hands[i];
+        let wc = -1, wj = -1, ptsMesa = 0;
+        for (let k = 0; k < n; k++) {
+            const j = m[k][0], c = m[k][1];
+            ptsMesa += pts(c);
+            if (suit(c) === lider && (wc < 0 || val(c) > val(wc))) { wc = c; wj = j; }
+        }
+        const vis = visto(S, i), qFora = !vis[DAMA], temQ = h.includes(DAMA);
+        const segue = suit(L[0]) === lider;
+        const ameaca = ameacaLua(S);
+        let melhor = L[0], mc = Infinity;
+
+        for (const c of L) {
+            let custo;
+            if (segue) {
+                const v = val(c);
+                let pWin = 0;
+                if (v > val(wc)) {
+                    if (rest === 0) pWin = 1;
+                    else {
+                        let unseen = 0, maiores = 0;
+                        for (let x = 0; x < 13; x++) {
+                            if (!vis[lider * 13 + x]) { unseen++; if (x > v) maiores++; }
+                        }
+                        pWin = unseen === 0 ? 1 : Math.pow(1 - maiores / unseen, rest);
+                    }
+                }
+                const ptsC = pts(c);
+                let dump = rest * 0.3;
+                if (qFora && c !== DAMA) {
+                    dump += lider === 0
+                        ? (v > 10 ? 13 * 0.5 * rest / 3 : 13 * 0.15 * rest / 3)
+                        : 13 * 0.06 * rest;
+                }
+                custo = pWin * (ptsMesa + ptsC + dump);
+                custo -= (1 - pWin) * v * 0.10;      // livrar-se de cartas altas quando vai perder
+                custo += pWin * v * 0.04;            // ao ganhar, gasta a menor possível
+                custo -= (1 - pWin) * ptsC * 0.9;    // entrega pontos (Dama/Copas) a quem vai ganhar
+                if (ameaca >= 0 && ameaca !== i && (ptsMesa + ptsC) > 0) custo -= pWin * 25;  // quebrar a lua
+                if (ameaca >= 0 && ameaca === wj && ptsC > 0 && wj !== i) custo += (1 - pWin) * 20; // não alimentar a lua
+            } else {
+                let sc;
+                if (c === DAMA) sc = 100;
+                else if (suit(c) === 1) sc = 40 + val(c);
+                else if (suit(c) === 0 && qFora && !temQ && val(c) > 10) sc = 60 + val(c);
+                else {
+                    let cnt = 0;
+                    for (let k = 0; k < h.length; k++) if (suit(h[k]) === suit(c)) cnt++;
+                    sc = val(c) + Math.max(0, 5 - cnt) * 2.5;
+                }
+                if (wj >= 0 && pts(c) > 0) sc += pts(c) * ((S.totais[wj] - S.totais[i]) / 40);
+                if (ameaca >= 0 && ameaca !== i && pts(c) > 0) sc += (wj !== ameaca) ? 30 : -60;
+                custo = -sc;
+            }
+            custo += Math.random() * ruido;
+            if (custo < mc) { mc = custo; melhor = c; }
+        }
+        return melhor;
+    }
+
+    function politica(S, i, ruido) {
+        const L = legais(S, i);
+        if (L.length === 1) return L[0];
+        return S.mesa.length === 0 ? abrir(S, i, L, ruido) : seguir(S, i, L, ruido);
+    }
+
+    // ---------- simulação ----------
+    function jogarSim(S, j, c) {
+        const h = S.hands[j];
+        h.splice(h.indexOf(c), 1);
+        S.jogadas[c] = 1;
+        if (S.mesa.length > 0 && suit(c) !== S.lider) S.vazios[j][S.lider] = true;
+        S.mesa.push([j, c]);
+        if (S.mesa.length === 1) S.lider = suit(c);
+        if (suit(c) === 1) S.quebrada = true;
+        if (S.mesa.length === 4) {
+            let w = -1, wc = -1, p = 0;
+            for (const [jj, cc] of S.mesa) {
+                p += pts(cc);
+                if (suit(cc) === S.lider && (wc < 0 || val(cc) > val(wc))) { wc = cc; w = jj; }
+            }
+            S.pts[w] += p;
+            S.vazas++;
+            S.mesa = [];
+            S.lider = null;
+            S.vez = w;
+        } else {
+            S.vez = (j + 1) % 4;
+        }
+    }
+
+    function clonar(S, maos) {
+        return {
+            hands: maos.map(m => m.slice()),
+            mesa: S.mesa.slice(), lider: S.lider, quebrada: S.quebrada, vazas: S.vazas,
+            pts: S.pts.slice(), jogadas: new Uint8Array(S.jogadas),
+            vazios: S.vazios.map(r => r.slice()), totais: S.totais, vez: S.vez
+        };
+    }
+
+    function pontosFinais(S) {
+        const lua = S.pts.findIndex(p => p === 26);
+        return lua >= 0 ? S.pts.map((p, k) => k === lua ? 0 : 26) : S.pts.slice();
+    }
+
+    function amostrar(S, i, desc) {
+        const cap0 = S.contagem;
+        for (let tent = 0; tent < 25; tent++) {
+            const relaxa = tent >= 20;
+            const cap = cap0.slice();
+            const maos = [[], [], [], []];
+            maos[i] = S.hands[i].slice();
+            const cartas = desc.slice();
+            for (let k = cartas.length - 1; k > 0; k--) {
+                const r = (Math.random() * (k + 1)) | 0;
+                const t = cartas[k]; cartas[k] = cartas[r]; cartas[r] = t;
+            }
+            const perm = c => { let n = 0; for (let j = 0; j < 4; j++) if (j !== i && !S.vazios[j][suit(c)]) n++; return n; };
+            if (!relaxa) cartas.sort((a, b) => perm(a) - perm(b));
+            let ok = true;
+            for (const c of cartas) {
+                const op = [];
+                for (let j = 0; j < 4; j++) {
+                    if (j === i || cap[j] <= 0) continue;
+                    if (!relaxa && S.vazios[j][suit(c)]) continue;
+                    op.push(j);
+                }
+                if (!op.length) { ok = false; break; }
+                const j = op[(Math.random() * op.length) | 0];
+                maos[j].push(c); cap[j]--;
+            }
+            if (ok) return maos;
+        }
+        return null;
+    }
+
+    function mestre(S, i, orcamentoMs) {
+        const L = legais(S, i);
+        if (L.length === 1) return L[0];
+        const desc = [];
+        for (let c = 0; c < 52; c++) if (!S.jogadas[c] && !S.hands[i].includes(c)) desc.push(c);
+        let alvo = -1, mx = -1;
+        for (let j = 0; j < 4; j++) if (j !== i && S.totais[j] > mx) { mx = S.totais[j]; alvo = j; }
+        const soma = L.map(() => 0);
+        const t0 = Date.now();
+        let n = 0;
+        while (n < 6 || (Date.now() - t0 < orcamentoMs && n < 500)) {
+            const maos = amostrar(S, i, desc);
+            if (!maos) break;
+            for (let k = 0; k < L.length; k++) {
+                const T = clonar(S, maos);
+                T.vez = i;
+                jogarSim(T, i, L[k]);
+                while (T.vazas < 13) jogarSim(T, T.vez, politica(T, T.vez, 0.25));
+                const f = pontosFinais(T);
+                soma[k] += f[i] - (alvo >= 0 ? 0.15 * f[alvo] : 0);
+            }
+            n++;
+        }
+        if (n === 0) return politica(S, i, 0.1);
+        let b = 0;
+        for (let k = 1; k < L.length; k++) if (soma[k] < soma[b]) b = k;
+        return L[b];
+    }
+
+    return {
+        legais, politica, mestre, jogarSim, pontosFinais, pts, suit, val,
+        dificil: (S, i) => politica(S, i, 0.12)
+    };
+})();
+
+function montarEstadoIA(i) {
+    const cod = c => c.naipe * 13 + c.valor;
+    const hands = [[], [], [], []];
+    hands[i] = G.maos[i].map(cod);
+    return {
+        hands, contagem: G.maos.map(m => m.length),
+        mesa: G.mesa.map(j => [j.jogador, cod(j.carta)]),
+        lider: G.mesa.length ? G.lider : null,
+        quebrada: G.quebrada, vazas: G.vazas, pts: G.pts.slice(),
+        jogadas: G.jogadas, vazios: G.vazios,
+        totais: G.personagens.map(p => p.total), vez: i
+    };
+}
+
+// Escolhe a carta da máquina conforme o nível da partida.
+function escolherBot(i) {
+    if (G.nivel === 'normal') return escolherBotV7(i);
+    try {
+        const S = montarEstadoIA(i);
+        const codigo = G.nivel === 'mestre' ? IA.mestre(S, i, 110) : IA.dificil(S, i);
+        const carta = G.maos[i].find(c => c.naipe * 13 + c.valor === codigo);
+        if (carta && !validar(i, carta)) return carta;
+    } catch (e) { console.warn('IA:', e); }
+    return escolherBotV7(i);
+}
+
+// ================= IA ESTRATÉGICA (V7 = nível Normal) =================
 function jogadorEmPerigoDeLua(j) {
     const pontosNaMao = G.maos[j].reduce((s, c) => s + pontosCarta(c), 0);
     return G.pts[j] >= 20 ||
@@ -585,7 +1190,7 @@ function pontuarJogadaBot(i, carta, alvo) {
     return nota;
 }
 
-function escolherBot(i) {
+function escolherBotV7(i) {
     const mao = G.maos[i];
     const v = mao.filter(c => !validar(i, c));
     const ord = (a, b) => a.valor - b.valor;
@@ -713,10 +1318,15 @@ function render(piscar) {
     const ov = n > 1 ? Math.min(w * 0.7, Math.max(w * 0.25, (n * w - disp) / (n - 1))) : 0;
     div.style.setProperty('--ov', ov + 'px');
 
-    G.maos[0].forEach(c => {
-        const indice = G.ordemDistribuicao ? G.ordemDistribuicao.findIndex(x => x.jogador === 0 && x.carta.id === c.id) : -1;
-        const revelada = !G.distribuindo || indice < G.cartasReveladas;
+    // Durante a distribuição a mão mostra só as cartas que já chegaram, viradas para baixo.
+    const mostrar = G.distribuindo ? G.maos[0].slice(0, G.recebidas[0]) : G.maos[0];
+    mostrar.forEach((c, idx) => {
+        const revelada = !G.distribuindo;
         const el = revelada ? criarElementoCarta(c) : criarVersoCarta();
+        if (revelada) {
+            el.dataset.id = c.id;
+            if (G.virarMao) { el.classList.add('virar'); el.style.animationDelay = (idx * 35) + 'ms'; }
+        }
 
         if (revelada && !G.distribuindo) {
             el.tabIndex = 0;
@@ -778,11 +1388,11 @@ function render(piscar) {
 
     for (let i = 0; i < 4; i++) {
         const box = $(`j${i}`);
-        box.classList.toggle('turno-ativo', i === G.turno && !G.ocupado);
+        box.classList.toggle('turno-ativo', i === G.turno && !G.ocupado && !G.distribuindo);
         const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.total - b.total).findIndex(p => p.id === G.personagens[i].id) + 1;
         box.innerHTML = `<img class="avatar-jogador" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
             <div class="info-jogador">
-                <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small></span>
+                <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small>${i === G.carteador ? '<small class="dealer" title="Carteador">D</small>' : ''}</span>
                 <span class="tot">Total: ${G.totais[i]}</span>
                 <span class="rod">Rodada: ${G.pts[i]}</span>
             </div>`;
@@ -796,7 +1406,7 @@ function render(piscar) {
     // Status
     const st = $('status');
     st.classList.toggle('aviso', G.aviso.startsWith('⚠'));
-    if (G.distribuindo) st.textContent = 'Distribuindo as cartas…';
+    if (G.distribuindo) st.textContent = G.distMsg || 'Preparando o baralho…';
     else if (G.aviso) st.textContent = G.aviso;
     else if (G.vazas === 0 && G.mesa.length === 0) st.textContent = `Rodada ${G.rodada}: ${G.nomes[G.turno]} tem o 2♣ e começa.`;
     else if (minha) st.textContent = G.mesa.length ? `Sua vez — siga ${NAIPES[G.lider].nome} ${NAIPES[G.lider].s} (1 clique seleciona · duplo clique/arraste joga).` : 'Sua vez — abra a mesa (1 clique seleciona · duplo clique/arraste joga).';
