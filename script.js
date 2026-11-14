@@ -13,6 +13,20 @@ const ehDama = c => c.naipe === ESP && c.valor === 10;
 const pontosCarta = c => c.naipe === COP ? 1 : (ehDama(c) ? 13 : 0);
 const $ = id => document.getElementById(id);
 
+// ================= MULTIJOGADOR (V20) · estado global =================
+// modo: 'solo' | 'misto' | 'sala'. O anfitrião (host) roda o jogo inteiro; os demais só
+// recebem o estado e mandam a jogada. Tudo trafega pelo Supabase Realtime (nada é gravado).
+const MP = {
+    modo: 'solo', sb: null, ch: null, ativo: false, emJogo: false, papel: null, naEspera: false,
+    pid: Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3),
+    sala: null, membros: [], offset: 0, inicio: 0, eu: 0, falando: new Set(),
+    tick: null, tPing: null, tLista: null, tDif: null, ultimo: ''
+};
+const VOZ = { pcs: {}, mic: null, ativo: false, token: 0, fonte: '', semClique: 0, negado: false };
+const TEMPO_MISTO = 5 * 60 * 1000;
+const TELAS = ['telaInicial', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'jogo'];
+function mostrarTela(id) { TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id)); }
+
 let nomeJogador = '', G = null;
 let cartaSelecionadaId = null;
 const JANELA_DUPLO_CLIQUE = 600;
@@ -115,8 +129,7 @@ function pararIntro() {
 // ================= TELA INICIAL MIQUILINO =================
 $('btnIniciarMiquilino').addEventListener('click', async () => {
     tocarIntroUmaVez();
-    $('telaInicial').classList.add('escondido');
-    $('telaLogin').classList.remove('escondido');
+    mostrarTela('telaModo');
     // O clique em Iniciar também solicita tela cheia.
     try {
         if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -170,6 +183,7 @@ function montarSelecao() {
         card.className = 'personagem-card';
         card.innerHTML = `<img src="${p.foto}" alt="${p.nome}" onerror="this.src='fotos/${p.id}.png'; this.onerror=null"><strong>${p.nome}</strong>`;
         card.onclick = () => {
+            if (card.classList.contains('ocupado')) return;
             jogadorHumano = p;
             $('personagemEscolhido').innerHTML = `Você escolheu: <b>${p.nome}</b>`;
             document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
@@ -180,23 +194,29 @@ function montarSelecao() {
     });
 }
 $('btnComecar').onclick = () => {
-    iniciarPartida();
+    if (MP.modo === 'solo') iniciarPartida(); else entrarNaEspera();
 };
 montarSelecao();
 
-function iniciarPartida() {
+function iniciarPartida(hum) {
     if (!jogadorHumano) return;
+    // hum = [{ pid, p }]: humanos da partida (o anfitrião é sempre o primeiro). Sozinho: só você.
+    hum = hum || [{ pid: null, p: jogadorHumano }];
     ultimoCliqueCarta = { id: null, tempo: 0 };
     cartaSelecionadaId = null;
     PERSONAGENS.forEach(p => { p.total = 0; });
-    const disponiveis = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id).slice());
-    const bots = disponiveis.splice(0, 3);
+    const idsHum = new Set(hum.map(h => h.p.id));
+    const disponiveis = embaralhar(PERSONAGENS.filter(p => !idsHum.has(p.id)));
+    const bots = disponiveis.splice(0, 4 - hum.length);
     filaMaquinas = disponiveis;
     maquinasEliminadas = [];
-    const participantes = [jogadorHumano, ...bots];
+    // anfitrião no assento 0; os demais humanos e as máquinas sorteados nos outros lugares
+    const resto = embaralhar([...hum.slice(1), ...bots.map(b => ({ pid: null, p: b }))]);
+    const lugares = [hum[0], ...resto];
+    const participantes = lugares.map(l => l.p);
     nomeJogador = jogadorHumano.nome;
-    $('telaLogin').classList.add('escondido');
-    $('jogo').classList.remove('escondido');
+    mostrarTela('jogo');
+    $('btnChave').classList.toggle('escondido', !(MP.ativo && MP.sala && MP.sala.tipo === 'sala'));
     pararIntro();
     ajustarEscala();
     selecionarRadioInicial();
@@ -204,12 +224,16 @@ function iniciarPartida() {
         nomes: participantes.map(p => p.nome),
         personagens: participantes,
         totais: participantes.map(p => p.total),
+        humanos: lugares.map((l, k) => k === 0 || !!l.pid),
+        donos: lugares.map((l, k) => k === 0 ? (l.pid || null) : (l.pid || null)),
+        hostPid: hum[0].pid,
         rodada: 0,
         fila: filaMaquinas,
         participantes: new Set(participantes),
         luaConquistada: false,
         renunciaConquistada: false,
         nivel: nivelIA,
+        venc: null,
         carteador: Math.floor(Math.random() * 4)
     };
     novaRodada();
@@ -220,7 +244,7 @@ function novaRodada() {
     cartaSelecionadaId = null;
     const b = embaralhar(criarBaralho());
     G.maos = [0, 1, 2, 3].map(i => b.slice(i * 13, i * 13 + 13));
-    G.mesa = []; G.lider = null; G.quebrada = false; G.vazas = 0;
+    G.mesa = []; G.venc = null; G.lider = null; G.quebrada = false; G.vazas = 0;
     G.pts = [0, 0, 0, 0]; G.pegas = [[], [], [], []]; G.renunciou = [false, false, false, false]; G.ocupado = false; G.aviso = '';
     G.turno = G.maos.findIndex(m => m.some(c => c.naipe === PAU && c.valor === 0));
     if (G.tk) G.tk.pular = true;
@@ -475,6 +499,7 @@ function animarEntrada(el, i, origem) {
 }
 
 function varrerVaza(w) {
+    if (MP.emJogo && MP.papel === 'host') enviar('evt', { t: 'varrer', w });
     if (reduzMovimento()) return;
     const alvo = centroDe($(`j${w}`));
     SFX.varrer();
@@ -573,6 +598,7 @@ function resolverVaza() {
     G.pts[w] += pontos;
     G.mesa.forEach(j => { if (pontosCarta(j.carta)) G.pegas[w].push(j.carta); });
     $(`carta-${w}`).firstChild.classList.add('carta-vencedora');
+    G.venc = w;
     clearTimeout(G.tAviso);
     G.aviso = w === 0 ? 'Sua vez' : `Vez de ${G.nomes[w]}`;
     render();
@@ -580,7 +606,7 @@ function resolverVaza() {
     G.timer = setTimeout(() => {
         varrerVaza(w);
         G.timer = setTimeout(() => {
-            G.mesa = []; G.lider = null; G.ocupado = false; G.aviso = '';
+            G.mesa = []; G.venc = null; G.lider = null; G.ocupado = false; G.aviso = '';
             for (let i = 0; i < 4; i++) $(`carta-${i}`).innerHTML = '';
             G.turno = w;
             if (G.vazas === 13) fimRodada(); else agendar();
@@ -588,9 +614,87 @@ function resolverVaza() {
     }, 760);
 }
 
+// Monta o HTML do fim de rodada/partida para quem está olhando (idEu = personagem de quem vê).
+function htmlFim(d, idEu) {
+    const k = d.pers.indexOf(idEu);
+    let h = d.fim ? '<h2>🏁 Fim da partida!</h2>' : `<h2>Fim da rodada ${d.rodada}</h2>`;
+    const menorPontuacao = Math.min(...d.ganho);
+    if (k >= 0 && d.ganho[k] === menorPontuacao) h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.gif" alt="Sticker comemorativo">`;
+    if (d.ren >= 0) h += `<img class="sticker-renuncia" src="renu.png" alt="Imagem de renúncia">`;
+    if (d.ren >= 0) h += `<p>⚠️ <b>${d.nomes[d.ren]} RENUNCIOU!</b> Por jogar fora do naipe tendo cartas do naipe solicitado, recebeu os 26 pontos da rodada.</p>`;
+    else if (d.lua >= 0) h += `<p>🌕 <b>${d.nomes[d.lua]}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
+
+    const linhas = d.ordem.map(id => {
+        const i = d.pers.indexOf(id);
+        return { id, nome: d.nomes[i], ganho: d.ganho[i], total: d.totais[i], hum: d.hum[i] };
+    });
+    const posPartida = posicoes(linhas, l => l.total, 'partida');
+    h += d.fim ? '<h3>Classificação final da partida</h3>' : '<h3>Classificação da partida</h3>';
+    h += '<table><tr><th>#</th><th>Jogador</th><th>Total</th><th>Rodada</th><th>Situação</th></tr>';
+    linhas.forEach(l => {
+        const ehEu = l.id === idEu, estourou = l.total >= LIMITE;
+        const situacao = ehEu ? 'Você' : (l.hum ? 'Jogador' : (estourou ? 'Eliminado' : 'Na mesa'));
+        h += `<tr class="${estourou ? 'perdeu ' : ''}${ehEu ? 'eu' : ''}">
+            <td>${posPartida.get(l)}º</td>
+            <td>${l.nome}</td>
+            <td><b>${l.total}</b></td>
+            <td>+${l.ganho}</td>
+            <td>${situacao}</td>
+        </tr>`;
+    });
+    h += '</table>';
+
+    if (d.fim) {
+        const menor = linhas[0].total;
+        const vencedores = linhas.filter(l => l.total === menor);
+        const estourados = linhas.filter(l => l.total >= LIMITE).map(l => l.nome);
+        h += `<p>${estourados.join(' e ')} ${estourados.length > 1 ? 'atingiram' : 'atingiu'} ${LIMITE} pontos ou mais. A partida terminou e o placar da partida será zerado.</p>`;
+        if (d.saindo.length) h += `<p>🚪 Saem da mesa: ${d.saindo.join(', ')}.${d.entram.length ? ' Entram: ' + d.entram.join(', ') + '.' : ''}</p>`;
+        h += `<p class="vencedor">🏆 <b>${vencedores.length > 1 ? 'Vencedores' : 'Vencedor'}: ${vencedores.map(l => l.nome + (l.id === idEu ? ' (Você)' : '')).join(' e ')}</b> com ${menor} ponto${menor === 1 ? '' : 's'}.</p>`;
+        h += '<p class="legenda-pontos">O ranking geral foi atualizado. Toque no 🏆 para ver.</p>';
+    }
+    return h;
+}
+
+// Estatísticas e ranking geral (cada aparelho guarda o seu).
+function aplicarFim(d) {
+    const k = d.pers.indexOf(jogadorHumano.id);
+    if (d.ren >= 0) G.renunciaConquistada = true;
+    if (d.lua >= 0) G.luaConquistada = true;
+    if (k >= 0) {
+        if (d.ganho[k] === 0) ESTAT.zeros++;
+        if (d.lua === k) ESTAT.luas++;
+    }
+    if (d.fim) {
+        ESTAT.partidas++;
+        if (d.vencIds.includes(jogadorHumano.id)) ESTAT.vitorias++;
+        // Rank geral (só aparece ao tocar no troféu): 1º -1 · 2º e 3º +1 · último +2
+        if (getSB()) {
+            // Só quem comanda a partida (você sozinho ou o anfitrião) grava no servidor: assim cada partida conta uma vez.
+            if (MP.papel !== 'cliente') enviarRankServidor(d).then(carregarRankServidor);
+            else setTimeout(carregarRankServidor, 2500);
+        } else somarRankLocal(d);
+    }
+    salvarEstat();
+}
+
+function mostrarModalFim(d, avancar) {
+    let h = htmlFim(d, jogadorHumano.id);
+    const rotulo = d.fim ? 'Nova partida' : 'Próxima rodada';
+    h += avancar ? `<button class="btn-modo" id="btnModal">${rotulo}</button>`
+        : '<button class="btn-modo" id="btnModal" disabled>Aguardando o anfitrião…</button>';
+    if (avancar && MP.emJogo) h += '<p class="legenda-pontos" style="margin-top:8px">Avança sozinho em 20 segundos.</p>';
+    $('modalBox').innerHTML = h;
+    $('modal').classList.remove('escondido');
+    if (avancar) {
+        $('btnModal').focus();
+        $('btnModal').onclick = () => { clearTimeout(G.tAuto); avancar(); };
+        if (MP.emJogo) G.tAuto = setTimeout(() => { if (!$('modal').classList.contains('escondido')) avancar(); }, 20000);
+    }
+}
+
 function fimRodada() {
     const renunciante = G.renunciou.findIndex(Boolean);
-    if (renunciante >= 0) G.renunciaConquistada = true;
     const lua = renunciante >= 0 ? -1 : G.pts.findIndex(p => p === 26);
     const ganho = renunciante >= 0
         ? G.pts.map((p, i) => i === renunciante ? 26 : 0)
@@ -602,75 +706,30 @@ function fimRodada() {
         G.totais[i] = p.total;
     });
 
-    if (lua >= 0) G.luaConquistada = true;
-    if (ganho[0] === 0) ESTAT.zeros++;
-    if (lua === 0) ESTAT.luas++;
-
     // A partida acaba assim que alguém chega a 60 pontos ou mais.
     const fim = G.personagens.some(p => p.total >= LIMITE);
 
+    const d = {
+        rodada: G.rodada, fim, ganho: ganho.slice(), ren: renunciante, lua,
+        nomes: G.nomes.slice(), pers: G.personagens.map(p => p.id),
+        totais: G.personagens.map(p => p.total), hum: G.humanos.slice(),
+        saindo: [], entram: [], ordem: [], vencIds: []
+    };
     // Classificação da PARTIDA: quem tem menos pontos fica em primeiro.
-    const linhas = G.personagens
-        .map((p, i) => ({ personagem: p, nome: G.nomes[i], ganho: ganho[i], total: p.total }))
-        .sort((x, y) => x.total - y.total || x.ganho - y.ganho);
-    const posPartida = posicoes(linhas, l => l.total, 'partida');
+    const ord = [0, 1, 2, 3].sort((a, b) => d.totais[a] - d.totais[b] || d.ganho[a] - d.ganho[b]);
+    d.ordem = ord.map(i => d.pers[i]);
+    d.vencIds = ord.filter(i => d.totais[i] === d.totais[ord[0]]).map(i => d.pers[i]);
 
-    let h = fim ? '<h2>🏁 Fim da partida!</h2>' : `<h2>Fim da rodada ${G.rodada}</h2>`;
-    const menorPontuacao = Math.min(...ganho);
-    if (ganho[0] === menorPontuacao) h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.gif" alt="Sticker comemorativo">`;
-    if (renunciante >= 0) h += `<img class="sticker-renuncia" src="renu.png" alt="Imagem de renúncia">`;
-    if (renunciante >= 0) h += `<p>⚠️ <b>${G.nomes[renunciante]} RENUNCIOU!</b> Por jogar fora do naipe tendo cartas do naipe solicitado, recebeu os 26 pontos da rodada.</p>`;
-    else if (lua >= 0) h += `<p>🌕 <b>${G.nomes[lua]}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
-
-    // Máquinas que chegaram a 60 saem; o humano sempre continua jogando.
+    // Máquinas que chegaram a 60 saem; jogadores humanos continuam sempre na mesa.
     const saindo = [];
-    if (fim) for (let i = 1; i < 4; i++) if (G.personagens[i].total >= LIMITE) saindo.push(i);
+    if (fim) for (let i = 0; i < 4; i++) if (!G.humanos[i] && G.personagens[i].total >= LIMITE) saindo.push(i);
+    d.saindo = saindo.map(i => G.nomes[i]);
+    d.entram = G.fila.slice(0, saindo.length).map(p => p.nome);
 
-    h += fim ? '<h3>Classificação final da partida</h3>' : '<h3>Classificação da partida</h3>';
-    h += '<table><tr><th>#</th><th>Jogador</th><th>Total</th><th>Rodada</th><th>Situação</th></tr>';
-    linhas.forEach(l => {
-        const p = l.personagem;
-        const ehEu = p.id === jogadorHumano.id;
-        const estourou = p.total >= LIMITE;
-        const situacao = ehEu ? 'Você' : (estourou ? 'Eliminado' : 'Na mesa');
-        h += `<tr class="${estourou ? 'perdeu ' : ''}${ehEu ? 'eu' : ''}">
-            <td>${posPartida.get(l)}º</td>
-            <td>${l.nome}</td>
-            <td><b>${l.total}</b></td>
-            <td>+${l.ganho}</td>
-            <td>${situacao}</td>
-        </tr>`;
-    });
-    h += '</table>';
+    aplicarFim(d);
 
-    if (fim) {
-        const menor = linhas[0].total;
-        const vencedores = linhas.filter(l => l.total === menor);
-        const estourados = linhas.filter(l => l.total >= LIMITE).map(l => l.nome);
-        h += `<p>${estourados.join(' e ')} ${estourados.length > 1 ? 'atingiram' : 'atingiu'} ${LIMITE} pontos ou mais. A partida terminou e o placar da partida será zerado.</p>`;
-        if (saindo.length) {
-            const entram = G.fila.slice(0, saindo.length).map(p => p.nome);
-            h += `<p>🚪 Saem da mesa: ${saindo.map(i => G.nomes[i]).join(', ')}.${entram.length ? ' Entram: ' + entram.join(', ') + '.' : ''}</p>`;
-        }
-        h += `<p class="vencedor">🏆 <b>${vencedores.length > 1 ? 'Vencedores' : 'Vencedor'}: ${vencedores.map(l => l.nome + (l.personagem.id === jogadorHumano.id ? ' (Você)' : '')).join(' e ')}</b> com ${menor} ponto${menor === 1 ? '' : 's'}.</p>`;
-        h += '<p class="legenda-pontos">O ranking geral foi atualizado. Toque no 🏆 para ver.</p>';
-        ESTAT.partidas++;
-        if (vencedores.some(l => l.personagem.id === jogadorHumano.id)) ESTAT.vitorias++;
-
-        // Rank geral (só aparece ao tocar no troféu):
-        // 1º lugar -1 · 2º e 3º +1 · último lugar +2
-        const DELTA_RANK = [-1, 1, 1, 2];
-        linhas.forEach((l, k) => { l.personagem.pontosRank += DELTA_RANK[k]; });
-        salvarRankGeral();
-    }
-
-    salvarEstat();
-    h += `<button class="btn-modo" id="btnModal">${fim ? 'Nova partida' : 'Próxima rodada'}</button>`;
-    G.rodadaEncerrada = true;
-    $('modalBox').innerHTML = h;
-    $('modal').classList.remove('escondido');
-    $('btnModal').focus();
-    $('btnModal').onclick = () => {
+    const avancar = () => {
+        if ($('modal').classList.contains('escondido')) return;
         if (fim) {
             // Quem estourou sai (vai para o fim da fila de reservas) e o placar da partida zera.
             saindo.forEach(i => {
@@ -689,12 +748,21 @@ function fimRodada() {
         G.totais = G.personagens.map(p => p.total);
         novaRodada();
     };
+
+    G.rodadaEncerrada = true;
+    if (MP.emJogo && MP.papel === 'host') enviar('evt', { t: 'modal', d });
+    mostrarModalFim(d, avancar);
     render();
 }
 
 // ================= MODAL DO RANKING GERAL =================
 function abrirRankingGeral() {
     if (!G) return;
+    desenharRanking();
+    if (getSB()) carregarRankServidor().then(ok => { if (ok && !$('modalRanking').classList.contains('escondido')) desenharRanking(); });
+}
+
+function desenharRanking() {
     const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.nome.localeCompare(b.nome));
     const posGeral = posicoes(PERSONAGENS, p => p.pontosRank, 'geral');
     let h = '<h2>🏆 Ranking Geral</h2>';
@@ -705,6 +773,7 @@ function abrirRankingGeral() {
     if (G.renunciaConquistada) {
         h += '<img class="sticker-renuncia" src="renu.png" alt="Renúncia na partida">';
     }
+    h += getSB() ? '<p class="legenda-pontos" style="margin-bottom:6px;">☁️ Ranking compartilhado (salvo no servidor)</p>' : '<p class="legenda-pontos" style="margin-bottom:6px;">📱 Ranking salvo só neste aparelho</p>';
     h += '<table><tr><th>#</th><th>Jogador</th><th>Pontos</th></tr>';
     ranking.forEach(p => {
         const ehEu = jogadorHumano && p.id === jogadorHumano.id;
@@ -716,26 +785,31 @@ function abrirRankingGeral() {
     });
     h += '</table>';
     h += `<p class="legenda-pontos" style="margin-bottom:12px;">Seu histórico: ${ESTAT.partidas} partida(s) · ${ESTAT.vitorias} vitória(s) · ${ESTAT.zeros} rodada(s) sem pontos · ${ESTAT.luas} Lua(s)</p>`;
-    h += '<button type="button" class="btn-modo" id="btnResetarPlacar" style="margin-bottom:8px;">Resetar placar geral e reiniciar jogo</button>';
+    h += '<button type="button" class="btn-modo" id="btnResetarPlacar" style="margin-bottom:8px;">' + (getSB() ? 'Reiniciar jogo' : 'Resetar placar geral e reiniciar jogo') + '</button>';
+    if (MP.ativo) h += '<button type="button" class="btn-sec" id="btnSairSala" style="margin:0 0 8px">Sair da sala</button>';
     h += '<button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
     $('modalRankingBox').innerHTML = h;
     $('modalRanking').classList.remove('escondido');
     $('btnFecharRanking').focus();
     $('btnFecharRanking').onclick = () => $('modalRanking').classList.add('escondido');
     $('btnResetarPlacar').onclick = resetarPlacarGeral;
+    if ($('btnSairSala')) $('btnSairSala').onclick = sairParaMenu;
 }
 
 function resetarPlacarGeral() {
     if (!jogadorHumano) return;
-    if (!confirm('Isso vai zerar o placar geral e reiniciar a partida. Continuar?')) return;
+    if (!confirm(getSB() ? 'Isso vai reiniciar o jogo (o ranking compartilhado do servidor NÃO é apagado). Continuar?' : 'Isso vai zerar o placar geral e reiniciar a partida. Continuar?')) return;
     if (G && G.timer) clearTimeout(G.timer);
+    if (G && G.tAuto) clearTimeout(G.tAuto);
     if (G && G.tk) G.tk.pular = true;
     ocultarPalco();
+    sairSala(); MP.modo = 'solo';
+    $('modalSenha').classList.add('escondido');
     PERSONAGENS.forEach(p => {
         p.total = 0;
-        p.pontosRank = 0;
+        if (!getSB()) p.pontosRank = 0;
     });
-    salvarRankGeral();
+    if (!getSB()) salvarRankGeral();
     maquinasEliminadas = [];
     filaMaquinas = [];
     G = null;
@@ -771,9 +845,12 @@ function agendar() {
     clearTimeout(G.timer);
     render();
     if (G.mesa.length === 4) return;
-    if (G.turno === 0) {
-        if (G.vazas === 0 && G.mesa.length === 0)
-            G.timer = setTimeout(() => jogar(0, G.maos[0].find(c => c.naipe === PAU && c.valor === 0)), 900);
+    if (G.humanos[G.turno]) {
+        // 2♣ abre a rodada sozinho para quem o tem (humano); nas demais jogadas, o humano escolhe
+        if (G.vazas === 0 && G.mesa.length === 0) {
+            const s = G.turno;
+            G.timer = setTimeout(() => jogar(s, G.maos[s].find(c => c.naipe === PAU && c.valor === 0)), 900);
+        }
     } else {
         G.timer = setTimeout(() => { const c = escolherBot(G.turno); jogar(G.turno, c); }, 700 + Math.random() * 450);
     }
@@ -784,7 +861,12 @@ function tentarJogar(c) {
     const erro = validar(0, c);
     const renuncia = G.mesa.length > 0 && c.naipe !== G.lider &&
         G.maos[0].some(x => x.naipe === G.lider);
-    if (erro && !renuncia) { G.aviso = '⚠ ' + erro; render(true); return; }
+    if (erro && !renuncia) { G.aviso = '⚠ ' + erro; G.avisoAte = Date.now() + 2500; render(true); return; }
+    if (MP.papel === 'cliente') {          // convidado: pede ao anfitrião para jogar a carta
+        cartaSelecionadaId = null;
+        enviar('jogar', { pid: MP.pid, c: c.id });
+        return;
+    }
     jogar(0, c);
 }
 
@@ -1252,7 +1334,9 @@ if (window.visualViewport) visualViewport.addEventListener('resize', reajustar);
 // ================= TELA =================
 function avisoTemp(msg, ms) {
     if (!G) return;
+    if (MP.emJogo && MP.papel === 'host') enviar('evt', { t: 'aviso', m: msg, ms });
     G.aviso = msg;
+    G.avisoAte = Date.now() + ms;
     clearTimeout(G.tAviso);
     G.tAviso = setTimeout(() => {
         if (G && G.aviso === msg) { G.aviso = ''; atualizarStatus(); }
@@ -1367,7 +1451,7 @@ function render(piscar) {
         const box = $(`j${i}`);
         box.classList.toggle('turno-ativo', i === G.turno && !G.ocupado && !G.distribuindo);
         const ranking = posicoes(G.personagens, p => p.total, 'partida').get(G.personagens[i]);
-        box.innerHTML = `<img class="avatar-jogador" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
+        box.innerHTML = `<img class="avatar-jogador" data-pid="${(G.donos && G.donos[i]) || ''}" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
             <div class="info-jogador">
                 <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small></span>
                 <span class="tot">Total: ${G.totais[i]}</span>
@@ -1381,6 +1465,8 @@ function render(piscar) {
     }
 
     atualizarStatus();
+    marcarFalando();
+    agendarDifusao();
 }
 
 function mostrarQ() {
@@ -1639,3 +1725,551 @@ $('selRadio').onchange = e => {
     R.i = i - 1; R.tent = 0; tentarEstacao(1);
 };
 preencherLista();
+
+// =====================================================================
+// ================= MULTIJOGADOR (V20) · SUPABASE + VOZ ================
+// =====================================================================
+const MSG_CONFIG = 'O Supabase ainda não foi configurado.\nPreencha o arquivo config.js (veja o LEIA-ME).';
+function getSB() {
+    if (MP.sb) return MP.sb;
+    const c = window.MIQ_SUPABASE || {};
+    if (!c.url || !c.anonKey || /COLE_AQUI/.test(c.url + c.anonKey) || !window.supabase) return null;
+    MP.sb = window.supabase.createClient(c.url, c.anonKey, { realtime: { params: { eventsPerSecond: 20 } } });
+    return MP.sb;
+}
+async function rpc(nome, args) {
+    const { data, error } = await getSB().rpc(nome, args || {});
+    if (error) throw error;
+    return data;
+}
+const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const restante = () => MP.inicio + TEMPO_MISTO - (Date.now() + MP.offset);
+const souHost = () => !!MP.membros[0] && MP.membros[0].pid === MP.pid;
+const cartaDeId = id => { const [n, v] = id.split('-').map(Number); return { naipe: n, valor: v, id }; };
+
+// ---------- nomes de bar e senha ----------
+const BAR_M = { a: ['Bar do', 'Boteco do', 'Buteco do', 'Cantinho do', 'Armazém do', 'Pé-Sujo do', 'Esquina do'],
+    b: ['Zé Pinguço', 'Juvenal Cachaça', 'Seu Madruga Fiado', 'Tio Chopp', 'Careca da Saideira', 'Mané Gelada', 'Compadre Torresmo', 'Zeca Birita', 'Tonhão Caipirinha', 'Bêbado Honesto', 'Gordo do Espetinho', 'Cabo Cerveja'] };
+const BAR_F = { a: ['Bar da', 'Boteco da', 'Buteco da', 'Tasca da', 'Esquina da', 'Birosca da'],
+    b: ['Dona Pinga', 'Tia Saideira', 'Maria Fiado', 'Vovó Cachaça', 'Lurdes Torresmo', 'Neide Petisco', 'Cleide Gelada', 'Zefa Cervejinha', 'Fofoca Quente', 'Saideira Eterna'] };
+const sorteia = l => l[Math.floor(Math.random() * l.length)];
+function nomeBarAleatorio() { const g = Math.random() < 0.55 ? BAR_M : BAR_F; return `${sorteia(g.a)} ${sorteia(g.b)}`; }
+function senhaAleatoria() {
+    const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = '';
+    for (let i = 0; i < 6; i++) s += c[Math.floor(Math.random() * c.length)];
+    return s;
+}
+
+// ---------- canal em tempo real ----------
+async function conectarCanal(canal) {
+    const sb = getSB();
+    const ch = sb.channel('mq-' + canal, { config: { broadcast: { self: false }, presence: { key: MP.pid } } });
+    MP.ch = ch; MP.ativo = true; MP.membros = []; MP.naEspera = false; MP.emJogo = false; MP.papel = null;
+    ch.on('presence', { event: 'sync' }, aoPresenca);
+    ch.on('broadcast', { event: 'snap' }, ({ payload }) => aoSnap(payload));
+    ch.on('broadcast', { event: 'jogar' }, ({ payload }) => aoJogar(payload));
+    ch.on('broadcast', { event: 'evt' }, ({ payload }) => aoEvento(payload));
+    ch.on('broadcast', { event: 'sig' }, ({ payload }) => aoSinal(payload));
+    ch.on('broadcast', { event: 'voz' }, ({ payload }) => setFalando(payload.pid, payload.on));
+    await new Promise((res, rej) => {
+        const t = setTimeout(() => rej(new Error('Tempo esgotado ao conectar')), 12000);
+        ch.subscribe(st => {
+            if (st === 'SUBSCRIBED') { clearTimeout(t); res(); }
+            else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(t); rej(new Error('Falha ao conectar (' + st + ')')); }
+        });
+    });
+    clearInterval(MP.tick); MP.tick = setInterval(tick, 500);
+    aoPresenca();
+}
+function enviar(event, payload) { if (MP.ch) MP.ch.send({ type: 'broadcast', event, payload }); }
+function iniciarPing() {
+    clearInterval(MP.tPing);
+    MP.tPing = setInterval(() => {
+        if (MP.sala && getSB()) rpc('ping_sala', { p_canal: MP.sala.canal, p_n: Math.max(1, MP.membros.length) }).catch(() => {});
+    }, 30000);
+}
+
+function aoPresenca() {
+    if (!MP.ch) return;
+    const lista = [];
+    Object.values(MP.ch.presenceState()).forEach(arr => { const m = arr[arr.length - 1]; if (m && m.pid) lista.push(m); });
+    lista.sort((a, b) => a.ordem - b.ordem || a.pid.localeCompare(b.pid));
+    MP.membros = lista;
+    const vivos = new Set(lista.map(m => m.pid));
+    [...MP.falando].forEach(p => { if (!vivos.has(p) && p !== MP.pid) MP.falando.delete(p); });
+    atualizarCharsOcupados(); atualizarEspera(); atualizarFaixa(); sincronizarVoz(); verificarSaidas(); marcarFalando();
+}
+
+function atualizarCharsOcupados() {
+    const ocup = new Set(MP.membros.filter(m => m.pid !== MP.pid).map(m => m.char));
+    document.querySelectorAll('.personagem-card').forEach((c, i) => c.classList.toggle('ocupado', ocup.has(PERSONAGENS[i].id)));
+    if (jogadorHumano && ocup.has(jogadorHumano.id) && !MP.naEspera) {
+        jogadorHumano = null;
+        $('personagemEscolhido').textContent = 'Esse personagem foi escolhido por outro jogador';
+        $('btnComecar').disabled = true;
+        document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
+    }
+}
+
+function atualizarFaixa() {
+    if (MP.modo === 'solo' || !MP.sala) return;
+    const n = MP.membros.length, plural = n === 1 ? 'jogador' : 'jogadores';
+    let t, pisca = false;
+    if (MP.modo === 'misto') {
+        const r = restante();
+        pisca = r > 0 && !MP.emJogo;
+        t = r > 0 ? `🔴 Sala Misto aberta — a partida começa em ${mmss(r)} · ${n} ${plural} dentro` : `🔴 Sala Misto — iniciando… · ${n} ${plural}`;
+    } else t = `🍺 ${MP.sala.nome} · ${n} ${plural}`;
+    document.querySelectorAll('.faixa-sala').forEach(f => { f.textContent = t; f.classList.toggle('piscando', pisca); });
+}
+
+function atualizarEspera() {
+    if (!MP.naEspera || !MP.sala) return;
+    const sala = MP.modo === 'sala';
+    $('esperaTitulo').textContent = sala ? MP.sala.nome : 'Sala Misto';
+    $('esperaSenhaLinha').classList.toggle('escondido', !(sala && MP.sala.senha));
+    $('esperaSenha').textContent = MP.sala.senha || '';
+    $('listaEspera').innerHTML = MP.membros.map((m, i) => {
+        const p = PERSONAGENS.find(x => x.id === m.char);
+        const nome = (p ? p.nome : '?') + (i === 0 ? ' 👑' : '') + (m.pid === MP.pid ? ' (você)' : '');
+        return `<div class="membro"><img data-pid="${m.pid}" src="fotos/${m.char}.png" alt=""><span>${nome}</span></div>`;
+    }).join('');
+    const jogando = MP.membros.some(m => m.jogando);
+    const eHost = souHost();
+    $('btnIniciarSala').classList.toggle('escondido', !(sala && eHost && !jogando));
+    const vagas = 4 - MP.membros.length;
+    $('esperaInfo').textContent = jogando ? 'Essa sala já está com uma partida em andamento.'
+        : sala ? (eHost ? `Quando todos entrarem, toque em Começar. ${vagas > 0 ? 'As máquinas completam as ' + vagas + ' vaga(s).' : ''}` : 'Aguardando o anfitrião (👑) começar a partida…')
+        : 'Quando o relógio zerar, a partida começa com quem estiver aqui; as máquinas completam a mesa.';
+    marcarFalando();
+}
+
+function tick() {
+    if (!MP.ativo) return;
+    atualizarFaixa();
+    if (MP.modo === 'misto' && MP.naEspera && !MP.emJogo && restante() <= 0 && souHost() && !MP.membros.some(m => m.jogando)) iniciarMP();
+}
+
+// ---------- fluxo de telas ----------
+function prepararLogin() {
+    const mp = MP.modo !== 'solo';
+    $('btnComecar').innerHTML = mp ? '<i class="fas fa-door-open"></i> Entrar na sala' : '<i class="fas fa-play"></i> Começar partida';
+    $('faixaSala').classList.toggle('escondido', !mp);
+    jogadorHumano = null;
+    $('personagemEscolhido').textContent = 'Escolha seu personagem';
+    $('btnComecar').disabled = true;
+    document.querySelectorAll('.personagem-card').forEach(c => c.classList.remove('escolhido'));
+    atualizarCharsOcupados(); atualizarFaixa();
+}
+
+$('btnModoSozinho').onclick = () => { MP.modo = 'solo'; prepararLogin(); mostrarTela('telaLogin'); };
+$('btnModoMisto').onclick = entrarMisto;
+$('btnModoSala').onclick = abrirSalas;
+$('btnVoltarLogin').onclick = () => { sairSala(); MP.modo = 'solo'; mostrarTela('telaModo'); };
+$('btnVoltarSalas').onclick = () => { clearInterval(MP.tLista); mostrarTela('telaModo'); };
+$('btnSairEspera').onclick = () => { sairSala(); MP.modo = 'solo'; mostrarTela('telaModo'); };
+$('btnIniciarSala').onclick = () => { if (souHost()) iniciarMP(); };
+$('btnChave').onclick = () => {
+    $('nomeSalaTexto').textContent = MP.sala ? MP.sala.nome : '';
+    $('senhaTexto').textContent = (MP.sala && MP.sala.senha) || '—';
+    $('modalSenha').classList.remove('escondido');
+};
+$('btnFecharSenha').onclick = () => $('modalSenha').classList.add('escondido');
+$('modalSenha').addEventListener('click', e => { if (e.target === $('modalSenha')) $('modalSenha').classList.add('escondido'); });
+
+async function entrarMisto() {
+    if (!getSB()) { alert(MSG_CONFIG); return; }
+    try {
+        const r = await rpc('entrar_misto');
+        MP.sala = { id: r.id, canal: r.canal, nome: 'Misto', tipo: 'misto', senha: '' };
+        MP.offset = Date.parse(r.agora) - Date.now();
+        MP.inicio = Date.parse(r.inicio_em);
+        MP.modo = 'misto';
+        await conectarCanal(r.canal);
+        iniciarPing(); prepararLogin(); mostrarTela('telaLogin');
+    } catch (e) { alert('Não foi possível entrar no modo Misto: ' + (e.message || e)); sairSala(); }
+}
+
+async function abrirSalas() {
+    if (!getSB()) { alert(MSG_CONFIG); return; }
+    mostrarTela('telaSalas');
+    await carregarSalas();
+    clearInterval(MP.tLista); MP.tLista = setInterval(carregarSalas, 4000);
+}
+async function carregarSalas() {
+    const box = $('listaSalas');
+    try {
+        const lista = await rpc('listar_salas');
+        if (!lista || !lista.length) { box.innerHTML = '<div class="vazio">Nenhum bar aberto agora. Crie o primeiro!</div>'; return; }
+        box.innerHTML = '';
+        lista.forEach(s => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sala-item' + (s.status === 'jogando' ? ' jogando' : '') + (s.contagem >= 4 ? ' cheia' : '');
+            const n = document.createElement('b'); n.textContent = s.nome;
+            const i = document.createElement('span'); i.textContent = `🔒 ${s.contagem}/4${s.status === 'jogando' ? ' · jogando' : ''}`;
+            b.append(n, i);
+            b.onclick = () => entrarNaSala(s);
+            box.appendChild(b);
+        });
+    } catch (e) { box.innerHTML = '<div class="vazio">Erro ao carregar as salas. Verifique a configuração do Supabase.</div>'; }
+}
+async function entrarNaSala(s) {
+    if (s.status === 'jogando') { alert('Esse bar já está com partida em andamento.'); return; }
+    if (s.contagem >= 4) { alert('Esse bar está lotado (4/4).'); return; }
+    const senha = (prompt(`Senha do bar "${s.nome}":`) || '').trim().toUpperCase();
+    if (!senha) return;
+    try {
+        const r = await rpc('entrar_sala', { p_id: s.id, p_senha: senha });
+        if (!r || r.erro === 'inexistente') { alert('Esse bar não existe mais.'); return carregarSalas(); }
+        if (r.erro === 'senha') { alert('Senha incorreta.'); return; }
+        if (r.status === 'jogando') { alert('Esse bar já está com partida em andamento.'); return; }
+        clearInterval(MP.tLista);
+        MP.sala = { id: s.id, canal: r.canal, nome: r.nome, tipo: 'sala', senha };
+        MP.offset = Date.parse(r.agora) - Date.now(); MP.modo = 'sala';
+        await conectarCanal(r.canal);
+        iniciarPing(); prepararLogin(); mostrarTela('telaLogin');
+    } catch (e) { alert('Erro ao entrar na sala: ' + (e.message || e)); sairSala(); }
+}
+$('btnCriarSala').onclick = async () => {
+    const nome = nomeBarAleatorio(), senha = senhaAleatoria();
+    try {
+        const r = await rpc('criar_sala', { p_nome: nome, p_senha: senha });
+        clearInterval(MP.tLista);
+        MP.sala = { id: r.id, canal: r.canal, nome, tipo: 'sala', senha };
+        MP.offset = Date.parse(r.agora) - Date.now(); MP.modo = 'sala';
+        await conectarCanal(r.canal);
+        iniciarPing(); prepararLogin(); mostrarTela('telaLogin');
+    } catch (e) { alert('Erro ao criar a sala: ' + (e.message || e)); sairSala(); }
+};
+
+async function entrarNaEspera() {
+    if (!jogadorHumano || !MP.ch) return;
+    if (MP.membros.some(m => m.jogando)) { alert('Essa sala já está com partida em andamento.'); return; }
+    if (MP.membros.length >= 4 && !MP.membros.some(m => m.pid === MP.pid)) { alert('A sala está cheia (4 jogadores).'); return; }
+    if (MP.membros.some(m => m.char === jogadorHumano.id && m.pid !== MP.pid)) { alert('Alguém já escolheu esse personagem.'); return; }
+    MP.naEspera = true;
+    MP.char = jogadorHumano.id;
+    await MP.ch.track({ pid: MP.pid, char: jogadorHumano.id, ordem: Date.now() + MP.offset });
+    mostrarTela('telaEspera');
+    atualizarEspera(); atualizarFaixa();
+}
+
+async function sairSala() {
+    falarParar();
+    Object.keys(VOZ.pcs).forEach(fecharPC);
+    clearInterval(MP.tick); clearInterval(MP.tPing); clearInterval(MP.tLista); clearTimeout(MP.tDif);
+    const ch = MP.ch, sala = MP.sala, restam = MP.membros.filter(m => m.pid !== MP.pid).length;
+    MP.ch = null; MP.ativo = false; MP.emJogo = false; MP.papel = null; MP.naEspera = false;
+    MP.membros = []; MP.falando.clear(); MP.sala = null; MP.ultimo = ''; MP.tDif = null;
+    $('btnChave').classList.add('escondido');
+    if (ch) { try { await ch.untrack(); } catch (e) {} try { getSB().removeChannel(ch); } catch (e) {} }
+    if (sala && getSB()) rpc('ping_sala', { p_canal: sala.canal, p_n: restam }).catch(() => {});
+}
+function sairParaMenu() {
+    if (G && G.timer) clearTimeout(G.timer);
+    if (G && G.tAuto) clearTimeout(G.tAuto);
+    if (G && G.tk) G.tk.pular = true;
+    ocultarPalco();
+    sairSala();
+    G = null; jogadorHumano = null; cartaSelecionadaId = null; MP.modo = 'solo';
+    $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); $('modalSenha').classList.add('escondido');
+    mostrarTela('telaModo');
+}
+
+function verificarSaidas() {
+    if (!MP.emJogo || !G) return;
+    const vivos = new Set(MP.membros.map(m => m.pid));
+    if (MP.papel === 'cliente') {
+        if (G.hostPid && !vivos.has(G.hostPid)) { alert('O anfitrião saiu da sala. A partida foi encerrada.'); sairParaMenu(); }
+        return;
+    }
+    G.donos.forEach((pid, i) => {
+        if (pid && pid !== MP.pid && !vivos.has(pid) && G.humanos[i]) {
+            G.humanos[i] = false;           // quem saiu é substituído por uma máquina
+            if (G.turno === i && !G.ocupado && !G.distribuindo && G.mesa.length < 4) agendar();
+        }
+    });
+}
+
+// ---------- início da partida multijogador (anfitrião) ----------
+function iniciarMP() {
+    if (MP.emJogo || !souHost()) return;
+    const humanos = MP.membros.map(m => ({ pid: m.pid, p: PERSONAGENS.find(x => x.id === m.char) })).filter(h => h.p).slice(0, 4);
+    if (!humanos.length) return;
+    MP.emJogo = true; MP.papel = 'host';
+    jogadorHumano = humanos[0].p;
+    MP.ch.track({ pid: MP.pid, char: MP.char, ordem: MP.membros[0].ordem, jogando: true }).catch(() => {});
+    if (getSB()) rpc('marcar_jogando', { p_canal: MP.sala.canal }).catch(() => {});
+    iniciarPartida(humanos);
+}
+
+// ---------- sincronização do estado ----------
+function agendarDifusao() {
+    if (!(MP.emJogo && MP.papel === 'host') || MP.tDif) return;
+    MP.tDif = setTimeout(() => { MP.tDif = null; difundir(); }, 100);
+}
+function difundir() {
+    if (!G || !MP.ch || !MP.emJogo) return;
+    const s = {
+        r: G.rodada, t: G.turno, oc: G.ocupado, di: G.distribuindo, dm: G.distMsg, rc: G.recebidas, re: G.rodadaEncerrada,
+        me: G.mesa.map(j => [j.jogador, j.carta.id]), li: G.lider, qb: G.quebrada, vz: G.vazas, pt: G.pts,
+        to: G.personagens.map(p => p.total), no: G.nomes, pe: G.personagens.map(p => p.id),
+        pg: G.pegas.map(a => a.map(c => c.id)), av: /renunciou/.test(G.aviso) ? G.aviso : '',
+        ca: G.carteador, vc: G.venc == null ? null : G.venc, ho: G.humanos, do: G.donos
+    };
+    const maos = {};
+    G.donos.forEach((pid, i) => { if (pid && pid !== MP.pid) maos[pid] = G.maos[i].map(c => c.id); });
+    const payload = { s, maos };
+    const txt = JSON.stringify(payload);
+    if (txt === MP.ultimo) return;
+    MP.ultimo = txt;
+    enviar('snap', payload);
+}
+
+function aoSnap({ s, maos }) {
+    if (MP.papel === 'host' || !MP.ch) return;
+    const eu = s.do.indexOf(MP.pid);
+    if (eu < 0) return;                      // não está sentado nesta partida
+    MP.eu = eu;
+    const rot = a => [0, 1, 2, 3].map(v => a[(v + eu) % 4]);
+    const v = i => (i - eu + 4) % 4;
+    const ant = MP.emJogo ? G : null;
+    const g = {
+        nomes: rot(s.no), personagens: rot(s.pe).map(id => PERSONAGENS.find(p => p.id === id)), totais: rot(s.to), pts: rot(s.pt),
+        turno: v(s.t), ocupado: s.oc, distribuindo: s.di, distMsg: s.dm, recebidas: rot(s.rc), rodadaEncerrada: s.re,
+        mesa: s.me.map(([j, c]) => ({ jogador: v(j), carta: cartaDeId(c) })), lider: s.li, quebrada: s.qb, vazas: s.vz,
+        maos: [(maos[MP.pid] || []).map(cartaDeId), [], [], []], pegas: rot(s.pg).map(a => a.map(cartaDeId)),
+        aviso: s.av || '', carteador: v(s.ca), rodada: s.r, venc: s.vc == null ? null : v(s.vc),
+        humanos: rot(s.ho), donos: rot(s.do), hostPid: s.do[0], virarMao: false,
+        luaConquistada: ant ? ant.luaConquistada : false, renunciaConquistada: ant ? ant.renunciaConquistada : false,
+        avisoAte: 0, rodadaAnterior: ant ? ant.rodada : 0
+    };
+    if (ant && ant.avisoAte > Date.now() && !g.aviso) { g.aviso = ant.aviso; g.avisoAte = ant.avisoAte; }
+    g.personagens.forEach((p, i) => { p.total = g.totais[i]; });
+    if (ant && ant.distribuindo && !g.distribuindo && !reduzMovimento()) g.virarMao = true;
+    const primeira = !MP.emJogo;
+    if (primeira) {
+        MP.emJogo = true; MP.papel = 'cliente'; MP.naEspera = false;
+        const eu0 = g.personagens[0]; if (eu0) jogadorHumano = eu0;
+        mostrarTela('jogo'); pararIntro();
+        $('btnChave').classList.toggle('escondido', !(MP.sala && MP.sala.tipo === 'sala'));
+        G = g; render(); ajustarEscala(); selecionarRadioInicial();
+    }
+    const eraEncerrada = ant && ant.rodadaEncerrada;
+    G = g;
+    render();
+    g.virarMao = false;
+    sincronizarMesaCliente();
+    if (eraEncerrada && !g.rodadaEncerrada) $('modal').classList.add('escondido');
+}
+
+function sincronizarMesaCliente() {
+    for (let i = 0; i < 4; i++) {
+        const el = $(`carta-${i}`), entrada = G.mesa.find(j => j.jogador === i);
+        const atual = el.firstChild;
+        if (entrada) {
+            if (!atual || atual.dataset.id !== entrada.carta.id) {
+                el.innerHTML = '';
+                const e = criarElementoCarta(entrada.carta, 'jogada' + (G.mesa[0] === entrada ? ' carta-lider' : ''));
+                e.dataset.id = entrada.carta.id;
+                el.appendChild(e);
+                animarEntrada(e, i, null);
+                SFX.jogar();
+                if (ehDama(entrada.carta)) { mostrarQ(); tocarAudioDama(); }
+            }
+            const alvo = el.firstChild;
+            if (alvo) alvo.classList.toggle('carta-vencedora', G.venc === i);
+        } else if (atual && !G.varrendo) el.innerHTML = '';
+    }
+}
+
+function aoEvento(p) {
+    if (MP.papel !== 'cliente' || !G) return;
+    if (p.t === 'varrer') {
+        G.varrendo = true; setTimeout(() => { if (G) G.varrendo = false; }, 450);
+        varrerVaza((p.w - MP.eu + 4) % 4);
+    } else if (p.t === 'aviso') avisoTemp(p.m, p.ms);
+    else if (p.t === 'modal') { aplicarFim(p.d); mostrarModalFim(p.d, null); }
+}
+
+function aoJogar({ pid, c }) {
+    if (MP.papel !== 'host' || !G) return;
+    const s = G.donos.indexOf(pid);
+    if (s < 1 || !G.humanos[s]) return;
+    if (G.distribuindo || G.turno !== s || G.ocupado || G.mesa.length === 4) return;
+    const carta = G.maos[s].find(x => x.id === c);
+    if (!carta) return;
+    const erro = validar(s, carta);
+    const renuncia = G.mesa.length > 0 && carta.naipe !== G.lider && G.maos[s].some(x => x.naipe === G.lider);
+    if (erro && !renuncia) return;
+    clearTimeout(G.timer);
+    jogar(s, carta);
+}
+
+// =====================================================================
+// ======================= VOZ (WebRTC ponto a ponto) ===================
+// O áudio vai direto entre os jogadores (nada é gravado nem passa pelo banco).
+// O Supabase só leva os "recados" para conectar (sinalização).
+// =====================================================================
+const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+const sinal = (para, tipo, dados) => enviar('sig', { de: MP.pid, para, tipo, dados });
+
+function sincronizarVoz() {
+    if (!MP.ativo || !window.RTCPeerConnection) return;
+    const ids = new Set(MP.membros.map(m => m.pid).filter(p => p !== MP.pid));
+    ids.forEach(pid => { if (!VOZ.pcs[pid] && MP.pid < pid) abrirPC(pid, true); });
+    Object.keys(VOZ.pcs).forEach(pid => { if (!ids.has(pid)) fecharPC(pid); });
+}
+function fecharPC(pid) {
+    const o = VOZ.pcs[pid]; if (!o) return;
+    try { o.pc.close(); } catch (e) {}
+    if (o.aud) { o.aud.srcObject = null; o.aud.remove(); }
+    delete VOZ.pcs[pid];
+}
+function abrirPC(pid, iniciar) {
+    if (VOZ.pcs[pid]) return VOZ.pcs[pid];
+    const pc = new RTCPeerConnection(ICE);
+    const o = { pc, sender: null, fila: [], aud: null };
+    VOZ.pcs[pid] = o;
+    if (iniciar) o.sender = pc.addTransceiver('audio', { direction: 'sendrecv' }).sender;
+    pc.onicecandidate = e => { if (e.candidate) sinal(pid, 'ice', e.candidate.toJSON()); };
+    pc.ontrack = e => {
+        if (!o.aud) { o.aud = document.createElement('audio'); o.aud.autoplay = true; o.aud.playsInline = true; document.body.appendChild(o.aud); }
+        o.aud.srcObject = e.streams[0] || new MediaStream([e.track]);
+        o.aud.play().catch(() => {});
+    };
+    pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' && VOZ.pcs[pid] === o) {
+            fecharPC(pid);
+            if (MP.pid < pid) setTimeout(sincronizarVoz, 1500);
+        }
+    };
+    if (iniciar) {
+        pc.createOffer().then(of => pc.setLocalDescription(of))
+            .then(() => sinal(pid, 'offer', { type: pc.localDescription.type, sdp: pc.localDescription.sdp })).catch(() => {});
+    }
+    if (VOZ.mic && o.sender) o.sender.replaceTrack(VOZ.mic.getAudioTracks()[0]).catch(() => {});
+    return o;
+}
+async function aoSinal({ de, para, tipo, dados }) {
+    if (para !== MP.pid || !window.RTCPeerConnection) return;
+    try {
+        if (tipo === 'offer') {
+            fecharPC(de);
+            const o = abrirPC(de, false);
+            await o.pc.setRemoteDescription(dados);
+            const t = o.pc.getTransceivers().find(x => x.receiver && x.receiver.track && x.receiver.track.kind === 'audio');
+            if (t) { t.direction = 'sendrecv'; o.sender = t.sender; }
+            o.fila.splice(0).forEach(c => o.pc.addIceCandidate(c).catch(() => {}));
+            const resp = await o.pc.createAnswer();
+            await o.pc.setLocalDescription(resp);
+            sinal(de, 'answer', { type: resp.type, sdp: resp.sdp });
+            if (VOZ.mic && o.sender) o.sender.replaceTrack(VOZ.mic.getAudioTracks()[0]).catch(() => {});
+        } else if (tipo === 'answer') {
+            const o = VOZ.pcs[de]; if (!o) return;
+            await o.pc.setRemoteDescription(dados);
+            o.fila.splice(0).forEach(c => o.pc.addIceCandidate(c).catch(() => {}));
+        } else if (tipo === 'ice') {
+            const o = VOZ.pcs[de]; if (!o) return;
+            if (o.pc.remoteDescription) await o.pc.addIceCandidate(dados).catch(() => {}); else o.fila.push(dados);
+        }
+    } catch (e) { console.warn('Voz:', e); }
+}
+
+function setFalando(pid, on) { if (on) MP.falando.add(pid); else MP.falando.delete(pid); marcarFalando(); }
+function marcarFalando() {
+    document.querySelectorAll('img[data-pid]').forEach(el => el.classList.toggle('falando', !!el.dataset.pid && MP.falando.has(el.dataset.pid)));
+}
+
+async function falarIniciar() {
+    if (!MP.ativo || VOZ.ativo) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert('Seu navegador não permite usar o microfone aqui (é preciso HTTPS).'); return; }
+    VOZ.ativo = true;
+    const tk = ++VOZ.token;
+    setFalando(MP.pid, true); enviar('voz', { pid: MP.pid, on: true });
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch (e) {
+        if (VOZ.token === tk) { VOZ.ativo = false; setFalando(MP.pid, false); enviar('voz', { pid: MP.pid, on: false }); }
+        if (!VOZ.negado) { VOZ.negado = true; alert('Permita o acesso ao microfone para falar com a sala.'); }
+        return;
+    }
+    if (!VOZ.ativo || VOZ.token !== tk) { stream.getTracks().forEach(t => t.stop()); return; }   // soltou antes de abrir
+    VOZ.mic = stream;
+    const trilha = stream.getAudioTracks()[0];
+    Object.values(VOZ.pcs).forEach(o => { if (o.sender) o.sender.replaceTrack(trilha).catch(() => {}); });
+}
+function falarParar() {
+    if (!VOZ.ativo) return;
+    VOZ.ativo = false; VOZ.token++;
+    if (VOZ.mic) { VOZ.mic.getTracks().forEach(t => t.stop()); VOZ.mic = null; }
+    Object.values(VOZ.pcs).forEach(o => { if (o.sender) o.sender.replaceTrack(null).catch(() => {}); });
+    setFalando(MP.pid, false); enviar('voz', { pid: MP.pid, on: false });
+}
+const suprimirCliques = () => { VOZ.semClique = Date.now() + 500; };
+window.addEventListener('click', e => { if (Date.now() < VOZ.semClique) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+// PC: segurar o botão ESQUERDO e o DIREITO do mouse ao mesmo tempo
+window.addEventListener('mousedown', e => { if (MP.ativo && e.buttons === 3) { VOZ.fonte = 'mouse'; falarIniciar(); } }, true);
+window.addEventListener('mouseup', e => {
+    if (VOZ.ativo && VOZ.fonte === 'mouse' && e.buttons !== 3) { falarParar(); suprimirCliques(); }
+}, true);
+window.addEventListener('blur', () => falarParar());
+document.addEventListener('contextmenu', e => { if (MP.ativo) e.preventDefault(); }, true);
+
+// Celular: tocar na tela e segurar por mais de 2 segundos (solta = para de falar)
+let toqueVoz = null;
+function cancelarToque() { if (toqueVoz) { clearTimeout(toqueVoz.tm); toqueVoz = null; } }
+window.addEventListener('touchstart', e => {
+    if (!MP.ativo) return;
+    if (e.touches.length !== 1) { cancelarToque(); return; }
+    const t = e.touches[0];
+    cancelarToque();
+    const o = { x: t.clientX, y: t.clientY, ativo: false };
+    o.tm = setTimeout(() => { o.ativo = true; VOZ.fonte = 'toque'; falarIniciar(); if (navigator.vibrate) navigator.vibrate(30); }, 2000);
+    toqueVoz = o;
+}, { passive: true });
+window.addEventListener('touchmove', e => {
+    if (!toqueVoz || toqueVoz.ativo) return;
+    const t = e.touches[0];
+    if (Math.hypot(t.clientX - toqueVoz.x, t.clientY - toqueVoz.y) > 14) cancelarToque();
+}, { passive: true });
+function fimToque() {
+    if (!toqueVoz) return;
+    clearTimeout(toqueVoz.tm);
+    const ativo = toqueVoz.ativo; toqueVoz = null;
+    if (ativo) { falarParar(); suprimirCliques(); }
+}
+window.addEventListener('touchend', fimToque);
+window.addEventListener('touchcancel', fimToque);
+
+// =====================================================================
+// ============ RANKING GERAL NO SERVIDOR (tabela ranking_geral) ========
+// Cada jogo tem o seu ranking pela coluna "jogo". Para a Sueca, use outro
+// JOGO_ID e outro DELTA_RANK no jogo novo, com as mesmas funções.
+// =====================================================================
+const JOGO_ID = 'copas';
+const DELTA_RANK = [-1, 1, 1, 2];        // 1º lugar -1 · 2º e 3º +1 · último +2
+
+function somarRankLocal(d) {
+    d.ordem.forEach((id, pos) => { const p = PERSONAGENS.find(x => x.id === id); if (p) p.pontosRank += DELTA_RANK[pos]; });
+    salvarRankGeral();
+}
+async function enviarRankServidor(d) {
+    try {
+        await rpc('ranking_registrar', { p_jogo: JOGO_ID, p_personagens: d.ordem, p_deltas: DELTA_RANK.slice(0, d.ordem.length) });
+    } catch (e) { console.warn('Ranking: não gravou no servidor, guardando neste aparelho.', e); somarRankLocal(d); }
+}
+async function carregarRankServidor() {
+    if (!getSB()) return false;
+    try {
+        const lista = await rpc('ranking_listar', { p_jogo: JOGO_ID });
+        PERSONAGENS.forEach(p => { p.pontosRank = 0; });
+        (lista || []).forEach(r => { const p = PERSONAGENS.find(x => x.id === r.personagem); if (p) p.pontosRank = r.pontos; });
+        salvarRankGeral();
+        return true;
+    } catch (e) { console.warn('Ranking: não leu o servidor.', e); return false; }
+}
+if (getSB()) carregarRankServidor();

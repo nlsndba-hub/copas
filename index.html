@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#14461a">
-    <meta name="description" content="Miquilino V17 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
+    <meta name="description" content="Miquilino V21 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Miquilino V17</title>
-    <link rel="stylesheet" href="style.css?v=17">
+    <title>Miquilino V21</title>
+    <link rel="stylesheet" href="style.css?v=21">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -20,14 +20,54 @@
         <button type="button" id="btnIniciarMiquilino">Iniciar</button>
     </section>
 
+    <!-- MODO DE JOGO -->
+    <div id="telaModo" class="tela-overlay escondido">
+        <div class="selecao-box caixa-modo">
+            <h1>♥ Como quer jogar? ♠</h1>
+            <p class="sub">Escolha o modo de jogo.</p>
+            <div class="modo-botoes">
+                <button type="button" id="btnModoSozinho" class="btn-modo-grande"><i class="fas fa-user"></i><strong>Sozinho</strong><small>Você contra 3 máquinas</small></button>
+                <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 5 min. Quem entrar joga junto; máquinas completam a mesa</small></button>
+                <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar com senha e chame os amigos</small></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LISTA DE SALAS (BARES) -->
+    <div id="telaSalas" class="tela-overlay escondido">
+        <div class="selecao-box caixa-modo">
+            <h1>🍺 Bares abertos</h1>
+            <p class="sub">Toque em um bar e digite a senha, ou crie o seu. Bares vazios somem sozinhos.</p>
+            <div id="listaSalas" class="lista-salas"></div>
+            <button type="button" id="btnCriarSala" class="btn-modo"><i class="fas fa-plus"></i> Criar sala</button>
+            <button type="button" id="btnVoltarSalas" class="btn-sec">Voltar</button>
+        </div>
+    </div>
+
+    <!-- SALA DE ESPERA -->
+    <div id="telaEspera" class="tela-overlay escondido">
+        <div class="selecao-box caixa-modo">
+            <h1 id="esperaTitulo">Sala</h1>
+            <div id="faixaEspera" class="faixa-sala"></div>
+            <p id="esperaSenhaLinha" class="escolha-status escondido">Senha da sala: <b id="esperaSenha"></b></p>
+            <div id="listaEspera" class="lista-espera"></div>
+            <p id="esperaInfo" class="sub"></p>
+            <button type="button" id="btnIniciarSala" class="btn-modo escondido"><i class="fas fa-play"></i> Começar partida</button>
+            <button type="button" id="btnSairEspera" class="btn-sec">Sair da sala</button>
+            <p class="regra-selecao">🎙 Voz: no PC segure o botão esquerdo + direito do mouse. No celular, toque e segure por 2 s.</p>
+        </div>
+    </div>
+
     <!-- SELEÇÃO DE PERSONAGEM -->
     <div id="telaLogin" class="escondido">
         <div class="selecao-box">
             <h1>♥ Jogo de Copas ♠</h1>
+            <div id="faixaSala" class="faixa-sala escondido"></div>
             <p class="sub">Escolha seu personagem. Três máquinas serão sorteadas para jogar com você.</p>
             <button id="btnComecar" class="btn-modo" disabled><i class="fas fa-play"></i> Começar partida</button>
             <p id="personagemEscolhido" class="escolha-status">Escolha seu personagem</p>
             <div id="gradePersonagens" class="grade-personagens"></div>
+            <button type="button" id="btnVoltarLogin" class="btn-sec">Voltar</button>
             <p class="regra-selecao">Quando alguém atingir 60 pontos ou mais, a partida termina, o placar da partida zera e começa outra. Máquinas que chegaram a 60 dão lugar à reserva.</p>
         </div>
     </div>
@@ -49,6 +89,7 @@
                     <button type="button" id="volMais" aria-label="Aumentar volume">+</button>
                 </div>
             <div id="status" role="status" aria-live="polite"></div>
+            <button type="button" id="btnChave" class="escondido" title="Senha da sala" aria-label="Ver a senha da sala"><i class="fas fa-key"></i></button>
             <button type="button" id="btnSom" title="Efeitos sonoros" aria-label="Ligar ou desligar efeitos sonoros" aria-pressed="false"><i class="fas fa-volume-high"></i></button>
             <button type="button" id="btnRanking" title="Ver Ranking Geral" aria-label="Ver Ranking Geral">
                 <i class="fas fa-trophy"></i>
@@ -83,9 +124,18 @@
         <img id="efeitoQ" class="escondido" src="qspades.png" alt="Rainha de Espadas na mesa!">
 
         <div id="modal" class="escondido"><div class="modal-box" id="modalBox"></div></div>
+        <div id="modalSenha" class="escondido"><div class="modal-box">
+            <h2>🔑 Senha da sala</h2>
+            <p id="nomeSalaTexto"></p>
+            <p style="font-size:30px;letter-spacing:4px;margin:10px 0 14px"><b id="senhaTexto"></b></p>
+            <p class="legenda-pontos" style="margin-bottom:12px">Passe esta senha ao seu amigo: ele escolhe o bar na lista e digita a senha.</p>
+            <button type="button" class="btn-modo" id="btnFecharSenha">Fechar</button>
+        </div></div>
         <div id="modalRanking" class="escondido"><div class="modal-box" id="modalRankingBox"></div></div>
     </div>
 
-    <script src="script.js?v=17"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script src="config.js?v=21"></script>
+    <script src="script.js?v=21"></script>
 </body>
 </html>
