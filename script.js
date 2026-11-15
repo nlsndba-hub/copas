@@ -2807,7 +2807,13 @@ async function enviarChat() {
         else if (r && r.erro === 'rapido') $('chatAviso').textContent = 'Calma, um instante entre as mensagens.';
         else if (r && r.erro === 'sessao') pingSessao();
         else $('chatAviso').textContent = 'Não foi possível enviar.';
-    } catch (e) { $('chatAviso').textContent = 'Não foi possível enviar. Verifique a internet.'; }
+    } catch (e) {
+        console.error('Erro ao enviar mensagem no chat:', e);
+        const detalhe = e && (e.message || e.details || e.hint);
+        $('chatAviso').textContent = detalhe
+            ? `Falha ao enviar: ${detalhe}`
+            : 'Não foi possível enviar. Verifique a internet.';
+    }
     finally { SES.enviando = false; $('chatEnviar').disabled = false; }
 }
 $('btnChat').onclick = () => (SES.aberto ? fecharChat() : abrirChat());
