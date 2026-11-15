@@ -765,3 +765,18 @@ body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
     0%   { border-color: #4cd964; box-shadow: 0 0 0 0 rgba(255, 60, 60, .0); transform: scale(1); }
     100% { border-color: #ff3b30; box-shadow: 0 0 0 6px rgba(255, 60, 60, .85); transform: scale(1.18); }
 }
+
+/* V35 — tela do Administrador */
+.tela-overlay input { -webkit-user-select: text; user-select: text; }
+.adm-lista { max-height: 46vh; overflow-y: auto; margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+.adm-linha { padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,.08); border: 1px solid #5a4a1c; text-align: left; }
+.adm-topo { display: flex; align-items: center; gap: 8px; }
+.adm-topo img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; border: 2px solid #d5b65b; background: #444; }
+.adm-topo span { flex: 1; font-weight: bold; font-size: 14px; word-break: break-word; }
+.adm-senha { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.adm-senha .campo { margin: 0; padding: 8px; font-size: 15px; }
+.adm-rot { display: block; text-align: left; font-size: 13px; color: #ddd; margin-top: 6px; }
+.adm-dica { margin: 2px 0 6px; font-size: 12px; color: #ffd54f; text-align: left; }
+.adm-foto-linha { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
+.adm-foto-linha img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; border: 2px solid #d5b65b; }
+.adm-foto-linha input[type=file] { flex: 1; min-width: 0; font-size: 13px; color: #ddd; }

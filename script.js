@@ -26,7 +26,7 @@ const MP = {
 };
 const VOZ = { pcs: {}, mic: null, ativo: false, token: 0, fonte: '', semClique: 0, negado: false };
 const TEMPO_MISTO = 2 * 60 * 1000;
-const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'jogo'];
+const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'jogo'];
 let ultimaTela = '';
 function mostrarTela(id) {
     TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id));
@@ -152,6 +152,25 @@ const PERSONAGENS = [
     'Alcy','Nelson','Caio','Marcio','Julio','Motoboy','Alex',
     'Big Z','Samuel','Raphael','Metello','Dezinho','Xandão','Gordo','Ronaldo'
 ].map((nome, i) => ({ id: i + 1, nome, foto: `fotos/${i + 1}.png`, total: 0, pontosRank: 0 }));
+
+// Personagens cadastrados pelo administrador (V35): vêm do banco e ficam em cache neste aparelho.
+// Os 15 acima são fixos no código; os extras têm número de foto acima do maior fixo.
+const EXTRAS_KEY = 'copasExtras';
+function aplicarExtras(lista, remontar) {
+    let mudou = false;
+    (lista || []).forEach(e => {
+        const id = +e.id; if (!id || !e.nome) return;
+        const foto = e.foto_data || `fotos/${e.foto_nome}`;
+        const ex = PERSONAGENS.find(p => p.id === id);
+        if (ex) { if (ex.extra && (ex.nome !== e.nome || ex.foto !== foto)) { ex.nome = e.nome; ex.foto = foto; ex.fotoNome = e.foto_nome; mudou = true; } return; }
+        const p = { id, nome: e.nome, foto, fotoNome: e.foto_nome, extra: true, total: 0, pontosRank: 0 };
+        try { const salvo = JSON.parse(localStorage.getItem('copasRankGeral') || '{}'); if (typeof salvo[id] === 'number') p.pontosRank = salvo[id]; } catch (err) {}
+        PERSONAGENS.push(p); mudou = true;
+    });
+    if (mudou && remontar) { montarSelecao(); if (getSB()) carregarRankServidor(); }
+    return mudou;
+}
+try { aplicarExtras(JSON.parse(localStorage.getItem(EXTRAS_KEY) || '[]'), false); } catch (e) {}
 
 // Rank geral: persiste entre partidas (o ranking oficial fica no servidor)
 try {
@@ -2498,6 +2517,8 @@ function abrirAcesso() {
 }
 function irParaModo() {
     jogadorHumano = personagemDoUsuario();
+    if (!jogadorHumano) { deslogar('Personagem não encontrado. Entre novamente.'); return; }
+    $('btnModoAdmin').classList.toggle('escondido', !souAdmin());
     $('modoFoto').src = jogadorHumano.foto;
     $('modoNome').textContent = `${jogadorHumano.nome} (${usuarioAtual.usuario})`;
     mostrarTela('telaModo');
@@ -2520,6 +2541,7 @@ async function fazerLogin() {
             else { localStorage.removeItem(SESSAO_KEY); localStorage.removeItem(TOKEN_KEY); }
         } catch (e) {}
         erro.textContent = ''; $('inpSenha').value = '';
+        try { await carregarExtras(); } catch (e) {}
         irParaModo();
     } catch (e) { erro.textContent = 'Não foi possível entrar. Verifique a internet e tente de novo.'; }
     finally { $('btnEntrar').disabled = false; }
@@ -2544,7 +2566,7 @@ const CHAT_MAX = 45;
 const SES = {
     token: null, tPing: null, tInat: null, tChat: null, ultAtiv: Date.now(),
     online: [], chaveOnline: '', maxSrv: 0, visto: 0, carregado: 0, primeiro: true,
-    aberto: false, carregando: false, enviando: false, geracao: null
+    aberto: false, carregando: false, enviando: false, geracao: null, pver: null
 };
 try { SES.token = localStorage.getItem(TOKEN_KEY) || null; } catch (e) {}
 
@@ -2577,7 +2599,7 @@ function iniciarSessao() {
 function pararSessao() {
     clearInterval(SES.tPing); clearInterval(SES.tInat); SES.tPing = SES.tInat = null;
     fecharChat();
-    SES.online = []; SES.chaveOnline = ''; SES.maxSrv = 0; SES.visto = 0; SES.carregado = 0; SES.geracao = null;
+    SES.online = []; SES.chaveOnline = ''; SES.maxSrv = 0; SES.visto = 0; SES.carregado = 0; SES.geracao = null; SES.pver = null;
     $('chatMsgs').textContent = ''; marcarChatNovo(false); desenharOnline(true);
 }
 function motivoSessao(m, entrar) {
@@ -2604,6 +2626,10 @@ async function pingSessao() {
         }
         SES.online = r.online || [];
         desenharOnline();
+        if (r.pver !== undefined && r.pver !== null) {
+            if (SES.pver === null) SES.pver = r.pver;
+            else if (r.pver !== SES.pver) { SES.pver = r.pver; carregarExtras(); }
+        }
         const limpou = aplicarGeracao(r.geracao);
         SES.maxSrv = +r.ultimo_chat || 0;
         if (limpou) SES.visto = 0;
@@ -2620,6 +2646,7 @@ async function validarEIrParaModo() {
                 return;
             }
         } catch (e) { /* offline: deixa entrar; o ping seguinte confere */ }
+        try { await carregarExtras(); } catch (e) {}
         irParaModo();
     } else {
         deslogar('Entre novamente para continuar.');
@@ -2788,3 +2815,137 @@ $('chatBola').addEventListener('pointerdown', e => {
 $('chatBola').addEventListener('pointerleave', cancelarSegura);
 $('chatBola').addEventListener('contextmenu', e => e.preventDefault());
 $('chatLimpar').onclick = limparChat;
+
+
+// =====================================================================
+// ============ V35 · ADMINISTRADOR: usuários, senhas e personagens =====
+// Só o usuário nelson vê o botão. Quem valida de verdade é o banco.
+// =====================================================================
+async function carregarExtras() {
+    const lista = await rpc('personagens_listar');
+    if (!Array.isArray(lista)) return;
+    try { localStorage.setItem(EXTRAS_KEY, JSON.stringify(lista)); } catch (e) {}
+    aplicarExtras(lista, true);
+}
+const numeroDaFoto = nome => { const m = /^(\d+)\./.exec(nome || ''); return m ? +m[1] : 0; };
+function maiorFotoUsada() {
+    let m = 0;
+    PERSONAGENS.forEach(p => { m = Math.max(m, p.id, numeroDaFoto(p.fotoNome)); });
+    return m;
+}
+const admMsg = (t, ok) => { const e = $('admMsg'); e.textContent = t || ''; e.style.color = ok ? '#8be28b' : ''; };
+const ERROS_ADMIN = {
+    permissao: 'Sem permissão.', tabela: 'Tabela de usuários não encontrada (veja config_admin no SQL).',
+    nome: 'Nome inválido (1 a 30 letras, sem < > " & \\).', usuario: 'Usuário inválido (2 a 20: letras minúsculas, números, . _ -).',
+    senha: 'Senha inválida (4 a 40 caracteres).', foto_nome: 'Nome da foto inválido. Use número e extensão, ex.: 16.png.',
+    foto_base: 'Esse número de foto é de um personagem fixo. Use um maior.', foto_existe: 'Esse nome de foto já está em uso.',
+    usuario_existe: 'Esse usuário já existe.', foto: 'Foto inválida ou grande demais.', inexistente: 'Usuário não encontrado.'
+};
+
+function abrirAdmin() {
+    if (!souAdmin()) return;
+    mostrarTela('telaAdmin');
+    $('admVistaLista').classList.remove('escondido'); $('admVistaCadastro').classList.add('escondido');
+    admMsg('');
+    carregarAdmin();
+}
+async function carregarAdmin() {
+    const box = $('admLista'); box.textContent = 'Carregando…';
+    try {
+        const r = await rpc('admin_listar', { p_usuario: usuarioAtual.usuario, p_token: SES.token });
+        if (!r || !r.ok) { box.textContent = ''; admMsg(ERROS_ADMIN[r && r.erro] || 'Não foi possível listar.'); return; }
+        const us = (r.usuarios || []).slice().sort((a, b) => nomeDoPersonagem(+a.personagem).localeCompare(nomeDoPersonagem(+b.personagem)));
+        $('admTotal').textContent = us.length;
+        box.textContent = '';
+        us.forEach(u => box.appendChild(linhaAdmin(u)));
+    } catch (e) { box.textContent = ''; admMsg('Não foi possível listar. Verifique a internet.'); }
+}
+function linhaAdmin(u) {
+    const p = PERSONAGENS.find(x => x.id === +u.personagem);
+    const d = document.createElement('div'); d.className = 'adm-linha';
+    const topo = document.createElement('div'); topo.className = 'adm-topo';
+    const img = document.createElement('img'); img.src = p ? p.foto : ''; img.alt = '';
+    const nm = document.createElement('span'); nm.textContent = `${p ? p.nome : '?'} (${u.usuario})`;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-mini'; b.textContent = 'Trocar senha';
+    topo.append(img, nm, b);
+    const form = document.createElement('div'); form.className = 'adm-senha escondido';
+    const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'campo'; inp.maxLength = 40; inp.placeholder = 'Nova senha (mínimo 4)';
+    inp.autocomplete = 'off'; inp.autocapitalize = 'none'; inp.spellcheck = false;
+    const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn-mini'; ok.textContent = 'Salvar';
+    form.append(inp, ok);
+    b.onclick = () => { form.classList.toggle('escondido'); if (!form.classList.contains('escondido')) inp.focus(); };
+    ok.onclick = async () => {
+        const nova = inp.value;
+        if (nova.length < 4 || nova.length > 40) { admMsg(ERROS_ADMIN.senha); return; }
+        ok.disabled = true; admMsg('Salvando…');
+        try {
+            const r = await rpc('admin_trocar_senha', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_alvo: u.usuario, p_nova: nova });
+            if (r && r.ok) { admMsg(`Senha de ${u.usuario} alterada.`, true); inp.value = ''; form.classList.add('escondido'); }
+            else admMsg(ERROS_ADMIN[r && r.erro] || 'Não foi possível trocar a senha.');
+        } catch (e) { admMsg('Não foi possível trocar a senha. Verifique a internet.'); }
+        finally { ok.disabled = false; }
+    };
+    d.append(topo, form);
+    return d;
+}
+
+let admFotoData = null;
+function abrirCadastro() {
+    admMsg(''); admFotoData = null;
+    ['admNome', 'admUsuario', 'admSenha'].forEach(id => { $(id).value = ''; });
+    $('admFotoArq').value = ''; $('admFotoPrev').classList.add('escondido'); $('admFotoPrev').removeAttribute('src');
+    const maior = maiorFotoUsada();
+    $('admMaiorFoto').textContent = `Maior foto já usada: ${maior}.png`;
+    $('admFotoNome').value = `${maior + 1}.png`;           // pode apagar e mudar antes de cadastrar
+    $('admVistaLista').classList.add('escondido'); $('admVistaCadastro').classList.remove('escondido');
+    $('admNome').focus();
+}
+function lerFotoRedimensionada(file) {
+    return new Promise((res, rej) => {
+        const url = URL.createObjectURL(file), img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+            const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, S, S);
+            const lado = Math.min(img.width, img.height);
+            const sx = (img.width - lado) / 2, sy = Math.max(0, img.height - lado) * 0.3;   // corta quadrado, favorecendo o rosto
+            ctx.drawImage(img, sx, sy, lado, lado, 0, 0, S, S);
+            res(c.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagem')); };
+        img.src = url;
+    });
+}
+$('admFotoArq').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; admFotoData = null;
+    if (!f) { $('admFotoPrev').classList.add('escondido'); return; }
+    try {
+        admFotoData = await lerFotoRedimensionada(f);
+        $('admFotoPrev').src = admFotoData; $('admFotoPrev').classList.remove('escondido'); admMsg('');
+    } catch (err) { admMsg('Não foi possível ler essa imagem.'); $('admFotoPrev').classList.add('escondido'); }
+});
+async function salvarCadastro() {
+    const nome = $('admNome').value.trim(), usu = $('admUsuario').value.trim().toLowerCase();
+    const senha = $('admSenha').value, fnome = $('admFotoNome').value.trim().toLowerCase();
+    if (!nome) { admMsg(ERROS_ADMIN.nome); return; }
+    if (!/^[a-z0-9_.-]{2,20}$/.test(usu)) { admMsg(ERROS_ADMIN.usuario); return; }
+    if (senha.length < 4 || senha.length > 40) { admMsg(ERROS_ADMIN.senha); return; }
+    if (!/^\d{1,2}\.(png|jpe?g|webp)$/.test(fnome)) { admMsg(ERROS_ADMIN.foto_nome); return; }
+    $('btnAdmSalvar').disabled = true; admMsg('Cadastrando…');
+    try {
+        const r = await rpc('admin_cadastrar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_nome: nome,
+            p_novo_usuario: usu, p_senha: senha, p_foto_nome: fnome, p_foto_data: admFotoData });
+        if (r && r.ok) {
+            try { await carregarExtras(); } catch (e) {}
+            $('admVistaCadastro').classList.add('escondido'); $('admVistaLista').classList.remove('escondido');
+            admMsg(`${nome} cadastrado (usuário ${usu}).`, true);
+            carregarAdmin();
+        } else admMsg(ERROS_ADMIN[r && r.erro] || 'Não foi possível cadastrar.');
+    } catch (e) { admMsg('Não foi possível cadastrar. Verifique a internet.'); }
+    finally { $('btnAdmSalvar').disabled = false; }
+}
+$('btnModoAdmin').onclick = abrirAdmin;
+$('btnAdmCadastrar').onclick = abrirCadastro;
+$('btnAdmSalvar').onclick = salvarCadastro;
+$('btnAdmCancelar').onclick = () => { admMsg(''); $('admVistaCadastro').classList.add('escondido'); $('admVistaLista').classList.remove('escondido'); };
+$('btnAdmVoltar').onclick = () => { admMsg(''); mostrarTela('telaModo'); };

@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#14461a">
-    <meta name="description" content="Miquilino V34 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
+    <meta name="description" content="Miquilino V35 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Miquilino V34</title>
-    <link rel="stylesheet" href="style.css?v=34">
+    <title>Miquilino V35</title>
+    <link rel="stylesheet" href="style.css?v=35">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -48,7 +48,40 @@
                 <button type="button" id="btnModoSozinho" class="btn-modo-grande"><i class="fas fa-user"></i><strong>Sozinho</strong><small>Você contra 3 máquinas</small></button>
                 <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 2 min. Quem entrar joga junto e as máquinas completam a mesa. Com 4 jogadores começa na hora</small></button>
                 <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar e chame os amigos. Só humanos: a partida começa quando entrarem 4 jogadores</small></button>
+                <button type="button" id="btnModoAdmin" class="btn-modo-grande escondido"><i class="fas fa-user-shield"></i><strong>Administrador</strong><small>Cadastrar usuários e trocar senhas</small></button>
             </div>
+        </div>
+    </div>
+
+    <!-- ADMINISTRADOR (só o usuário nelson) -->
+    <div id="telaAdmin" class="tela-overlay escondido">
+        <div class="selecao-box caixa-modo">
+            <h1>🛡 Administrador</h1>
+            <div id="admVistaLista">
+                <p class="sub">Usuários cadastrados: <b id="admTotal">0</b></p>
+                <button type="button" id="btnAdmCadastrar" class="btn-modo"><i class="fas fa-user-plus"></i> Cadastrar</button>
+                <div id="admLista" class="adm-lista"></div>
+                <button type="button" id="btnAdmVoltar" class="btn-sec">Voltar</button>
+            </div>
+            <div id="admVistaCadastro" class="escondido">
+                <p class="sub">Novo usuário</p>
+                <label class="adm-rot" for="admNome">Nome</label>
+                <input id="admNome" class="campo" type="text" maxlength="30" placeholder="Nome do personagem" autocomplete="off">
+                <label class="adm-rot" for="admUsuario">Usuário</label>
+                <input id="admUsuario" class="campo" type="text" maxlength="20" placeholder="Nome de usuário (sem espaços)" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+                <label class="adm-rot" for="admSenha">Senha</label>
+                <input id="admSenha" class="campo" type="text" maxlength="40" placeholder="Senha (mínimo 4)" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+                <label class="adm-rot" for="admFotoNome">Nome foto</label>
+                <input id="admFotoNome" class="campo" type="text" maxlength="20" placeholder="ex.: 16.png" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+                <p id="admMaiorFoto" class="adm-dica"></p>
+                <div class="adm-foto-linha">
+                    <img id="admFotoPrev" class="escondido" alt="Prévia da foto">
+                    <input id="admFotoArq" type="file" accept="image/*">
+                </div>
+                <button type="button" id="btnAdmSalvar" class="btn-modo"><i class="fas fa-check"></i> Cadastrar</button>
+                <button type="button" id="btnAdmCancelar" class="btn-sec">Cancelar</button>
+            </div>
+            <p id="admMsg" class="erro-acesso"></p>
         </div>
     </div>
 
@@ -173,7 +206,7 @@
         </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-    <script src="config.js?v=34"></script>
-    <script src="script.js?v=34"></script>
+    <script src="config.js?v=35"></script>
+    <script src="script.js?v=35"></script>
 </body>
 </html>
