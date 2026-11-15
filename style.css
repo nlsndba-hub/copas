@@ -792,10 +792,11 @@ body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
 .adm-foto-linha input[type=file] { flex: 1; min-width: 0; font-size: 13px; color: #ddd; }
 
 
-/* V38 — ao abrir o teclado no celular, mantém o campo de mensagem acima dele. */
+/* V41 — com o teclado aberto, sobe o painel para deixar a caixa de mensagem
+   totalmente visível e afastada da área ocupada pelo teclado do celular. */
 .painel-chat.chat-teclado-aberto {
-    bottom: calc(var(--chat-keyboard-gap, 0px) + 8px + env(safe-area-inset-bottom, 0px));
-    max-height: calc(var(--chat-visual-height, 100dvh) - 16px - env(safe-area-inset-top, 0px));
+    bottom: calc(var(--chat-keyboard-gap, 0px) + 105px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(var(--chat-visual-height, 100dvh) - 120px - env(safe-area-inset-top, 0px));
 }
 .painel-chat.chat-teclado-aberto .chat-msgs { min-height: 36px; }
 .painel-chat.chat-teclado-aberto .chat-bola { max-height: 56px; min-height: 38px; padding: 4px; }
