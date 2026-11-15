@@ -2527,11 +2527,12 @@ $('btnTrocarUsuario').onclick = () => deslogar('', true);
 // =====================================================================
 // ===== V31 · SESSÃO ÚNICA · DESLIGA POR INATIVIDADE · CONVERSA GERAL ==
 // Só uma pessoa por usuário: quem entra por último derruba o anterior.
-// 3 minutos sem jogar, sem falar e sem tocar na tela = desconecta.
+// 15 minutos sem jogar, sem falar e sem tocar na tela = desconecta,
+// mas só em sala com mais de um jogador humano (sozinho ou no menu não há limite).
 // Tudo passa por funções do Supabase (veja o SQL da V31).
 // =====================================================================
 const TOKEN_KEY = 'copasToken';
-const INATIVIDADE_MS = 3 * 60 * 1000;
+const INATIVIDADE_MS = 15 * 60 * 1000;
 const PING_MS = 8000;
 const CHAT_MAX = 45;
 const SES = {
@@ -2554,8 +2555,9 @@ function novoToken() {
 
 function checarInatividade() {
     if (!usuarioAtual) return;
-    if (VOZ.ativo) SES.ultAtiv = Date.now();                      // falando por voz conta como atividade
-    if (Date.now() - SES.ultAtiv >= INATIVIDADE_MS) deslogar('Você foi desconectado: 3 minutos sem atividade.', true);
+    const emSalaComOutros = MP.ativo && MP.membros.length > 1;
+    if (!emSalaComOutros || VOZ.ativo) { SES.ultAtiv = Date.now(); return; }   // sozinho/menu: sem limite; voz conta como atividade
+    if (Date.now() - SES.ultAtiv >= INATIVIDADE_MS) deslogar('Você foi desconectado: 15 minutos sem atividade na sala.', true);
 }
 
 // ---------- ciclo da sessão ----------
