@@ -790,3 +790,12 @@ body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
 .adm-foto-linha { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
 .adm-foto-linha img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; border: 2px solid #d5b65b; }
 .adm-foto-linha input[type=file] { flex: 1; min-width: 0; font-size: 13px; color: #ddd; }
+
+
+/* V38 — ao abrir o teclado no celular, mantém o campo de mensagem acima dele. */
+.painel-chat.chat-teclado-aberto {
+    bottom: calc(var(--chat-keyboard-gap, 0px) + 8px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(var(--chat-visual-height, 100dvh) - 16px - env(safe-area-inset-top, 0px));
+}
+.painel-chat.chat-teclado-aberto .chat-msgs { min-height: 36px; }
+.painel-chat.chat-teclado-aberto .chat-bola { max-height: 56px; min-height: 38px; padding: 4px; }

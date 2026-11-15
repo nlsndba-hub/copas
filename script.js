@@ -2575,7 +2575,7 @@ $('btnTrocarUsuario').onclick = () => deslogar('', true);
 const TOKEN_KEY = 'copasToken';
 const INATIVIDADE_MS = 15 * 60 * 1000;
 const PING_MS = 8000;
-const CHAT_MAX = 45;
+const CHAT_MAX = 150;
 const SES = {
     token: null, tPing: null, tInat: null, tChat: null, ultAtiv: Date.now(),
     online: [], chaveOnline: '', maxSrv: 0, visto: 0, carregado: 0, primeiro: true,
@@ -2743,11 +2743,39 @@ async function carregarChat() {
     } catch (e) { /* tenta no próximo ciclo */ }
     finally { SES.carregando = false; }
 }
+function atualizarViewportChat() {
+    const vv = window.visualViewport;
+    const raiz = document.documentElement;
+    if (!vv) return;
+    const alturaVisivel = Math.max(0, vv.height);
+    const deslocamentoTeclado = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+    raiz.style.setProperty('--chat-visual-height', `${alturaVisivel}px`);
+    raiz.style.setProperty('--chat-keyboard-gap', `${deslocamentoTeclado}px`);
+    const inp = $('chatInp');
+    const tecladoAberto = !!inp && document.activeElement === inp && deslocamentoTeclado > 80;
+    $('painelChat').classList.toggle('chat-teclado-aberto', tecladoAberto);
+}
+function focarCampoChat() {
+    atualizarViewportChat();
+    // Aguarda o teclado do celular terminar de abrir antes de reposicionar o painel.
+    requestAnimationFrame(() => {
+        atualizarViewportChat();
+        if (window.visualViewport) setTimeout(atualizarViewportChat, 120);
+    });
+}
+if (window.visualViewport) {
+    visualViewport.addEventListener('resize', atualizarViewportChat);
+    visualViewport.addEventListener('scroll', atualizarViewportChat);
+}
+$('chatInp').addEventListener('focus', focarCampoChat);
+$('chatInp').addEventListener('blur', () => setTimeout(atualizarViewportChat, 120));
+
 function abrirChat() {
     if (!usuarioAtual) return;
     SES.aberto = true;
     $('chatLimpar').classList.toggle('escondido', !souAdmin());
     $('painelChat').classList.remove('escondido');
+    atualizarViewportChat();
     $('chatAviso').textContent = '';
     desenharOnline(true);
     carregarChat();
@@ -2758,6 +2786,7 @@ function abrirChat() {
 }
 function fecharChat() {
     SES.aberto = false; clearInterval(SES.tChat); SES.tChat = null;
+    $('painelChat').classList.remove('chat-teclado-aberto');
     $('painelChat').classList.add('escondido');
 }
 function atualizarContChat() {
