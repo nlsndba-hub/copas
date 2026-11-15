@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#14461a">
-    <meta name="description" content="Miquilino V21 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
+    <meta name="description" content="Miquilino V22 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Miquilino V21</title>
-    <link rel="stylesheet" href="style.css?v=21">
+    <title>Miquilino V22</title>
+    <link rel="stylesheet" href="style.css?v=22">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -20,15 +20,34 @@
         <button type="button" id="btnIniciarMiquilino">Iniciar</button>
     </section>
 
+    <!-- LOGIN -->
+    <div id="telaAcesso" class="tela-overlay escondido">
+        <div class="selecao-box caixa-modo">
+            <h1>♥ Entrar ♠</h1>
+            <p class="sub">Use o usuário e a senha do seu personagem.</p>
+            <input id="inpUsuario" class="campo" type="text" placeholder="Usuário" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+            <input id="inpSenha" class="campo" type="password" placeholder="Senha" autocomplete="current-password">
+            <label class="lembrar"><input id="chkLembrar" type="checkbox" checked> Manter conectado neste aparelho</label>
+            <p id="acessoErro" class="erro-acesso"></p>
+            <button type="button" id="btnEntrar" class="btn-modo"><i class="fas fa-right-to-bracket"></i> Entrar</button>
+            <button type="button" id="btnVoltarAcesso" class="btn-sec">Voltar</button>
+        </div>
+    </div>
+
     <!-- MODO DE JOGO -->
     <div id="telaModo" class="tela-overlay escondido">
         <div class="selecao-box caixa-modo">
+            <div class="usuario-box">
+                <img id="modoFoto" src="" alt="">
+                <span id="modoNome"></span>
+                <button type="button" id="btnTrocarUsuario" class="btn-mini">Trocar de usuário</button>
+            </div>
             <h1>♥ Como quer jogar? ♠</h1>
             <p class="sub">Escolha o modo de jogo.</p>
             <div class="modo-botoes">
                 <button type="button" id="btnModoSozinho" class="btn-modo-grande"><i class="fas fa-user"></i><strong>Sozinho</strong><small>Você contra 3 máquinas</small></button>
-                <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 5 min. Quem entrar joga junto; máquinas completam a mesa</small></button>
-                <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar com senha e chame os amigos</small></button>
+                <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 2 min. Quem entrar joga junto e as máquinas completam a mesa. Com 4 jogadores começa na hora</small></button>
+                <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar com senha. Só humanos: a partida começa quando entrarem 4 jogadores</small></button>
             </div>
         </div>
     </div>
@@ -52,8 +71,7 @@
             <p id="esperaSenhaLinha" class="escolha-status escondido">Senha da sala: <b id="esperaSenha"></b></p>
             <div id="listaEspera" class="lista-espera"></div>
             <p id="esperaInfo" class="sub"></p>
-            <button type="button" id="btnIniciarSala" class="btn-modo escondido"><i class="fas fa-play"></i> Começar partida</button>
-            <button type="button" id="btnSairEspera" class="btn-sec">Sair da sala</button>
+            <button type="button" id="btnSairEspera" class="btn-sec">Sair do bar</button>
             <p class="regra-selecao">🎙 Voz: no PC segure o botão esquerdo + direito do mouse. No celular, toque e segure por 2 s.</p>
         </div>
     </div>
@@ -135,7 +153,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-    <script src="config.js?v=21"></script>
-    <script src="script.js?v=21"></script>
+    <script src="config.js?v=22"></script>
+    <script src="script.js?v=22"></script>
 </body>
 </html>
