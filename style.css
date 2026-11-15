@@ -736,3 +736,22 @@ img.falando { border-color: #00e5ff !important; animation: pulso-neon .8s ease-i
 .chat-linha button { width: 44px; border-radius: 8px; border: 2px solid #ffd54f; background: #2e7d32; color: #fff; font-size: 16px; cursor: pointer; }
 .chat-linha button:disabled { opacity: .5; }
 .chat-cont { align-self: flex-end; font-size: 11px; color: #bbb; } .chat-cont.cheio { color: #ffd54f; }
+
+/* V33 — chat também dentro do jogo, acima da mão (canto esquerdo), e painel 60% transparente */
+body[data-tela="jogo"] .btn-chat {
+    bottom: calc(var(--mao-h) + var(--safe-b) + var(--folga) + 6px);
+    width: 44px; height: 44px; font-size: 19px; opacity: .9;
+}
+body[data-tela="jogo"] .painel-chat {
+    bottom: calc(var(--mao-h) + var(--safe-b) + var(--folga) + 56px);
+    width: min(300px, calc(100vw - 24px)); max-height: min(46vh, 340px);
+}
+body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
+/* transparência de 60% (alfa 0,4) no fundo do chat e nas barras; o texto continua opaco */
+.painel-chat { background: rgba(12, 30, 14, .4); }
+.chat-topo { background: rgba(0, 0, 0, .4); padding: 4px 8px; border-radius: 10px; }
+.chat-linha { background: rgba(0, 0, 0, .4); padding: 4px; border-radius: 10px; }
+.chat-linha input { background: rgba(0, 0, 0, .4); }
+.chat-msg { background: rgba(255,255,255,.1); }
+.chat-msg.minha { background: rgba(46, 125, 50, .4); }
+.chat-texto, .chat-cab { text-shadow: 0 1px 2px rgba(0,0,0,.8); }

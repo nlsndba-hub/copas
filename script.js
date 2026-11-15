@@ -27,7 +27,12 @@ const MP = {
 const VOZ = { pcs: {}, mic: null, ativo: false, token: 0, fonte: '', semClique: 0, negado: false };
 const TEMPO_MISTO = 2 * 60 * 1000;
 const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'jogo'];
-function mostrarTela(id) { TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id)); }
+let ultimaTela = '';
+function mostrarTela(id) {
+    TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id));
+    document.body.dataset.tela = id;
+    if (id !== ultimaTela) { ultimaTela = id; try { atualizarChatVisivel(); } catch (e) {} }
+}
 
 let nomeJogador = '', G = null;
 let cartaSelecionadaId = null;
@@ -2392,8 +2397,9 @@ window.addEventListener('click', e => { if (Date.now() < VOZ.semClique) { e.stop
 let cliqueVoz = null;
 function cancelarCliqueVoz() { if (cliqueVoz) { clearTimeout(cliqueVoz.tm); cliqueVoz = null; } }
 const mouseDeVerdade = e => !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
+const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat'));
 window.addEventListener('mousedown', e => {
-    if (!MP.ativo || !mouseDeVerdade(e)) return;
+    if (!MP.ativo || !mouseDeVerdade(e) || dentroDoChat(e)) return;
     if (e.buttons === 3) { cancelarCliqueVoz(); VOZ.fonte = 'mouse'; falarIniciar(); return; }   // esquerdo + direito
     if (e.button === 0 && e.buttons === 1) {                                                      // esquerdo segurado por 2 s
         cancelarCliqueVoz();
@@ -2420,7 +2426,7 @@ document.addEventListener('contextmenu', e => { if (MP.ativo) e.preventDefault()
 let toqueVoz = null;
 function cancelarToque() { if (toqueVoz) { clearTimeout(toqueVoz.tm); toqueVoz = null; } }
 window.addEventListener('touchstart', e => {
-    if (!MP.ativo) return;
+    if (!MP.ativo || dentroDoChat(e)) return;
     if (e.touches.length !== 1) { cancelarToque(); return; }
     const t = e.touches[0];
     cancelarToque();
@@ -2557,7 +2563,7 @@ function checarInatividade() {
     if (!usuarioAtual) return;
     const emSalaComOutros = MP.ativo && MP.membros.length > 1;
     if (!emSalaComOutros || VOZ.ativo) { SES.ultAtiv = Date.now(); return; }   // sozinho/menu: sem limite; voz conta como atividade
-    if (Date.now() - SES.ultAtiv >= INATIVIDADE_MS) deslogar('Você foi desconectado: 15 minutos sem atividade na sala.', true);
+    if (Date.now() - SES.ultAtiv >= INATIVIDADE_MS) deslogar('Você foi desconectado: 15 minutos sem atividade na sala.', true, 'inatividade');
 }
 
 // ---------- ciclo da sessão ----------
@@ -2608,12 +2614,12 @@ async function validarEIrParaModo() {
         deslogar('Entre novamente para continuar.');
     }
 }
-function deslogar(msg, avisarServidor) {
+function deslogar(msg, avisarServidor, motivo) {
     const u = usuarioAtual, t = SES.token;
     pararSessao();
     usuarioAtual = null; SES.token = null;
     try { localStorage.removeItem(SESSAO_KEY); localStorage.removeItem(TOKEN_KEY); } catch (e) {}
-    if (avisarServidor && u && t && getSB()) rpc('sessao_encerrar', { p_usuario: u.usuario, p_token: t }).catch(() => {});
+    if (avisarServidor && u && t && getSB()) rpc('sessao_encerrar', { p_usuario: u.usuario, p_token: t, p_motivo: motivo || 'saiu' }).catch(() => {});
     if (G || MP.ativo || MP.sala) sairParaMenu('telaModo');       // sai do bar/partida em andamento
     jogadorHumano = null;
     abrirAcesso();
@@ -2644,6 +2650,11 @@ function desenharOnline(forcar) {
         it.append(img, nm); bola.appendChild(it);
     });
 }
+function atualizarChatVisivel() {
+    const ok = !!usuarioAtual && (ultimaTela === 'telaModo' || ultimaTela === 'jogo');
+    $('btnChat').classList.toggle('escondido', !ok);
+    fecharChat();                                   // ao trocar de tela o painel fecha
+}
 function marcarChatNovo(sim) { $('chatNovo').classList.toggle('escondido', !sim); }
 
 function acrescentarMsgs(msgs) {
@@ -2659,7 +2670,7 @@ function acrescentarMsgs(msgs) {
         const tx = document.createElement('div'); tx.className = 'chat-texto'; tx.textContent = m.texto;
         d.append(cab, tx); box.appendChild(d);
     });
-    while (box.children.length > 120) box.removeChild(box.firstChild);
+    while (box.children.length > 50) box.removeChild(box.firstChild);
     if (noFim || msgs.length && box.children.length === msgs.length) box.scrollTop = box.scrollHeight;
 }
 async function carregarChat() {
@@ -2686,7 +2697,7 @@ function abrirChat() {
     carregarChat();
     clearInterval(SES.tChat);
     SES.tChat = setInterval(() => {
-        if ($('telaModo').classList.contains('escondido')) fecharChat(); else carregarChat();
+        if ($('btnChat').classList.contains('escondido')) fecharChat(); else carregarChat();
     }, 3000);
 }
 function fecharChat() {

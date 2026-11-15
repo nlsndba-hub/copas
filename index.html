@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#14461a">
-    <meta name="description" content="Miquilino V32 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
+    <meta name="description" content="Miquilino V33 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Miquilino V32</title>
-    <link rel="stylesheet" href="style.css?v=32">
+    <title>Miquilino V33</title>
+    <link rel="stylesheet" href="style.css?v=33">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -49,22 +49,6 @@
                 <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 2 min. Quem entrar joga junto e as máquinas completam a mesa. Com 4 jogadores começa na hora</small></button>
                 <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar e chame os amigos. Só humanos: a partida começa quando entrarem 4 jogadores</small></button>
             </div>
-        </div>
-
-        <!-- V31: conversa geral (canto inferior esquerdo) -->
-        <button type="button" id="btnChat" class="btn-chat" title="Quem está online" aria-label="Abrir conversa geral">
-            <i class="fas fa-comments"></i><span id="chatContador" class="chat-contador">0</span><span id="chatNovo" class="chat-novo escondido"></span>
-        </button>
-        <div id="painelChat" class="painel-chat escondido">
-            <div class="chat-topo"><span>Online agora: <b id="chatQtd">0</b></span><button type="button" id="chatFechar" class="chat-x" aria-label="Fechar">✕</button></div>
-            <div id="chatBola" class="chat-bola"></div>
-            <div id="chatMsgs" class="chat-msgs"></div>
-            <p id="chatAviso" class="chat-aviso"></p>
-            <div class="chat-linha">
-                <input id="chatInp" type="text" maxlength="45" placeholder="Mensagem (até 45 letras)" autocomplete="off" autocorrect="off" enterkeyhint="send">
-                <button type="button" id="chatEnviar" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
-            </div>
-            <small id="chatCont" class="chat-cont">0/45</small>
         </div>
     </div>
 
@@ -172,8 +156,24 @@
         <div id="modalRanking" class="escondido"><div class="modal-box" id="modalRankingBox"></div></div>
     </div>
 
+    <!-- V31/V33: conversa geral (tela de módulo e tela do jogo) -->
+        <button type="button" id="btnChat" class="btn-chat escondido" title="Quem está online" aria-label="Abrir conversa geral">
+            <i class="fas fa-comments"></i><span id="chatContador" class="chat-contador">0</span><span id="chatNovo" class="chat-novo escondido"></span>
+        </button>
+        <div id="painelChat" class="painel-chat escondido">
+            <div class="chat-topo"><span>Online agora: <b id="chatQtd">0</b></span><button type="button" id="chatFechar" class="chat-x" aria-label="Fechar">✕</button></div>
+            <div id="chatBola" class="chat-bola"></div>
+            <div id="chatMsgs" class="chat-msgs"></div>
+            <p id="chatAviso" class="chat-aviso"></p>
+            <div class="chat-linha">
+                <input id="chatInp" type="text" maxlength="45" placeholder="Mensagem (até 45 letras)" autocomplete="off" autocorrect="off" enterkeyhint="send">
+                <button type="button" id="chatEnviar" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <small id="chatCont" class="chat-cont">0/45</small>
+        </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-    <script src="config.js?v=32"></script>
-    <script src="script.js?v=32"></script>
+    <script src="config.js?v=33"></script>
+    <script src="script.js?v=33"></script>
 </body>
 </html>
