@@ -2575,7 +2575,7 @@ $('btnTrocarUsuario').onclick = () => deslogar('', true);
 const TOKEN_KEY = 'copasToken';
 const INATIVIDADE_MS = 15 * 60 * 1000;
 const PING_MS = 8000;
-const CHAT_MAX = 150;
+const CHAT_MAX = 45;
 const SES = {
     token: null, tPing: null, tInat: null, tChat: null, ultAtiv: Date.now(),
     online: [], chaveOnline: '', maxSrv: 0, visto: 0, carregado: 0, primeiro: true,
