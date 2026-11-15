@@ -1459,7 +1459,7 @@ function render(piscar) {
         const ranking = posicoes(G.personagens, p => p.total, 'partida').get(G.personagens[i]);
         box.innerHTML = `<img class="avatar-jogador" data-pid="${(G.donos && G.donos[i]) || ''}" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
             <div class="info-jogador">
-                <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small><i class="indicador-sala ${(G.donos && G.donos[i] && MP.membros.some(m => m.pid === G.donos[i])) ? 'sala-online' : 'sala-offline'}" data-pid="${(G.donos && G.donos[i]) || ''}" title="${(G.donos && G.donos[i] && MP.membros.some(m => m.pid === G.donos[i])) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}" aria-label="${(G.donos && G.donos[i] && MP.membros.some(m => m.pid === G.donos[i])) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}"></i></span>
+                <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small><i class="indicador-sala ${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'sala-online' : 'sala-offline'}" data-pid="${(G.donos && G.donos[i]) || ''}" title="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}" aria-label="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}"></i></span>
                 <span class="tot">Total: ${G.totais[i]}</span>
                 <span class="rod">Rodada: ${G.pts[i]}</span>
             </div>`;
@@ -1470,6 +1470,7 @@ function render(piscar) {
         }
     }
 
+    atualizarIndicadoresSala();
     atualizarStatus();
     marcarFalando();
     agendarDifusao();
@@ -1814,7 +1815,7 @@ function atualizarIndicadoresSala() {
     const presentes = new Set((MP.ativo ? MP.membros : []).map(m => m.pid).filter(Boolean));
     document.querySelectorAll('.indicador-sala').forEach(ind => {
         const pid = ind.dataset.pid || '';
-        const naMesmaSala = !!pid && presentes.has(pid);
+        const naMesmaSala = !!pid && (presentes.has(pid) || (pid === MP.pid && MP.ativo));
         ind.classList.toggle('sala-online', naMesmaSala);
         ind.classList.toggle('sala-offline', !naMesmaSala);
         ind.title = naMesmaSala ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala';
