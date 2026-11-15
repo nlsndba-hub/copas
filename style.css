@@ -691,3 +691,17 @@ img.falando { border-color: #00e5ff !important; animation: pulso-neon .8s ease-i
 .usuario-box span { flex: 1; text-align: left; font-weight: bold; }
 .btn-mini { padding: 6px 10px; font-size: 12px; background: #3a3a3a; color: #eee; border: 1px solid #666; border-radius: 6px; cursor: pointer; }
 .btn-mini:hover { background: #505050; }
+
+/* V24 — luz roxa piscando em quem está na vez */
+.oponente.turno-ativo, #j0.turno-ativo { border-color: #c04dff; animation: luz-roxa .9s ease-in-out infinite; }
+@keyframes luz-roxa {
+    0%, 100% { box-shadow: 0 0 5px 1px rgba(176, 38, 255, .45); }
+    50%      { box-shadow: 0 0 20px 7px rgba(196, 80, 255, .95), 0 0 42px 14px rgba(140, 0, 255, .5); }
+}
+
+/* V25 — pausa quando um jogador sai da sala */
+#pausaJogo { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 400; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 10px 16px; border-radius: 12px; background: rgba(40, 0, 70, .92); border: 2px solid #c04dff; color: #fff; font-weight: bold; text-align: center; max-width: 92vw;
+    box-shadow: 0 0 18px rgba(176, 38, 255, .7); }
+.btn-pausa { padding: 8px 14px; border-radius: 8px; border: 2px solid #ffd54f; background: #2e7d32; color: #fff; font-weight: bold; font-size: 14px; cursor: pointer; }
+.btn-pausa:hover { background: #3a9a3f; }

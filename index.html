@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#14461a">
-    <meta name="description" content="Miquilino V23 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
+    <meta name="description" content="Miquilino V25 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Miquilino V23</title>
-    <link rel="stylesheet" href="style.css?v=23">
+    <title>Miquilino V25</title>
+    <link rel="stylesheet" href="style.css?v=25">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -47,7 +47,7 @@
             <div class="modo-botoes">
                 <button type="button" id="btnModoSozinho" class="btn-modo-grande"><i class="fas fa-user"></i><strong>Sozinho</strong><small>Você contra 3 máquinas</small></button>
                 <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 2 min. Quem entrar joga junto e as máquinas completam a mesa. Com 4 jogadores começa na hora</small></button>
-                <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar com senha. Só humanos: a partida começa quando entrarem 4 jogadores</small></button>
+                <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar e chame os amigos. Só humanos: a partida começa quando entrarem 4 jogadores</small></button>
             </div>
         </div>
     </div>
@@ -56,7 +56,7 @@
     <div id="telaSalas" class="tela-overlay escondido">
         <div class="selecao-box caixa-modo">
             <h1>🍺 Bares abertos</h1>
-            <p class="sub">Toque em um bar e digite a senha, ou crie o seu. Bares vazios somem sozinhos.</p>
+            <p class="sub">Toque em um bar para entrar, ou crie o seu. Bares vazios somem sozinhos.</p>
             <div id="listaSalas" class="lista-salas"></div>
             <button type="button" id="btnCriarSala" class="btn-modo"><i class="fas fa-plus"></i> Criar sala</button>
             <button type="button" id="btnVoltarSalas" class="btn-sec">Voltar</button>
@@ -72,7 +72,7 @@
             <div id="listaEspera" class="lista-espera"></div>
             <p id="esperaInfo" class="sub"></p>
             <button type="button" id="btnSairEspera" class="btn-sec">Sair do bar</button>
-            <p class="regra-selecao">🎙 Voz: no PC segure o botão esquerdo + direito do mouse. No celular, toque e segure por 2 s.</p>
+            <p class="regra-selecao">🎙 Voz: no PC, clique com o botão esquerdo e segure por 2 s (ou esquerdo + direito juntos). No celular, toque e segure por 2 s.</p>
         </div>
     </div>
 
@@ -142,6 +142,10 @@
         <img id="efeitoQ" class="escondido" src="qspades.png" alt="Rainha de Espadas na mesa!">
 
         <div id="modal" class="escondido"><div class="modal-box" id="modalBox"></div></div>
+        <div id="pausaJogo" class="escondido">
+            <span id="pausaTexto"></span>
+            <button type="button" id="btnAddMaquina" class="btn-pausa escondido">🤖 Adicionar máquina</button>
+        </div>
         <div id="modalSenha" class="escondido"><div class="modal-box">
             <h2>🔑 Senha da sala</h2>
             <p id="nomeSalaTexto"></p>
@@ -153,7 +157,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-    <script src="config.js?v=23"></script>
-    <script src="script.js?v=23"></script>
+    <script src="config.js?v=25"></script>
+    <script src="script.js?v=25"></script>
 </body>
 </html>
