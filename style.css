@@ -737,7 +737,8 @@ img.falando { border-color: #00e5ff !important; animation: pulso-neon .8s ease-i
 .chat-linha button:disabled { opacity: .5; }
 .chat-cont { align-self: flex-end; font-size: 11px; color: #bbb; } .chat-cont.cheio { color: #ffd54f; }
 
-/* V33 — chat também dentro do jogo, acima da mão (canto esquerdo), e painel 60% transparente */
+/* V37 — chat no jogo: somente o fundo do painel fica transparente.
+   Fora da mesa e na barra superior (Online/quantidade/Limpar/fechar), tudo opaco. */
 body[data-tela="jogo"] .btn-chat {
     bottom: calc(var(--mao-h) + var(--safe-b) + var(--folga) + 6px);
     width: 44px; height: 44px; font-size: 19px; opacity: .9;
@@ -745,16 +746,25 @@ body[data-tela="jogo"] .btn-chat {
 body[data-tela="jogo"] .painel-chat {
     bottom: calc(var(--mao-h) + var(--safe-b) + var(--folga) + 56px);
     width: min(300px, calc(100vw - 24px)); max-height: min(46vh, 340px);
+    background: rgba(12, 30, 14, .4);
 }
 body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
-/* transparência de 60% (alfa 0,4) no fundo do chat e nas barras; o texto continua opaco */
-.painel-chat { background: rgba(12, 30, 14, .4); }
-.chat-topo { background: rgba(0, 0, 0, .4); padding: 4px 8px; border-radius: 10px; }
-.chat-linha { background: rgba(0, 0, 0, .4); padding: 4px; border-radius: 10px; }
-.chat-linha input { background: rgba(0, 0, 0, .4); }
+/* A barra superior permanece sólida em qualquer tela. */
+.chat-topo { background: #0c1e0e; padding: 4px 8px; border-radius: 10px; }
+.chat-linha { background: #0c1e0e; padding: 4px; border-radius: 10px; }
+.chat-linha input { background: #101010; }
 .chat-msg { background: rgba(255,255,255,.1); }
 .chat-msg.minha { background: rgba(46, 125, 50, .4); }
 .chat-texto, .chat-cab { text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+
+/* V37 — presença dos participantes da mesa: verde na mesma sala, vermelho nos demais. */
+.indicador-sala {
+    display: inline-block; width: 8px; height: 8px; margin-left: 5px;
+    border-radius: 50%; vertical-align: middle; flex: 0 0 8px;
+    border: 1px solid rgba(255,255,255,.75);
+}
+.indicador-sala.sala-online { background: #32d74b; box-shadow: 0 0 5px rgba(50,215,75,.8); }
+.indicador-sala.sala-offline { background: #e53935; box-shadow: 0 0 4px rgba(229,57,53,.55); }
 
 /* V34 — administrador (nelson): Limpar e segurar a foto 3 s para desligar */
 .chat-limpar { margin-left: auto; margin-right: 6px; padding: 3px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #ff8a80; background: rgba(120, 20, 20, .55); color: #fff; cursor: pointer; }
