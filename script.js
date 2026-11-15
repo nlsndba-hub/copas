@@ -653,7 +653,8 @@ function htmlFim(d, idEu) {
         h += `<p>${estourados.join(' e ')} ${estourados.length > 1 ? 'atingiram' : 'atingiu'} ${LIMITE} pontos ou mais. A partida terminou e o placar da partida será zerado.</p>`;
         if (d.saindo.length) h += `<p>🚪 Saem da mesa: ${d.saindo.join(', ')}.${d.entram.length ? ' Entram: ' + d.entram.join(', ') + '.' : ''}</p>`;
         h += `<p class="vencedor">🏆 <b>${vencedores.length > 1 ? 'Vencedores' : 'Vencedor'}: ${vencedores.map(l => l.nome + (l.id === idEu ? ' (Você)' : '')).join(' e ')}</b> com ${menor} ponto${menor === 1 ? '' : 's'}.</p>`;
-        h += '<p class="legenda-pontos">O ranking geral foi atualizado. Toque no 🏆 para ver.</p>';
+        h += d.vale ? '<p class="legenda-pontos">O ranking geral foi atualizado. Toque no 🏆 para ver.</p>'
+            : '<p class="legenda-pontos">Esta partida teve máquinas, então não conta para o ranking geral (só vale partida com 4 jogadores).</p>';
     }
     return h;
 }
@@ -670,6 +671,8 @@ function aplicarFim(d) {
     if (d.fim) {
         ESTAT.partidas++;
         if (d.vencIds.includes(jogadorHumano.id)) ESTAT.vitorias++;
+    }
+    if (d.fim && d.vale) {
         // Rank geral (só aparece ao tocar no troféu): 1º -1 · 2º e 3º +1 · último +2
         if (getSB()) {
             // Só quem comanda a partida (você sozinho ou o anfitrião) grava no servidor: assim cada partida conta uma vez.
@@ -717,6 +720,7 @@ function fimRodada() {
         totais: G.personagens.map(p => p.total), hum: G.humanos.slice(),
         saindo: [], entram: [], ordem: [], vencIds: []
     };
+    d.vale = d.hum.every(Boolean);      // só partidas só com jogadores (modo Sala) valem para o ranking geral
     // Classificação da PARTIDA: quem tem menos pontos fica em primeiro.
     const ord = [0, 1, 2, 3].sort((a, b) => d.totais[a] - d.totais[b] || d.ganho[a] - d.ganho[b]);
     d.ordem = ord.map(i => d.pers[i]);
@@ -768,7 +772,7 @@ function desenharRanking() {
     const ranking = [...PERSONAGENS].sort((a, b) => a.pontosRank - b.pontosRank || a.nome.localeCompare(b.nome));
     const posGeral = posicoes(PERSONAGENS, p => p.pontosRank, 'geral');
     let h = '<h2>🏆 Ranking Geral</h2>';
-    h += '<p class="legenda-pontos" style="margin-bottom:10px;">Ao fim de cada partida (quando alguém faz 60 ou mais): 1º lugar −1 · 2º e 3º +1 · último +2. Menos pontos = melhor posição.</p>';
+    h += '<p class="legenda-pontos" style="margin-bottom:10px;">Só contam partidas com 4 jogadores (modo Sala). Ao fim de cada partida (quando alguém faz 60 ou mais): 1º lugar −1 · 2º e 3º +1 · último +2. Menos pontos = melhor posição.</p>';
     if (G.luaConquistada) {
         h += '<img class="sticker-lua-26" src="26.gif" alt="Lua: 26 pontos para os outros jogadores">';
     }
