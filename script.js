@@ -2544,7 +2544,7 @@ const CHAT_MAX = 45;
 const SES = {
     token: null, tPing: null, tInat: null, tChat: null, ultAtiv: Date.now(),
     online: [], chaveOnline: '', maxSrv: 0, visto: 0, carregado: 0, primeiro: true,
-    aberto: false, carregando: false, enviando: false
+    aberto: false, carregando: false, enviando: false, geracao: null
 };
 try { SES.token = localStorage.getItem(TOKEN_KEY) || null; } catch (e) {}
 
@@ -2577,8 +2577,21 @@ function iniciarSessao() {
 function pararSessao() {
     clearInterval(SES.tPing); clearInterval(SES.tInat); SES.tPing = SES.tInat = null;
     fecharChat();
-    SES.online = []; SES.chaveOnline = ''; SES.maxSrv = 0; SES.visto = 0; SES.carregado = 0;
+    SES.online = []; SES.chaveOnline = ''; SES.maxSrv = 0; SES.visto = 0; SES.carregado = 0; SES.geracao = null;
     $('chatMsgs').textContent = ''; marcarChatNovo(false); desenharOnline(true);
+}
+function motivoSessao(m, entrar) {
+    if (m === 'derrubado') return 'Você foi desligado pelo administrador.';
+    if (m === 'outro_login') return entrar ? 'Esta conta entrou em outro aparelho. Entre novamente.' : 'Esta conta entrou em outro aparelho. Você foi desconectado.';
+    return 'Sua sessão terminou. Entre novamente.';
+}
+// o administrador pode limpar o chat: a "geração" muda e todos apagam as mensagens da tela
+function aplicarGeracao(g) {
+    if (g === undefined || g === null) return false;
+    if (SES.geracao === null) { SES.geracao = g; return false; }
+    if (g === SES.geracao) return false;
+    SES.geracao = g; $('chatMsgs').textContent = ''; SES.carregado = 0;
+    return true;
 }
 async function pingSessao() {
     if (!usuarioAtual || !SES.token || !getSB()) return;
@@ -2586,14 +2599,14 @@ async function pingSessao() {
         const r = await rpc('sessao_ping', { p_usuario: usuarioAtual.usuario, p_token: SES.token });
         if (!usuarioAtual) return;
         if (!r || r.ok === false) {
-            deslogar(r && r.motivo === 'outro_login'
-                ? 'Esta conta entrou em outro aparelho. Você foi desconectado.'
-                : 'Sua sessão terminou. Entre novamente.');
+            deslogar(motivoSessao(r && r.motivo, false));
             return;
         }
         SES.online = r.online || [];
         desenharOnline();
+        const limpou = aplicarGeracao(r.geracao);
         SES.maxSrv = +r.ultimo_chat || 0;
+        if (limpou) SES.visto = 0;
         if (SES.primeiro) { SES.primeiro = false; SES.visto = SES.maxSrv; }
         if (SES.aberto) carregarChat(); else marcarChatNovo(SES.maxSrv > SES.visto);
     } catch (e) { /* sem internet agora: tenta de novo no próximo ciclo */ }
@@ -2603,9 +2616,7 @@ async function validarEIrParaModo() {
         try {
             const r = await rpc('sessao_ping', { p_usuario: usuarioAtual.usuario, p_token: SES.token });
             if (!r || r.ok === false) {
-                deslogar(r && r.motivo === 'outro_login'
-                    ? 'Esta conta entrou em outro aparelho. Entre novamente.'
-                    : 'Sua sessão terminou. Entre novamente.');
+                deslogar(motivoSessao(r && r.motivo, true));
                 return;
             }
         } catch (e) { /* offline: deixa entrar; o ping seguinte confere */ }
@@ -2627,6 +2638,8 @@ function deslogar(msg, avisarServidor, motivo) {
 }
 
 // ---------- conversa geral ----------
+const souAdmin = () => !!usuarioAtual && usuarioAtual.usuario === 'nelson';
+const avisoChat = m => { $('chatAviso').textContent = m || ''; };
 const doisD = n => String(n).padStart(2, '0');
 function fmtDataHora(iso) {
     const d = new Date(iso);
@@ -2644,8 +2657,9 @@ function desenharOnline(forcar) {
     const bola = $('chatBola'); bola.textContent = '';
     lista.forEach(id => {
         const p = PERSONAGENS.find(x => x.id === id);
-        const it = document.createElement('div'); it.className = 'chat-online';
-        const img = document.createElement('img'); img.src = p.foto; img.alt = p.nome; img.title = p.nome;
+        const it = document.createElement('div'); it.className = 'chat-online'; it.dataset.personagem = id;
+        const img = document.createElement('img'); img.src = p.foto; img.alt = p.nome; img.draggable = false;
+        img.title = souAdmin() && usuarioAtual && id !== usuarioAtual.personagem ? `${p.nome} — segure 3 s para desligar` : p.nome;
         const nm = document.createElement('span'); nm.textContent = p.nome;
         it.append(img, nm); bola.appendChild(it);
     });
@@ -2678,6 +2692,7 @@ async function carregarChat() {
     SES.carregando = true;
     try {
         const r = await rpc('chat_listar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_apos: SES.carregado });
+        if (r) aplicarGeracao(r.geracao);
         const msgs = (r && r.msgs) || [];
         if (msgs.length) {
             acrescentarMsgs(msgs);
@@ -2691,6 +2706,7 @@ async function carregarChat() {
 function abrirChat() {
     if (!usuarioAtual) return;
     SES.aberto = true;
+    $('chatLimpar').classList.toggle('escondido', !souAdmin());
     $('painelChat').classList.remove('escondido');
     $('chatAviso').textContent = '';
     desenharOnline(true);
@@ -2730,3 +2746,45 @@ $('chatFechar').onclick = fecharChat;
 $('chatEnviar').onclick = enviarChat;
 $('chatInp').addEventListener('input', atualizarContChat);
 $('chatInp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); enviarChat(); } });
+
+// ---------- administrador (usuário nelson): limpar chat e desligar usuários ----------
+async function limparChat() {
+    if (!souAdmin() || !SES.token) return;
+    if (!confirm('Apagar todas as mensagens do chat?')) return;
+    try {
+        const r = await rpc('chat_limpar', { p_usuario: usuarioAtual.usuario, p_token: SES.token });
+        if (r && r.ok) {
+            $('chatMsgs').textContent = ''; SES.carregado = 0; SES.visto = 0;
+            if (r.geracao !== undefined && r.geracao !== null) SES.geracao = r.geracao;
+            avisoChat('Chat limpo.'); carregarChat();
+        } else avisoChat('Não foi possível limpar.');
+    } catch (e) { avisoChat('Não foi possível limpar. Verifique a internet.'); }
+}
+async function derrubarUsuario(id) {
+    if (!souAdmin() || !SES.token) return;
+    const nome = nomeDoPersonagem(id);
+    try {
+        const r = await rpc('sessao_derrubar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_personagem: id });
+        if (r && r.ok) { avisoChat(`${nome} foi desligado.`); pingSessao(); }
+        else if (r && r.erro === 'ninguem') { avisoChat(`${nome} já não está online.`); pingSessao(); }
+        else avisoChat('Não foi possível desligar.');
+    } catch (e) { avisoChat('Não foi possível desligar. Verifique a internet.'); }
+}
+let seguraFoto = null;
+function cancelarSegura() {
+    if (!seguraFoto) return;
+    clearTimeout(seguraFoto.tm); seguraFoto.el.classList.remove('segurando'); seguraFoto = null;
+}
+$('chatBola').addEventListener('pointerdown', e => {
+    if (!souAdmin()) return;
+    const el = e.target.closest && e.target.closest('.chat-online'); if (!el) return;
+    const id = +el.dataset.personagem;
+    if (!id || id === usuarioAtual.personagem) return;          // não desliga a si mesmo
+    cancelarSegura();
+    el.classList.add('segurando');
+    seguraFoto = { el, tm: setTimeout(() => { seguraFoto = null; el.classList.remove('segurando'); derrubarUsuario(id); }, 3000) };
+});
+['pointerup', 'pointercancel'].forEach(ev => window.addEventListener(ev, cancelarSegura));
+$('chatBola').addEventListener('pointerleave', cancelarSegura);
+$('chatBola').addEventListener('contextmenu', e => e.preventDefault());
+$('chatLimpar').onclick = limparChat;

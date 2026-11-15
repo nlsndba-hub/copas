@@ -755,3 +755,13 @@ body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
 .chat-msg { background: rgba(255,255,255,.1); }
 .chat-msg.minha { background: rgba(46, 125, 50, .4); }
 .chat-texto, .chat-cab { text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+
+/* V34 — administrador (nelson): Limpar e segurar a foto 3 s para desligar */
+.chat-limpar { margin-left: auto; margin-right: 6px; padding: 3px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #ff8a80; background: rgba(120, 20, 20, .55); color: #fff; cursor: pointer; }
+.chat-online { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.chat-online img { -webkit-user-drag: none; }
+.chat-online.segurando img { animation: segurandoFoto 3s linear forwards; }
+@keyframes segurandoFoto {
+    0%   { border-color: #4cd964; box-shadow: 0 0 0 0 rgba(255, 60, 60, .0); transform: scale(1); }
+    100% { border-color: #ff3b30; box-shadow: 0 0 0 6px rgba(255, 60, 60, .85); transform: scale(1.18); }
+}
