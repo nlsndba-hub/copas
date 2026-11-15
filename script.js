@@ -2484,7 +2484,7 @@ try {
 const personagemDoUsuario = () => usuarioAtual ? PERSONAGENS.find(p => p.id === usuarioAtual.personagem) : null;
 
 function abrirAcesso() {
-    if (usuarioAtual) { irParaModo(); return; }
+    if (usuarioAtual) { validarEIrParaModo(); return; }
     $('acessoErro').textContent = '';
     $('inpSenha').value = '';
     mostrarTela('telaAcesso');
@@ -2495,6 +2495,7 @@ function irParaModo() {
     $('modoFoto').src = jogadorHumano.foto;
     $('modoNome').textContent = `${jogadorHumano.nome} (${usuarioAtual.usuario})`;
     mostrarTela('telaModo');
+    if (!SES.tPing) iniciarSessao();
 }
 async function fazerLogin() {
     const erro = $('acessoErro');
@@ -2503,12 +2504,14 @@ async function fazerLogin() {
     if (!u || !s) { erro.textContent = 'Digite o usuário e a senha.'; return; }
     $('btnEntrar').disabled = true; erro.textContent = 'Entrando…';
     try {
-        const r = await rpc('login', { p_usuario: u, p_senha: s });
+        const token = novoToken();
+        const r = await rpc('sessao_iniciar', { p_usuario: u, p_senha: s, p_token: token });
         if (!r || r.erro) { erro.textContent = 'Usuário ou senha incorretos.'; return; }
+        SES.token = token;
         usuarioAtual = { usuario: r.usuario, personagem: r.personagem };
         try {
-            if ($('chkLembrar').checked) localStorage.setItem(SESSAO_KEY, JSON.stringify(usuarioAtual));
-            else localStorage.removeItem(SESSAO_KEY);
+            if ($('chkLembrar').checked) { localStorage.setItem(SESSAO_KEY, JSON.stringify(usuarioAtual)); localStorage.setItem(TOKEN_KEY, token); }
+            else { localStorage.removeItem(SESSAO_KEY); localStorage.removeItem(TOKEN_KEY); }
         } catch (e) {}
         erro.textContent = ''; $('inpSenha').value = '';
         irParaModo();
@@ -2519,8 +2522,198 @@ $('btnEntrar').onclick = fazerLogin;
 $('inpUsuario').addEventListener('keydown', e => { if (e.key === 'Enter') $('inpSenha').focus(); });
 $('inpSenha').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
 $('btnVoltarAcesso').onclick = () => mostrarTela('telaInicial');
-$('btnTrocarUsuario').onclick = () => {
-    usuarioAtual = null; jogadorHumano = null;
-    try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
-    abrirAcesso();
+$('btnTrocarUsuario').onclick = () => deslogar('', true);
+
+// =====================================================================
+// ===== V31 · SESSÃO ÚNICA · DESLIGA POR INATIVIDADE · CONVERSA GERAL ==
+// Só uma pessoa por usuário: quem entra por último derruba o anterior.
+// 3 minutos sem jogar, sem falar e sem tocar na tela = desconecta.
+// Tudo passa por funções do Supabase (veja o SQL da V31).
+// =====================================================================
+const TOKEN_KEY = 'copasToken';
+const INATIVIDADE_MS = 3 * 60 * 1000;
+const PING_MS = 8000;
+const CHAT_MAX = 45;
+const SES = {
+    token: null, tPing: null, tInat: null, tChat: null, ultAtiv: Date.now(),
+    online: [], chaveOnline: '', maxSrv: 0, visto: 0, carregado: 0, primeiro: true,
+    aberto: false, carregando: false, enviando: false
 };
+try { SES.token = localStorage.getItem(TOKEN_KEY) || null; } catch (e) {}
+
+function novoToken() {
+    const a = new Uint8Array(16);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+    else for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256);
+    return Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ---------- atividade e inatividade ----------
+['pointerdown', 'pointermove', 'touchstart', 'keydown', 'wheel', 'click'].forEach(ev =>
+    window.addEventListener(ev, () => { SES.ultAtiv = Date.now(); }, { passive: true, capture: true }));
+
+function checarInatividade() {
+    if (!usuarioAtual) return;
+    if (VOZ.ativo) SES.ultAtiv = Date.now();                      // falando por voz conta como atividade
+    if (Date.now() - SES.ultAtiv >= INATIVIDADE_MS) deslogar('Você foi desconectado: 3 minutos sem atividade.', true);
+}
+
+// ---------- ciclo da sessão ----------
+function iniciarSessao() {
+    pararSessao();
+    SES.ultAtiv = Date.now(); SES.primeiro = true;
+    pingSessao();
+    SES.tPing = setInterval(pingSessao, PING_MS);
+    SES.tInat = setInterval(checarInatividade, 5000);
+}
+function pararSessao() {
+    clearInterval(SES.tPing); clearInterval(SES.tInat); SES.tPing = SES.tInat = null;
+    fecharChat();
+    SES.online = []; SES.chaveOnline = ''; SES.maxSrv = 0; SES.visto = 0; SES.carregado = 0;
+    $('chatMsgs').textContent = ''; marcarChatNovo(false); desenharOnline(true);
+}
+async function pingSessao() {
+    if (!usuarioAtual || !SES.token || !getSB()) return;
+    try {
+        const r = await rpc('sessao_ping', { p_usuario: usuarioAtual.usuario, p_token: SES.token });
+        if (!usuarioAtual) return;
+        if (!r || r.ok === false) {
+            deslogar(r && r.motivo === 'outro_login'
+                ? 'Esta conta entrou em outro aparelho. Você foi desconectado.'
+                : 'Sua sessão terminou. Entre novamente.');
+            return;
+        }
+        SES.online = r.online || [];
+        desenharOnline();
+        SES.maxSrv = +r.ultimo_chat || 0;
+        if (SES.primeiro) { SES.primeiro = false; SES.visto = SES.maxSrv; }
+        if (SES.aberto) carregarChat(); else marcarChatNovo(SES.maxSrv > SES.visto);
+    } catch (e) { /* sem internet agora: tenta de novo no próximo ciclo */ }
+}
+async function validarEIrParaModo() {
+    if (SES.token && getSB()) {
+        try {
+            const r = await rpc('sessao_ping', { p_usuario: usuarioAtual.usuario, p_token: SES.token });
+            if (!r || r.ok === false) {
+                deslogar(r && r.motivo === 'outro_login'
+                    ? 'Esta conta entrou em outro aparelho. Entre novamente.'
+                    : 'Sua sessão terminou. Entre novamente.');
+                return;
+            }
+        } catch (e) { /* offline: deixa entrar; o ping seguinte confere */ }
+        irParaModo();
+    } else {
+        deslogar('Entre novamente para continuar.');
+    }
+}
+function deslogar(msg, avisarServidor) {
+    const u = usuarioAtual, t = SES.token;
+    pararSessao();
+    usuarioAtual = null; SES.token = null;
+    try { localStorage.removeItem(SESSAO_KEY); localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    if (avisarServidor && u && t && getSB()) rpc('sessao_encerrar', { p_usuario: u.usuario, p_token: t }).catch(() => {});
+    if (G || MP.ativo || MP.sala) sairParaMenu('telaModo');       // sai do bar/partida em andamento
+    jogadorHumano = null;
+    abrirAcesso();
+    $('acessoErro').textContent = msg || '';
+}
+
+// ---------- conversa geral ----------
+const doisD = n => String(n).padStart(2, '0');
+function fmtDataHora(iso) {
+    const d = new Date(iso);
+    return `${doisD(d.getDate())}/${doisD(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)} ${doisD(d.getHours())}:${doisD(d.getMinutes())}:${doisD(d.getSeconds())}`;
+}
+const nomeDoPersonagem = id => { const p = PERSONAGENS.find(x => x.id === id); return p ? p.nome : '?'; };
+
+function desenharOnline(forcar) {
+    const lista = (SES.online || []).map(o => +o.personagem).filter(id => PERSONAGENS.some(p => p.id === id));
+    const chave = lista.join(',');
+    $('chatContador').textContent = lista.length;
+    $('chatQtd').textContent = lista.length;
+    if (!forcar && chave === SES.chaveOnline) return;
+    SES.chaveOnline = chave;
+    const bola = $('chatBola'); bola.textContent = '';
+    lista.forEach(id => {
+        const p = PERSONAGENS.find(x => x.id === id);
+        const it = document.createElement('div'); it.className = 'chat-online';
+        const img = document.createElement('img'); img.src = p.foto; img.alt = p.nome; img.title = p.nome;
+        const nm = document.createElement('span'); nm.textContent = p.nome;
+        it.append(img, nm); bola.appendChild(it);
+    });
+}
+function marcarChatNovo(sim) { $('chatNovo').classList.toggle('escondido', !sim); }
+
+function acrescentarMsgs(msgs) {
+    const box = $('chatMsgs');
+    const noFim = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+    msgs.forEach(m => {
+        const meu = !!usuarioAtual && +m.personagem === usuarioAtual.personagem;
+        const d = document.createElement('div'); d.className = 'chat-msg' + (meu ? ' minha' : '');
+        const cab = document.createElement('div'); cab.className = 'chat-cab';
+        const n = document.createElement('b'); n.textContent = nomeDoPersonagem(+m.personagem);
+        const t = document.createElement('span'); t.textContent = ' · ' + fmtDataHora(m.criado_em);
+        cab.append(n, t);
+        const tx = document.createElement('div'); tx.className = 'chat-texto'; tx.textContent = m.texto;
+        d.append(cab, tx); box.appendChild(d);
+    });
+    while (box.children.length > 120) box.removeChild(box.firstChild);
+    if (noFim || msgs.length && box.children.length === msgs.length) box.scrollTop = box.scrollHeight;
+}
+async function carregarChat() {
+    if (!usuarioAtual || !SES.token || SES.carregando) return;
+    SES.carregando = true;
+    try {
+        const r = await rpc('chat_listar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_apos: SES.carregado });
+        const msgs = (r && r.msgs) || [];
+        if (msgs.length) {
+            acrescentarMsgs(msgs);
+            SES.carregado = Math.max(SES.carregado, ...msgs.map(m => +m.id));
+        }
+        SES.visto = Math.max(SES.visto, SES.carregado, SES.maxSrv);
+        marcarChatNovo(false);
+    } catch (e) { /* tenta no próximo ciclo */ }
+    finally { SES.carregando = false; }
+}
+function abrirChat() {
+    if (!usuarioAtual) return;
+    SES.aberto = true;
+    $('painelChat').classList.remove('escondido');
+    $('chatAviso').textContent = '';
+    desenharOnline(true);
+    carregarChat();
+    clearInterval(SES.tChat);
+    SES.tChat = setInterval(() => {
+        if ($('telaModo').classList.contains('escondido')) fecharChat(); else carregarChat();
+    }, 3000);
+}
+function fecharChat() {
+    SES.aberto = false; clearInterval(SES.tChat); SES.tChat = null;
+    $('painelChat').classList.add('escondido');
+}
+function atualizarContChat() {
+    const n = Array.from($('chatInp').value).length;
+    $('chatCont').textContent = `${n}/${CHAT_MAX}`;
+    $('chatCont').classList.toggle('cheio', n >= CHAT_MAX);
+}
+async function enviarChat() {
+    if (!usuarioAtual || !SES.token || SES.enviando) return;
+    const inp = $('chatInp');
+    const texto = inp.value.replace(/\s+/g, ' ').trim();
+    if (!texto) return;
+    if (Array.from(texto).length > CHAT_MAX) { $('chatAviso').textContent = `Máximo de ${CHAT_MAX} caracteres.`; return; }
+    SES.enviando = true; $('chatEnviar').disabled = true; $('chatAviso').textContent = '';
+    try {
+        const r = await rpc('chat_enviar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_texto: texto });
+        if (r && r.ok) { inp.value = ''; atualizarContChat(); await carregarChat(); }
+        else if (r && r.erro === 'rapido') $('chatAviso').textContent = 'Calma, um instante entre as mensagens.';
+        else if (r && r.erro === 'sessao') pingSessao();
+        else $('chatAviso').textContent = 'Não foi possível enviar.';
+    } catch (e) { $('chatAviso').textContent = 'Não foi possível enviar. Verifique a internet.'; }
+    finally { SES.enviando = false; $('chatEnviar').disabled = false; }
+}
+$('btnChat').onclick = () => (SES.aberto ? fecharChat() : abrirChat());
+$('chatFechar').onclick = fecharChat;
+$('chatEnviar').onclick = enviarChat;
+$('chatInp').addEventListener('input', atualizarContChat);
+$('chatInp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); enviarChat(); } });
