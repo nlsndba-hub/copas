@@ -349,7 +349,7 @@ button { font-family: inherit; }
 
 
 .legenda-pontos { color: #bbb; font-size: 12px; }
-#camuflagem { position: fixed; inset: 0; z-index: 999999; background: #000; display: none; pointer-events: none; }
+#camuflagem { position: fixed; inset: 0; z-index: 2147483647 !important; background: #000; display: none; pointer-events: none; }
 #camuflagem.ativa { display: block; }
 
 /* Controle de volume */
