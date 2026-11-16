@@ -993,38 +993,28 @@ html[data-tela="jogo"] > #btnChat {
 .missao-status.concluida { color:#65d98b; }
 
 
-/* V81 — estabilidade dos avatares e nomes após redimensionamentos e novos renders */
-.oponente {
-    min-width: 0;
+/* V81 — alerta discreto de mesa com missão, sem revelar o objetivo. */
+#alertaMesaMissao {
+    position: fixed;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2147483646;
+    color: #fff;
+    font-size: clamp(25px, 5vw, 48px);
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-align: center;
+    text-shadow: 0 2px 8px #000, 0 0 22px rgba(255,255,255,.55);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    white-space: nowrap;
 }
-.avatar-jogador {
-    width: var(--av);
-    height: var(--av);
-    min-width: var(--av);
-    min-height: var(--av);
-    aspect-ratio: 1 / 1;
-    object-fit: contain;
-    object-position: center;
-    flex: 0 0 var(--av);
+#alertaMesaMissao.ativo {
+    visibility: visible;
+    animation: piscarMesaMissao .42s steps(2, end) infinite;
 }
-.info-jogador {
-    min-width: 0;
-    max-width: 100%;
-}
-.nome {
-    max-width: 100%;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    overflow-wrap: anywhere;
-    line-height: 1.15;
-}
-@media (max-height: 520px) {
-    .oponente .avatar-jogador {
-        width: max(30px, calc(var(--u) * 4));
-        height: max(30px, calc(var(--u) * 4));
-        min-width: max(30px, calc(var(--u) * 4));
-        min-height: max(30px, calc(var(--u) * 4));
-        flex-basis: max(30px, calc(var(--u) * 4));
-    }
+@keyframes piscarMesaMissao {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .12; }
 }

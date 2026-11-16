@@ -203,21 +203,58 @@ let jogadorHumano = null;
 let filaMaquinas = [];
 let maquinasEliminadas = [];
 
-function sortearBotsSozinho(personagemHumano, quantidade) {
-    // Personagens especiais continuam dependendo das missões e da chance individual.
-    const especiais = PERSONAGENS.filter(p => p.somenteBot && p.chanceSolo > 0 && p.missaoId && MISSION_UNLOCKS.has(p.missaoId));
+function sortearBotsSozinho(personagemHumano, quantidade, missaoAtiva = null) {
+    // Quando a mesa recebe uma missão, os adversários exigidos são garantidos.
     const escolhidos = [];
+    if (missaoAtiva) {
+        (missaoAtiva.personagensNecessarios || []).forEach(id => {
+            const p = PERSONAGENS.find(x => x.id === Number(id) && !x.somenteBot);
+            if (p && p.id !== personagemHumano.id && !escolhidos.some(x => x.id === p.id) && escolhidos.length < quantidade) escolhidos.push(p);
+        });
+    }
+    // Personagens especiais continuam dependendo do desbloqueio da missão.
+    const especiais = PERSONAGENS.filter(p => p.somenteBot && p.chanceSolo > 0 && p.missaoId && MISSION_UNLOCKS.has(p.missaoId));
     especiais.forEach(p => {
         if (escolhidos.length < quantidade && Math.random() < Number(p.chanceSolo)) escolhidos.push(p);
     });
-    const disponiveis = PERSONAGENS.filter(p => !p.somenteBot && p.id !== personagemHumano.id);
-    const fracos = embaralhar(disponiveis.filter(p => PERFIL_BOT[p.id] === 'fraco'));
-    // No modo Sozinho, sempre haverá pelo menos um bot fraco, se houver vaga.
-    if (quantidade > escolhidos.length && fracos.length) escolhidos.push(fracos.shift());
-    const jaEscolhidos = new Set(escolhidos.map(p => p.id));
-    const pool = embaralhar(disponiveis.filter(p => !jaEscolhidos.has(p.id)));
+    const ids = new Set(escolhidos.map(p => p.id));
+    const pool = embaralhar(PERSONAGENS.filter(p => !p.somenteBot && p.id !== personagemHumano.id && !ids.has(p.id)));
     while (escolhidos.length < quantidade && pool.length) escolhidos.push(pool.shift());
     return escolhidos;
+}
+
+// Uma missão é sorteada a cada 3 partidas completas. O contador fica salvo
+// no aparelho e separado por usuário. A missão só aparece como alerta, sem revelar o objetivo.
+const CHAVE_CONTADOR_MISSOES = 'copasContadorPartidasMissoes';
+function prepararMissaoDaMesa(personagemHumano) {
+    carregarMissoesLocais();
+    let contadores = {};
+    try { contadores = JSON.parse(localStorage.getItem(CHAVE_CONTADOR_MISSOES) || '{}') || {}; } catch (e) {}
+    const chave = usuarioAtual?.usuario || 'anon';
+    contadores[chave] = (Number(contadores[chave]) || 0) + 1;
+    try { localStorage.setItem(CHAVE_CONTADOR_MISSOES, JSON.stringify(contadores)); } catch (e) {}
+    if (contadores[chave] % 3 !== 0) return null;
+    const candidatas = (window.MISSOES || []).filter(m => !MISSION_UNLOCKS.has(m.id)
+        && (m.personagensNecessarios || []).length > 0
+        && (m.personagensNecessarios || []).every(id => Number(id) !== Number(personagemHumano.id)
+            && PERSONAGENS.some(p => p.id === Number(id) && !p.somenteBot)));
+    return candidatas.length ? candidatas[Math.floor(Math.random() * candidatas.length)] : null;
+}
+
+function mostrarAlertaMesaMissao() {
+    let el = document.getElementById('alertaMesaMissao');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'alertaMesaMissao';
+        el.textContent = 'Mesa com missão';
+        document.body.appendChild(el);
+    }
+    el.classList.remove('ativo');
+    // Reinicia a animação sempre que uma nova mesa especial é criada.
+    void el.offsetWidth;
+    el.classList.add('ativo');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('ativo'), 3600);
 }
 function tocarAudioEntradaEspecial(personagens) {
     const especiais = (personagens || []).filter(p => p && p.somenteBot && p.audioEntrada);
@@ -266,8 +303,9 @@ function iniciarPartida(hum) {
     PERSONAGENS.forEach(p => { p.total = 0; });
     const idsHum = new Set(hum.map(h => h.p.id));
     const disponiveis = embaralhar(PERSONAGENS.filter(p => !idsHum.has(p.id)));
+    const missaoDaMesa = MP.modo === 'solo' && hum.length === 1 ? prepararMissaoDaMesa(hum[0].p) : null;
     const bots = MP.modo === 'solo' && hum.length === 1
-        ? sortearBotsSozinho(hum[0].p, 3)
+        ? sortearBotsSozinho(hum[0].p, 3, missaoDaMesa)
         : disponiveis.splice(0, 4 - hum.length);
     const idsBots = new Set(bots.map(p => p.id));
     filaMaquinas = disponiveis.filter(p => !idsBots.has(p.id));
@@ -297,11 +335,13 @@ function iniciarPartida(hum) {
         participantes: new Set(participantes),
         luaConquistada: false,
         renunciaConquistada: false,
+        missaoAtivaId: missaoDaMesa ? missaoDaMesa.id : null,
         nivel: nivelIA,
         venc: null,
         carteador: Math.floor(Math.random() * 4)
     };
     novaRodada();
+    if (missaoDaMesa) mostrarAlertaMesaMissao();
 }
 
 function novaRodada() {
@@ -543,6 +583,16 @@ function pularDistribuicao() {
 $('btnPular').onclick = pularDistribuicao;
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && G && G.distribuindo) pularDistribuicao();
+    // Ctrl+Q executa somente o botão explícito "Rodar mesa" do placar.
+    // Não passa rodada e não faz nada durante uma partida em andamento.
+    if (e.ctrlKey && String(e.key).toLowerCase() === 'q') {
+        const botao = $('btnRodarMesa');
+        const rankingAberto = $('modalRanking') && !$('modalRanking').classList.contains('escondido');
+        if (rankingAberto && botao && !botao.disabled && MP.modo === 'solo') {
+            e.preventDefault();
+            botao.click();
+        }
+    }
 });
 
 // ================= CARTA VOA ATÉ A MESA · VAZA É RECOLHIDA =================
@@ -769,7 +819,10 @@ function criarAvancar(fim, saindo) {
             if (MP.modo === 'solo') {
                 // No modo sozinho o jogador permanece no assento 0; os três bots
                 // são sorteados novamente a cada partida, independentemente de quem perdeu.
-                const botsNovos = sortearBotsSozinho(jogadorHumano, 3);
+                const missaoDaMesa = prepararMissaoDaMesa(jogadorHumano);
+                const botsNovos = sortearBotsSozinho(jogadorHumano, 3, missaoDaMesa);
+                G.missaoAtivaId = missaoDaMesa ? missaoDaMesa.id : null;
+                if (missaoDaMesa) mostrarAlertaMesaMissao();
                 const idsBotsNovos = new Set(botsNovos.map(p => p.id));
                 const pool = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id && !idsBotsNovos.has(p.id)));
                 G.personagens = [jogadorHumano, ...botsNovos];
@@ -1229,63 +1282,16 @@ function montarEstadoIA(i) {
     };
 }
 
-// Perfil individual dos bots. A dificuldade da partida também pesa:
-// no Mestre eles cometem menos erros; no Normal, mais.
-const PERFIL_BOT = {
-    1: 'forte', 5: 'forte', 6: 'forte', 8: 'forte',
-    2: 'medio', 3: 'medio', 4: 'medio', 7: 'medio',
-    9: 'fraco', 10: 'fraco', 11: 'fraco', 12: 'fraco',
-    13: 'fraco', 14: 'fraco', 15: 'fraco'
-};
-const CHANCE_ERRO_BOT = { forte: 0.035, medio: 0.17, fraco: 0.43 };
-
-// Escolhe a carta considerando o nível global e a capacidade do personagem.
+// Escolhe a carta da máquina conforme o nível da partida.
 function escolherBot(i) {
-    const mao = G.maos[i];
-    const legais = mao.filter(c => !validar(i, c)); // Bots nunca renunciam.
-    if (!legais.length) return mao[0];
-
-    let escolha;
+    if (G.nivel === 'normal') return escolherBotV7(i);
     try {
         const S = montarEstadoIA(i);
-        const codigo = G.nivel === 'mestre'
-            ? IA.mestre(S, i, 110)
-            : G.nivel === 'normal' ? null : IA.dificil(S, i);
-        escolha = codigo == null
-            ? escolherBotV7(i)
-            : mao.find(c => c.naipe * 13 + c.valor === codigo);
+        const codigo = G.nivel === 'mestre' ? IA.mestre(S, i, 110) : IA.dificil(S, i);
+        const carta = G.maos[i].find(c => c.naipe * 13 + c.valor === codigo);
+        if (carta && !validar(i, carta)) return carta;
     } catch (e) { console.warn('IA:', e); }
-    if (!escolha || validar(i, escolha)) escolha = escolherBotV7(i);
-
-    const perfil = PERFIL_BOT[G.personagens[i] && G.personagens[i].id] || 'medio';
-    const multiplicadorNivel = G.nivel === 'mestre' ? 0.55 : G.nivel === 'dificil' ? 0.78 : 1;
-    const chanceErro = CHANCE_ERRO_BOT[perfil] * multiplicadorNivel;
-    if (legais.length < 2 || Math.random() >= chanceErro) return escolha;
-
-    // Erros intencionais: não avalia bem os pontos, segura cartas altas
-    // e, principalmente nos bots fracos, pode entregar a Dama de Espadas.
-    const dama = legais.find(ehDama);
-    const cartasAltas = legais.filter(c => c.valor >= 9);
-    const opcoes = [];
-
-    // Dificuldade para passar a Dama: às vezes joga Q mesmo quando isso
-    // pode fazê-lo ganhar a vaza e assumir os 13 pontos.
-    if (dama && Math.random() < (perfil === 'fraco' ? 0.72 : perfil === 'medio' ? 0.30 : 0.08)) {
-        const projetado = vencedorProjetado([...G.mesa, { jogador: i, carta: dama }], G.mesa.length ? G.lider : dama.naipe);
-        if (projetado === i) return dama;
-    }
-
-    // Não percebe que está segurando carta alta: pode guardar a alta e jogar baixa.
-    if (cartasAltas.length && Math.random() < (perfil === 'fraco' ? 0.58 : perfil === 'medio' ? 0.25 : 0.07)) {
-        const baixas = legais.filter(c => c.valor <= 5 && !ehDama(c));
-        if (baixas.length) opcoes.push(baixas[Math.floor(Math.random() * baixas.length)]);
-    }
-
-    // Falha ao contar os pontos e perceber que pode evitar/distribuir os 26 pontos.
-    if (Math.random() < (perfil === 'fraco' ? 0.78 : perfil === 'medio' ? 0.32 : 0.10)) {
-        opcoes.push(legais[Math.floor(Math.random() * legais.length)]);
-    }
-    return opcoes.length ? opcoes[Math.floor(Math.random() * opcoes.length)] : escolha;
+    return escolherBotV7(i);
 }
 
 // ================= IA ESTRATÉGICA (V7 = nível Normal) =================
@@ -2159,33 +2165,38 @@ function salvarMissoesLocais() {
     try { localStorage.setItem(`${MISSION_LOCAL_KEY}:${usuarioAtual?.usuario || 'anon'}`, JSON.stringify([...MISSION_UNLOCKS])); } catch (e) {}
 }
 async function concluirMissoesDaPartida(d) {
-    if (!usuarioAtual || !jogadorHumano || !Array.isArray(window.MISSOES)) return;
+    if (!usuarioAtual || !jogadorHumano || !Array.isArray(window.MISSOES) || !G?.missaoAtivaId) return;
+    const missao = window.MISSOES.find(m => m.id === G.missaoAtivaId);
+    if (!missao || MISSION_UNLOCKS.has(missao.id)) return;
     const participantes = new Set((d.pers || []).map(Number));
-    // A missão é válida se o jogador não terminar em último na classificação final.
-    const classificacao = (d.ordem || []).map(Number);
-    if (!classificacao.length || classificacao[classificacao.length - 1] === Number(jogadorHumano.id)) return;
-    for (const missao of window.MISSOES) {
-        if (MISSION_UNLOCKS.has(missao.id)) continue;
-        const requisitos = missao.personagensNecessarios || [];
-        if (!requisitos.every(id => participantes.has(Number(id)))) continue;
-        MISSION_UNLOCKS.add(missao.id);
-        const recompensa = missao.recompensa || {};
-        if (recompensa.estampaId) ESTAMPAS_USUARIO.add(Number(recompensa.estampaId));
-        salvarCacheEstampas();
-        salvarMissoesLocais();
-        if (getSB() && SES.token) {
-            try {
-                await rpc('missoes_concluir', {
-                    p_usuario: usuarioAtual.usuario, p_token: SES.token,
-                    p_missao: missao.id,
-                    p_personagem: Number(recompensa.personagemId || 0),
-                    p_estampa: Number(recompensa.estampaId || 0)
-                });
-            } catch (e) { console.warn('Missão concluída localmente; sincronização com o banco pendente.', e); }
-        }
-        avisoTemp(`🏆 Missão concluída: ${missao.nome}! ${recompensa.nomePersonagem || 'Recompensa'} liberado(a)!`, 6000);
+    const requisitos = missao.personagensNecessarios || [];
+    if (!requisitos.every(id => participantes.has(Number(id)))) return;
+
+    // Objetivo atual: não terminar em último lugar. Empate na última posição
+    // também conta como último lugar.
+    const indice = (d.pers || []).map(Number).indexOf(Number(jogadorHumano.id));
+    if (indice < 0) return;
+    const maiorPontuacao = Math.max(...(d.totais || []));
+    if (!(Number(d.totais[indice]) < maiorPontuacao)) return;
+
+    MISSION_UNLOCKS.add(missao.id);
+    const recompensa = missao.recompensa || {};
+    if (recompensa.estampaId) ESTAMPAS_USUARIO.add(Number(recompensa.estampaId));
+    salvarCacheEstampas();
+    salvarMissoesLocais();
+    if (getSB() && SES.token) {
+        try {
+            await rpc('missoes_concluir', {
+                p_usuario: usuarioAtual.usuario, p_token: SES.token,
+                p_missao: missao.id,
+                p_personagem: Number(recompensa.personagemId || 0),
+                p_estampa: Number(recompensa.estampaId || 0)
+            });
+        } catch (e) { console.warn('Missão concluída localmente; sincronização com o banco pendente.', e); }
     }
+    avisoTemp(`🏆 Missão concluída: ${missao.nome}! ${recompensa.nomePersonagem || 'Recompensa'} liberado(a)!`, 6000);
 }
+
 function abrirMissoes() {
     carregarMissoesLocais();
     const lista = $('listaMissoes');
