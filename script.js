@@ -1336,6 +1336,8 @@ function ajustarEscala() {
 
 let rafEscala = 0;
 function bloquearOrientacaoRetrato() {
+    // Só no celular: no PC o jogo aceita vertical e horizontal.
+    if (!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches)) return;
     try {
         if (screen.orientation && typeof screen.orientation.lock === 'function') {
             screen.orientation.lock('portrait').catch(() => {});

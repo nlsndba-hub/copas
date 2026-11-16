@@ -816,8 +816,8 @@ body[data-tela="jogo"] .painel-chat.chat-teclado-aberto {
 .painel-chat.chat-teclado-aberto .chat-bola { max-height: 56px; min-height: 38px; padding: 4px; }
 
 
-/* V57 — orientação retrato fixa: o tabuleiro não se reorganiza no modo paisagem. */
-@media (orientation: landscape) {
+/* V57 — orientação retrato fixa apenas no celular (tela de toque pequena). No PC aceita vertical e horizontal. */
+@media (orientation: landscape) and (hover: none) and (pointer: coarse) and (max-height: 600px) {
     body[data-tela="jogo"]::before {
         content: "Gire o celular para a posição vertical para continuar jogando";
         position: fixed; inset: 0; z-index: 20000; display: flex; align-items: center; justify-content: center;
