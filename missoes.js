@@ -38,7 +38,7 @@ window.MISSOES = [
         recompensa: {
             personagemId: 102,
             estampaId: 102,
-            nomePersonagem: 'DEFINIR_NOME_102',
+            nomePersonagem: 'Robô Maicon',
             foto: 'fotos/102.png',
             estampa: 'estampa/102.png',
             audioEntrada: 'audio/102.mp3'
