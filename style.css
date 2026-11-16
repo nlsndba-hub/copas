@@ -746,7 +746,7 @@ body[data-tela="jogo"] .btn-chat {
 body[data-tela="jogo"] .painel-chat {
     bottom: calc(var(--mao-h) + var(--safe-b) + var(--folga) + 56px);
     width: min(300px, calc(100vw - 24px)); max-height: min(46vh, 340px);
-    background: rgba(12, 30, 14, .4);
+    background: rgba(12, 30, 14, .5);
 }
 body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
 /* A barra superior permanece sólida em qualquer tela. */
@@ -807,3 +807,12 @@ body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
 }
 .painel-chat.chat-teclado-aberto .chat-msgs { min-height: 36px; }
 .painel-chat.chat-teclado-aberto .chat-bola { max-height: 56px; min-height: 38px; padding: 4px; }
+
+/* V55 — na tela do jogo, a regra específica da mesa não pode impedir
+   que o chat acompanhe o teclado virtual. Mantém o fundo com 50% de opacidade. */
+body[data-tela="jogo"] .painel-chat.chat-teclado-aberto {
+    bottom: calc(var(--chat-keyboard-gap, 0px) + 24px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(var(--chat-visual-height, 100dvh) - 48px - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
+    background: rgba(12, 30, 14, .5);
+}
