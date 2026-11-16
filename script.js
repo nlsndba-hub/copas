@@ -31,6 +31,7 @@ let ultimaTela = '';
 function mostrarTela(id) {
     TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id));
     document.body.dataset.tela = id;
+    document.documentElement.dataset.tela = id;
     if (id !== ultimaTela) { ultimaTela = id; try { atualizarChatVisivel(); } catch (e) {} }
 }
 
@@ -651,7 +652,7 @@ function htmlFim(d, idEu) {
     if (k >= 0 && d.ganho[k] === menorPontuacao) h += `<img class="sticker-menor-pontuacao" src="menor-pontuacao.gif" alt="Sticker comemorativo">`;
     if (d.ren >= 0) h += `<img class="sticker-renuncia" src="renu.png" alt="Imagem de renúncia">`;
     if (d.ren >= 0) h += `<p>⚠️ <b>${d.nomes[d.ren]} RENUNCIOU!</b> Por jogar fora do naipe tendo cartas do naipe solicitado, recebeu os 26 pontos da rodada.</p>`;
-    else if (d.lua >= 0) h += `<p>🌕 <b>${d.nomes[d.lua]}</b> pegou os 26 pontos! Ele não pontua e os outros levam 26.</p>`;
+    else if (d.lua >= 0) h += `<p>🌕 <b>${d.nomes[d.lua]}</b> pegou os 26 pontos! Ele não leva nada nesta rodada (os pontos que já tinha continuam) e os outros levam 26.</p>`;
 
     const linhas = d.ordem.map(id => {
         const i = d.pers.indexOf(id);
@@ -945,7 +946,8 @@ const IA = (() => {
     function ameacaLua(S) {
         let tot = 0, mx = -1, mj = -1;
         for (let j = 0; j < 4; j++) { tot += S.pts[j]; if (S.pts[j] > mx) { mx = S.pts[j]; mj = j; } }
-        return (mx >= 13 && mx === tot) ? mj : -1;
+        return (mx > 15 && mx === tot) ? mj : -1;   // V70: passou de 15 e só ele pontuou
+
     }
 
     function abrir(S, i, L, ruido) {
@@ -1027,7 +1029,6 @@ const IA = (() => {
                     for (let k = 0; k < h.length; k++) if (suit(h[k]) === suit(c)) cnt++;
                     sc = val(c) + Math.max(0, 5 - cnt) * 2.5;
                 }
-                if (wj >= 0 && pts(c) > 0) sc += pts(c) * ((S.totais[wj] - S.totais[i]) / 40);
                 if (ameaca >= 0 && ameaca !== i && pts(c) > 0) sc += (wj !== ameaca) ? 30 : -60;
                 custo = -sc;
             }
@@ -1118,8 +1119,6 @@ const IA = (() => {
         if (L.length === 1) return L[0];
         const desc = [];
         for (let c = 0; c < 52; c++) if (!S.jogadas[c] && !S.hands[i].includes(c)) desc.push(c);
-        let alvo = -1, mx = -1;
-        for (let j = 0; j < 4; j++) if (j !== i && S.totais[j] > mx) { mx = S.totais[j]; alvo = j; }
         const soma = L.map(() => 0);
         const t0 = Date.now();
         let n = 0;
@@ -1132,7 +1131,7 @@ const IA = (() => {
                 jogarSim(T, i, L[k]);
                 while (T.vazas < 13) jogarSim(T, T.vez, politica(T, T.vez, 0.25));
                 const f = pontosFinais(T);
-                soma[k] += f[i] - (alvo >= 0 ? 0.15 * f[alvo] : 0);
+                soma[k] += f[i];   // V70: sem alvo fixo; cada um luta para fazer menos pontos
             }
             n++;
         }
@@ -1175,21 +1174,14 @@ function escolherBot(i) {
 }
 
 // ================= IA ESTRATÉGICA (V7 = nível Normal) =================
+// V70 — ameaça de "lua" (26 pontos): alguém já passou de 15 pontos na rodada e
+// só ele pontuou até agora. Nesse caso todos empurram os pontos para outra pessoa.
 function jogadorEmPerigoDeLua(j) {
-    const pontosNaMao = G.maos[j].reduce((s, c) => s + pontosCarta(c), 0);
-    return G.pts[j] >= 20 ||
-        (G.pts[j] >= 13 && G.pts[j] + pontosNaMao >= 22);
+    return G.pts[j] > 15 && G.pts.every((p, k) => k === j || p === 0);
 }
-
-function escolherAlvoDaIA(i) {
-    const candidatos = [0, 1, 2, 3].filter(j => j !== i);
-    const seguros = candidatos.filter(j => !jogadorEmPerigoDeLua(j));
-    const grupo = seguros.length ? seguros : candidatos;
-    grupo.sort((a, b) =>
-        G.personagens[b].total - G.personagens[a].total ||
-        G.pts[b] - G.pts[a]
-    );
-    return grupo[0];
+function jogadorAmeacaLua() {
+    for (let j = 0; j < 4; j++) if (jogadorEmPerigoDeLua(j)) return j;
+    return -1;
 }
 
 function vencedorProjetado(cartas, naipeLider) {
@@ -1203,36 +1195,38 @@ function vencedorProjetado(cartas, naipeLider) {
     return vencedor ? vencedor.jogador : null;
 }
 
-function pontuarJogadaBot(i, carta, alvo) {
+function pontuarJogadaBot(i, carta) {
     const cartas = [...G.mesa, { jogador: i, carta }];
     const lider = G.mesa.length ? G.lider : carta.naipe;
     const vencedor = vencedorProjetado(cartas, lider);
     const pontos = cartas.reduce((s, j) => s + pontosCarta(j.carta), 0);
-    const temDama = cartas.some(j => ehDama(j.carta));
+    const ameaca = jogadorAmeacaLua();
     let nota = Math.random() * 0.15;
 
-    // Prioriza entregar os pontos a quem já tem maior total.
-    if (pontos > 0) {
-        if (vencedor === alvo) nota += pontos * (temDama ? 5 : 3);
-        else if (vencedor === i) nota -= pontos * 3.5;
-        else if (vencedor !== null && jogadorEmPerigoDeLua(vencedor)) nota -= pontos * 5;
-        else if (vencedor !== null) nota += pontos * (G.personagens[vencedor].total / 60);
+    // V70: todos querem fazer o mínimo de pontos e empurrar o resto para qualquer outro,
+    // sem perseguir um jogador específico. Se alguém está perto dos 26, os pontos
+    // NÃO podem ir para ele: vão para outro (inclusive para si, se for preciso).
+    if (pontos > 0 && vencedor !== null) {
+        if (ameaca >= 0 && ameaca !== i) {
+            if (vencedor === ameaca) nota -= pontos * 8;
+            else nota += pontos * 4;
+        } else if (vencedor === i) nota -= pontos * 3.5;
+        else nota += pontos * 3;
     }
 
-    // A Dama de Espadas recebe prioridade alta para ser descartada
-    // quando isso entrega seus 13 pontos a um adversário adequado.
     if (ehDama(carta)) {
-        if (vencedor === alvo) nota += 45;
-        else if (vencedor === i) nota -= 45;
-        else if (vencedor !== null && jogadorEmPerigoDeLua(vencedor)) nota -= 55;
-        else nota += 8;
+        if (ameaca >= 0 && ameaca !== i) {
+            if (vencedor === ameaca) nota -= 60;
+            else nota += 20;
+        } else if (vencedor === i) nota -= 45;
+        else if (vencedor !== null) nota += 25;
     }
 
-    // Sem a Dama na mão, tenta puxar espadas para pressionar quem a segura.
+    // Sem a Dama na mão, puxa espadas (jogada comum para forçar a Dama a sair).
     if (carta.naipe === ESP && !G.maos[i].some(ehDama)) {
-        nota += G.mesa.length === 0 ? 2 : 0.5;
+        nota += G.mesa.length === 0 ? 1 : 0.3;
     }
-    if (vencedor === i && pontos > 0) nota -= 12;
+    if (vencedor === i && pontos > 0 && !(ameaca >= 0 && ameaca !== i)) nota -= 12;
     return nota;
 }
 
@@ -1240,7 +1234,6 @@ function escolherBotV7(i) {
     const mao = G.maos[i];
     const v = mao.filter(c => !validar(i, c));
     const ord = (a, b) => a.valor - b.valor;
-    const alvo = escolherAlvoDaIA(i);
 
     if (G.mesa.length === 0) {
         if (G.vazas === 0) return v.find(c => c.naipe === PAU && c.valor === 0) || v[0];
@@ -1264,15 +1257,15 @@ function escolherBotV7(i) {
         const comDama = candidatos.filter(ehDama);
         if (comDama.length) {
             const melhorDama = [...comDama].sort((a, b) =>
-                pontuarJogadaBot(i, b, alvo) - pontuarJogadaBot(i, a, alvo)
+                pontuarJogadaBot(i, b) - pontuarJogadaBot(i, a)
             )[0];
             const semDama = candidatos.filter(c => !ehDama(c));
-            if (!semDama.length || pontuarJogadaBot(i, melhorDama, alvo) > 8) return melhorDama;
+            if (!semDama.length || pontuarJogadaBot(i, melhorDama) > 8) return melhorDama;
         }
     }
 
     return [...candidatos].sort((a, b) =>
-        pontuarJogadaBot(i, b, alvo) - pontuarJogadaBot(i, a, alvo)
+        pontuarJogadaBot(i, b) - pontuarJogadaBot(i, a)
     )[0];
 }
 
@@ -2007,6 +2000,26 @@ async function desbloquearEstampasDosUltimos(d) {
         catch (e) { console.warn('Estampas desbloqueadas no aparelho; sincronização com o banco pendente.', e); }
     }
 }
+// V70 — ao escolher a estampa, ela "pulsa": cresce até quase a tela cheia e volta (3 s).
+function pulsarEstampa(origem) {
+    document.querySelectorAll('.pulso-estampa').forEach(x => x.remove());
+    const r = origem.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const c = origem.cloneNode(true);
+    c.classList.add('pulso-estampa');
+    Object.assign(c.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    document.body.appendChild(c);
+    const fim = () => c.remove();
+    const maxEsc = Math.min(innerWidth * 0.94 / r.width, innerHeight * 0.94 / r.height);
+    const cx = innerWidth / 2 - (r.left + r.width / 2), cy = innerHeight / 2 - (r.top + r.height / 2);
+    if (!c.animate) { setTimeout(fim, 3000); return; }
+    const a = c.animate([
+        { transform: 'translate(0,0) scale(1)', offset: 0 },
+        { transform: `translate(${cx}px,${cy}px) scale(${maxEsc})`, offset: 0.5 },
+        { transform: 'translate(0,0) scale(1)', offset: 1 }
+    ], { duration: 3000, easing: 'ease-in-out', fill: 'forwards' });
+    a.onfinish = fim; a.oncancel = fim;
+}
 function abrirColecaoEstampas() {
     if (!souAdmin()) return;
     const grade = $('gradeEstampas'); grade.textContent = '';
@@ -2027,6 +2040,7 @@ function abrirColecaoEstampas() {
             await salvarEstampaAtiva(item.id);
             document.querySelectorAll('.item-estampa').forEach(x => x.classList.remove('selecionada'));
             btn.classList.add('selecionada');
+            pulsarEstampa(preview);
             if (G) render();
         };
         grade.appendChild(btn);
