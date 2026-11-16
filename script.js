@@ -2132,25 +2132,61 @@ async function desbloquearEstampasDosUltimos(d) {
         catch (e) { console.warn('Estampas desbloqueadas no aparelho; sincronização com o banco pendente.', e); }
     }
 }
-// V70 — ao escolher a estampa, ela "pulsa": cresce até quase a tela cheia e volta (3 s).
+// V82 — amplia a estampa até o tamanho máximo e mantém a visualização aberta.
+// O botão X fecha a ampliação; a estampa continua selecionada na coleção.
 function pulsarEstampa(origem) {
-    document.querySelectorAll('.pulso-estampa').forEach(x => x.remove());
+    document.querySelectorAll('.pulso-estampa, .fechar-pulso-estampa').forEach(x => x.remove());
     const r = origem.getBoundingClientRect();
     if (!r.width || !r.height) return;
+
     const c = origem.cloneNode(true);
     c.classList.add('pulso-estampa');
-    Object.assign(c.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    Object.assign(c.style, {
+        left: r.left + 'px', top: r.top + 'px',
+        width: r.width + 'px', height: r.height + 'px'
+    });
     document.body.appendChild(c);
-    const fim = () => c.remove();
+
     const maxEsc = Math.min(innerWidth * 0.94 / r.width, innerHeight * 0.94 / r.height);
-    const cx = innerWidth / 2 - (r.left + r.width / 2), cy = innerHeight / 2 - (r.top + r.height / 2);
-    if (!c.animate) { setTimeout(fim, 3000); return; }
-    const a = c.animate([
-        { transform: 'translate(0,0) scale(1)', offset: 0 },
-        { transform: `translate(${cx}px,${cy}px) scale(${maxEsc})`, offset: 0.5 },
-        { transform: 'translate(0,0) scale(1)', offset: 1 }
-    ], { duration: 3000, easing: 'ease-in-out', fill: 'forwards' });
-    a.onfinish = fim; a.oncancel = fim;
+    const cx = innerWidth / 2 - (r.left + r.width / 2);
+    const cy = innerHeight / 2 - (r.top + r.height / 2);
+    const transformInicial = 'translate(0,0) scale(1)';
+    const transformFinal = `translate(${cx}px,${cy}px) scale(${maxEsc})`;
+
+    const fechar = document.createElement('button');
+    fechar.type = 'button';
+    fechar.className = 'fechar-pulso-estampa';
+    fechar.textContent = '×';
+    fechar.setAttribute('aria-label', 'Fechar visualização da estampa');
+    document.body.appendChild(fechar);
+
+    let animacao = null;
+    let fechando = false;
+    const remover = () => {
+        c.remove();
+        fechar.remove();
+    };
+
+    if (c.animate) {
+        animacao = c.animate([
+            { transform: transformInicial },
+            { transform: transformFinal }
+        ], { duration: 900, easing: 'ease-out', fill: 'forwards' });
+        animacao.onfinish = () => { fechar.classList.add('visivel'); };
+    } else {
+        c.style.transform = transformFinal;
+        fechar.classList.add('visivel');
+    }
+
+    fechar.onclick = () => {
+        if (fechando) return;
+        fechando = true;
+        fechar.classList.remove('visivel');
+        if (animacao) {
+            animacao.reverse();
+            animacao.onfinish = remover;
+        } else remover();
+    };
 }
 // ================= MISSÕES E RECOMPENSAS (V80) =================
 let MISSION_UNLOCKS = new Set();
