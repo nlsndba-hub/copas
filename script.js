@@ -226,6 +226,7 @@ montarSelecao();
 
 function iniciarPartida(hum) {
     if (!jogadorHumano) return;
+    bloquearOrientacaoRetrato();
     // hum = [{ pid, p }]: humanos da partida (o anfitrião é sempre o primeiro). Sozinho: só você.
     hum = hum || [{ pid: null, p: jogadorHumano }];
     ultimoCliqueCarta = { id: null, tempo: 0 };
@@ -729,16 +730,30 @@ function criarAvancar(fim, saindo) {
     return () => {
         if ($('modal').classList.contains('escondido')) return;
         if (fim) {
-            // Quem estourou sai (vai para o fim da fila de reservas) e o placar da partida zera.
-            saindo.forEach(i => {
-                const saiu = G.personagens[i];
-                maquinasEliminadas.push(saiu);
-                G.fila.push(saiu);
-                const proxima = G.fila.shift();
-                G.personagens[i] = proxima;
-                G.participantes.add(proxima);
-            });
-            PERSONAGENS.forEach(p => { p.total = 0; });
+            if (MP.modo === 'solo') {
+                // No modo sozinho o jogador permanece no assento 0; os três bots
+                // são sorteados novamente a cada partida, independentemente de quem perdeu.
+                const pool = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id));
+                const botsNovos = pool.splice(0, 3);
+                G.personagens = [jogadorHumano, ...botsNovos];
+                G.fila = pool;
+                G.participantes = new Set(G.personagens);
+                G.humanos = [true, false, false, false];
+                G.donos = [null, null, null, null];
+                G.vago = [false, false, false, false];
+                G.personagens.forEach(p => { p.total = 0; });
+            } else {
+                // Nas salas, mantém a regra de reposição de máquinas eliminadas.
+                saindo.forEach(i => {
+                    const saiu = G.personagens[i];
+                    maquinasEliminadas.push(saiu);
+                    G.fila.push(saiu);
+                    const proxima = G.fila.shift();
+                    G.personagens[i] = proxima;
+                    G.participantes.add(proxima);
+                });
+                PERSONAGENS.forEach(p => { p.total = 0; });
+            }
             G.rodada = 0;
             G.carteador = (G.carteador + 1) % 4;
         }
@@ -782,6 +797,7 @@ function fimRodada() {
     d.saindo = saindo.map(i => G.nomes[i]);
     d.entram = G.fila.slice(0, saindo.length).map(p => p.nome);
 
+    if (fim && MP.modo === 'solo') desbloquearEstampasDosUltimos(d);
     aplicarFim(d);
 
     const avancar = criarAvancar(fim, saindo);
@@ -1264,6 +1280,15 @@ function criarVersoCarta() {
     const d = document.createElement('div');
     d.className = 'carta verso';
     d.setAttribute('aria-label', 'Carta virada para baixo');
+    const estampa = estampaSelecionada();
+    if (estampa !== 'padrao') {
+        const img = document.createElement('img');
+        img.className = 'imagem-estampa-carta';
+        img.alt = ''; img.draggable = false;
+        img.src = `estampa/${estampa}.png`;
+        img.onerror = () => img.remove(); // sem arquivo correspondente: mantém o verso padrão
+        d.appendChild(img);
+    }
     return d;
 }
 
@@ -1315,6 +1340,14 @@ function ajustarEscala() {
 }
 
 let rafEscala = 0;
+function bloquearOrientacaoRetrato() {
+    try {
+        if (screen.orientation && typeof screen.orientation.lock === 'function') {
+            screen.orientation.lock('portrait').catch(() => {});
+        }
+    } catch (e) {}
+}
+
 function atualizarOrientacao() {
     // Usa a orientação informada pelo sistema (e o tamanho da janela como fallback).
     // Não precisa ler os movimentos do giroscópio, apenas detectar a rotação da tela.
@@ -1326,8 +1359,14 @@ function atualizarOrientacao() {
 }
 function reajustar() {
     atualizarOrientacao();
+    // O teclado virtual pode disparar resize no Android. Não recalculamos a mesa
+    // enquanto o campo do chat estiver em foco para evitar fotos/cartas mudando de escala.
+    if (document.activeElement === $('chatInp')) return;
     cancelAnimationFrame(rafEscala);
-    rafEscala = requestAnimationFrame(() => { ajustarEscala(); if (G) render(); });
+    rafEscala = requestAnimationFrame(() => {
+        if (document.activeElement === $('chatInp')) return;
+        ajustarEscala(); if (G) render();
+    });
 }
 atualizarOrientacao();
 addEventListener('resize', reajustar);
@@ -1335,7 +1374,7 @@ addEventListener('orientationchange', () => setTimeout(reajustar, 300));
 if (screen.orientation && screen.orientation.addEventListener) {
     screen.orientation.addEventListener('change', reajustar);
 }
-if (window.visualViewport) visualViewport.addEventListener('resize', reajustar);
+// visualViewport é reservado ao reposicionamento do chat; não redimensiona a mesa.
 
 // ================= TELA =================
 function avisoTemp(msg, ms) {
@@ -1880,15 +1919,75 @@ function tick() {
     if (MP.modo === 'misto' && restante() <= 0) iniciarMP();   // fim dos 2 min: máquinas completam
 }
 
+// ================= COLEÇÃO DE ESTAMPAS (somente Nelson) =================
+const ESTAMPAS_KEY = 'copasEstampasDesbloqueadas';
+const ESTAMPA_ATIVA_KEY = 'copasEstampaAtiva';
+function estampasDesbloqueadas() {
+    try { return new Set((JSON.parse(localStorage.getItem(ESTAMPAS_KEY) || '[]') || []).map(Number)); }
+    catch (e) { return new Set(); }
+}
+function estampaSelecionada() {
+    try {
+        const id = localStorage.getItem(ESTAMPA_ATIVA_KEY) || 'padrao';
+        return id === 'padrao' || estampasDesbloqueadas().has(Number(id)) ? id : 'padrao';
+    } catch (e) { return 'padrao'; }
+}
+function salvarEstampaAtiva(id) {
+    try { localStorage.setItem(ESTAMPA_ATIVA_KEY, String(id)); } catch (e) {}
+}
+function desbloquearEstampasDosUltimos(d) {
+    const maximo = Math.max(...d.totais);
+    const desbloqueadas = estampasDesbloqueadas();
+    let mudou = false;
+    d.totais.forEach((total, i) => {
+        // Só desbloqueia personagens-máquina que terminaram em último lugar.
+        if (i > 0 && total === maximo) {
+            const id = Number(d.pers[i]);
+            if (Number.isFinite(id) && !desbloqueadas.has(id)) { desbloqueadas.add(id); mudou = true; }
+        }
+    });
+    if (mudou) { try { localStorage.setItem(ESTAMPAS_KEY, JSON.stringify([...desbloqueadas])); } catch (e) {} }
+}
+function abrirColecaoEstampas() {
+    if (!souAdmin()) return;
+    const grade = $('gradeEstampas'); grade.textContent = '';
+    const itens = [{ id: 'padrao', nome: 'Padrão' }, ...[...estampasDesbloqueadas()].sort((a,b)=>a-b).map(id => ({ id: String(id), nome: (PERSONAGENS.find(p => p.id === id) || {}).nome || `Personagem ${id}` }))];
+    const ativa = estampaSelecionada();
+    itens.forEach(item => {
+        const btn = document.createElement('button'); btn.type = 'button';
+        btn.className = 'item-estampa' + (String(item.id) === ativa ? ' selecionada' : '');
+        const preview = document.createElement('div'); preview.className = 'preview-estampa';
+        if (item.id !== 'padrao') {
+            const img = document.createElement('img'); img.src = `estampa/${item.id}.png`; img.alt = '';
+            img.onerror = () => { img.remove(); preview.classList.add('estampa-padrao-fallback'); };
+            preview.appendChild(img);
+        } else preview.classList.add('estampa-padrao-fallback');
+        const nome = document.createElement('span'); nome.textContent = item.nome;
+        btn.append(preview, nome);
+        btn.onclick = () => {
+            salvarEstampaAtiva(item.id);
+            document.querySelectorAll('.item-estampa').forEach(x => x.classList.remove('selecionada'));
+            btn.classList.add('selecionada');
+            if (G) render();
+        };
+        grade.appendChild(btn);
+    });
+    $('modalEstampas').classList.remove('escondido');
+}
+$('btnModoEstampas').onclick = abrirColecaoEstampas;
+$('btnFecharEstampas').onclick = () => $('modalEstampas').classList.add('escondido');
+$('modalEstampas').addEventListener('click', e => { if (e.target === $('modalEstampas')) $('modalEstampas').classList.add('escondido'); });
+
 // ---------- fluxo de telas ----------
 $('btnModoSozinho').onclick = () => {
+    bloquearOrientacaoRetrato();
     MP.modo = 'solo';
     jogadorHumano = personagemDoUsuario();
     if (!jogadorHumano) { abrirAcesso(); return; }
     iniciarPartida();
 };
-$('btnModoMisto').onclick = entrarMisto;
-$('btnModoSala').onclick = abrirSalas;
+$('btnModoMisto').onclick = () => { bloquearOrientacaoRetrato(); entrarMisto(); };
+$('btnModoSala').onclick = () => { bloquearOrientacaoRetrato(); abrirSalas(); };
 $('btnVoltarSalas').onclick = () => { clearInterval(MP.tLista); mostrarTela('telaModo'); };
 $('btnSairEspera').onclick = () => sairParaMenu('telaInicial');
 $('btnChave').onclick = () => {
@@ -2533,6 +2632,7 @@ function irParaModo() {
     jogadorHumano = personagemDoUsuario();
     if (!jogadorHumano) { deslogar('Personagem não encontrado. Entre novamente.'); return; }
     $('btnModoAdmin').classList.toggle('escondido', !souAdmin());
+    $('btnModoEstampas').classList.toggle('escondido', !souAdmin());
     $('modoFoto').src = jogadorHumano.foto;
     $('modoNome').textContent = `${jogadorHumano.nome} (${usuarioAtual.usuario})`;
     mostrarTela('telaModo');

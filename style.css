@@ -814,3 +814,25 @@ body[data-tela="jogo"] .painel-chat.chat-teclado-aberto {
 }
 .painel-chat.chat-teclado-aberto .chat-msgs { min-height: 36px; }
 .painel-chat.chat-teclado-aberto .chat-bola { max-height: 56px; min-height: 38px; padding: 4px; }
+
+
+/* V57 — orientação retrato fixa: o tabuleiro não se reorganiza no modo paisagem. */
+@media (orientation: landscape) {
+    body[data-tela="jogo"]::before {
+        content: "Gire o celular para a posição vertical para continuar jogando";
+        position: fixed; inset: 0; z-index: 20000; display: flex; align-items: center; justify-content: center;
+        padding: 28px; box-sizing: border-box; text-align: center; font-size: 20px; font-weight: 700;
+        color: #fff; background: rgba(5, 25, 8, .98);
+    }
+}
+
+/* V57 — coleção de estampas */
+.grade-estampas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-height: 48vh; overflow-y: auto; padding: 4px; }
+.item-estampa { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 5px; border: 2px solid #555; border-radius: 12px; color: #fff; background: rgba(0,0,0,.35); font-size: 12px; cursor: pointer; }
+.item-estampa.selecionada { border-color: #ffd54f; box-shadow: 0 0 0 2px rgba(255,213,79,.25); }
+.preview-estampa { width: 58px; aspect-ratio: .72; position: relative; overflow: hidden; border: 2px solid #fff; border-radius: 6px; background: repeating-linear-gradient(45deg,#173b79 0 5px,#f4f4f4 5px 7px,#173b79 7px 12px); }
+.preview-estampa img, .imagem-estampa-carta { width: 100%; height: 100%; object-fit: cover; display: block; }
+.preview-estampa.estampa-padrao-fallback { background: repeating-linear-gradient(45deg,#173b79 0 5px,#f4f4f4 5px 7px,#173b79 7px 12px); }
+.carta.verso { overflow: hidden; }
+.carta.verso .imagem-estampa-carta { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.carta.verso:has(.imagem-estampa-carta)::after { content: none; }
