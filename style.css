@@ -746,7 +746,7 @@ body[data-tela="jogo"] .btn-chat {
 body[data-tela="jogo"] .painel-chat {
     bottom: calc(var(--mao-h) + var(--safe-b) + var(--folga) + 56px);
     width: min(300px, calc(100vw - 24px)); max-height: min(46vh, 340px);
-    background: rgba(12, 30, 14, .5);
+    background: rgba(12, 30, 14, .4);
 }
 body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
 /* A barra superior permanece sólida em qualquer tela. */
@@ -794,25 +794,23 @@ body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
 
 /* V41 — com o teclado aberto, sobe o painel para deixar a caixa de mensagem
    totalmente visível e afastada da área ocupada pelo teclado do celular. */
-/* V50 — mantém o painel do chat inteiramente acima do teclado virtual,
-   com uma folga mínima de 24px entre o painel e o teclado. */
+/* V56 — mantém todo o chat acima do teclado virtual, inclusive no jogo.
+   O JavaScript calcula a área visível e compensa os dois comportamentos do Android. */
 .painel-chat.chat-teclado-aberto {
-    bottom: calc(var(--chat-keyboard-gap, 0px) + 24px + env(safe-area-inset-bottom, 0px));
-    max-height: calc(var(--chat-visual-height, 100dvh) - 48px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
+    position: fixed !important;
+    top: auto !important;
+    bottom: calc(var(--chat-keyboard-gap, 0px) + 24px + env(safe-area-inset-bottom, 0px)) !important;
+    max-height: max(180px, calc(var(--chat-visual-height, 100dvh) - 48px - env(safe-area-inset-top, 0px))) !important;
+    overflow-y: auto !important;
     overscroll-behavior: contain;
+    z-index: 9999;
+}
+body[data-tela="jogo"] .painel-chat.chat-teclado-aberto {
+    bottom: calc(var(--chat-keyboard-gap, 0px) + 24px + env(safe-area-inset-bottom, 0px)) !important;
+    background: rgba(12, 30, 14, .5);
 }
 .painel-chat.chat-teclado-aberto .chat-linha {
     flex: 0 0 auto;
 }
 .painel-chat.chat-teclado-aberto .chat-msgs { min-height: 36px; }
 .painel-chat.chat-teclado-aberto .chat-bola { max-height: 56px; min-height: 38px; padding: 4px; }
-
-/* V55 — na tela do jogo, a regra específica da mesa não pode impedir
-   que o chat acompanhe o teclado virtual. Mantém o fundo com 50% de opacidade. */
-body[data-tela="jogo"] .painel-chat.chat-teclado-aberto {
-    bottom: calc(var(--chat-keyboard-gap, 0px) + 24px + env(safe-area-inset-bottom, 0px));
-    max-height: calc(var(--chat-visual-height, 100dvh) - 48px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    background: rgba(12, 30, 14, .5);
-}

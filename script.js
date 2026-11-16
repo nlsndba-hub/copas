@@ -2744,24 +2744,42 @@ async function carregarChat() {
     } catch (e) { /* tenta no próximo ciclo */ }
     finally { SES.carregando = false; }
 }
+// Guarda a altura da área disponível antes da abertura do teclado. Em alguns
+// Androids o teclado reduz também window.innerHeight; em outros, só visualViewport.
+let alturaChatSemTeclado = Math.max(
+    window.innerHeight || 0,
+    window.visualViewport ? window.visualViewport.height : 0
+);
 function atualizarViewportChat() {
     const vv = window.visualViewport;
     const raiz = document.documentElement;
-    if (!vv) return;
+    const inp = $('chatInp');
+    const painel = $('painelChat');
+    if (!vv || !painel) return;
+
     const alturaVisivel = Math.max(0, vv.height);
-    const deslocamentoTeclado = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+    const campoEmFoco = !!inp && document.activeElement === inp;
+    const tecladoDetectado = campoEmFoco && (alturaChatSemTeclado - alturaVisivel > 80);
+
+    // Se o navegador já redimensionou o layout, o bottom do fixed já termina
+    // acima do teclado. Caso contrário, compensamos a parte coberta pelo teclado.
+    const layoutRedimensionado = window.innerHeight < alturaChatSemTeclado - 80;
+    const deslocamentoTeclado = tecladoDetectado && !layoutRedimensionado
+        ? Math.max(0, alturaChatSemTeclado - alturaVisivel - vv.offsetTop)
+        : 0;
+
     raiz.style.setProperty('--chat-visual-height', `${alturaVisivel}px`);
     raiz.style.setProperty('--chat-keyboard-gap', `${deslocamentoTeclado}px`);
-    const inp = $('chatInp');
-    const tecladoAberto = !!inp && document.activeElement === inp && deslocamentoTeclado > 80;
-    $('painelChat').classList.toggle('chat-teclado-aberto', tecladoAberto);
+    painel.classList.toggle('chat-teclado-aberto', tecladoDetectado);
 }
 function focarCampoChat() {
+    // Reposiciona imediatamente e novamente após o Android terminar de abrir o teclado.
+    $('painelChat').classList.add('chat-teclado-aberto');
     atualizarViewportChat();
-    // Aguarda o teclado do celular terminar de abrir antes de reposicionar o painel.
     requestAnimationFrame(() => {
         atualizarViewportChat();
-        if (window.visualViewport) setTimeout(atualizarViewportChat, 120);
+        if (window.visualViewport) setTimeout(atualizarViewportChat, 180);
+        setTimeout(atualizarViewportChat, 400);
     });
 }
 if (window.visualViewport) {
@@ -2769,7 +2787,12 @@ if (window.visualViewport) {
     visualViewport.addEventListener('scroll', atualizarViewportChat);
 }
 $('chatInp').addEventListener('focus', focarCampoChat);
-$('chatInp').addEventListener('blur', () => setTimeout(atualizarViewportChat, 120));
+$('chatInp').addEventListener('blur', () => {
+    setTimeout(() => {
+        alturaChatSemTeclado = Math.max(window.innerHeight || 0, window.visualViewport ? window.visualViewport.height : 0);
+        atualizarViewportChat();
+    }, 180);
+});
 
 function abrirChat() {
     if (!usuarioAtual) return;
