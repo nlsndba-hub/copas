@@ -28,7 +28,23 @@ window.MISSOES = [
             estampa: 'estampa/101.png',
             audioEntrada: 'audio/101.mp3'
         }
+    },
+    
+    {
+        id: 'missao_102',
+        nome: 'Robô Maicon',
+        descricao: 'Não fique em último lugar em uma partida que contenha Motoboy e Nelson.',
+        personagensNecessarios: [6, 2],
+        recompensa: {
+            personagemId: 102,
+            estampaId: 102,
+            nomePersonagem: 'DEFINIR_NOME_102',
+            foto: 'fotos/102.png',
+            estampa: 'estampa/102.png',
+            audioEntrada: 'audio/102.mp3'
+        }
     }
+    
 ];
 
 /*
@@ -40,20 +56,6 @@ window.MISSOES = [
  * Os objetivos usam a regra: não terminar em último lugar.
  */
 /*
-    {
-        id: 'missao_102',
-        nome: 'Definir nome da missão 102',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Nelson.',
-        personagensNecessarios: [1, 2],
-        recompensa: {
-            personagemId: 102,
-            estampaId: 102,
-            nomePersonagem: 'DEFINIR_NOME_102',
-            foto: 'fotos/102.png',
-            estampa: 'estampa/102.png',
-            audioEntrada: 'audio/102.mp3'
-        }
-    },
     {
         id: 'missao_103',
         nome: 'Definir nome da missão 103',
