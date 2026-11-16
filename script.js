@@ -1286,10 +1286,10 @@ function criarVersoCarta() {
         img.className = 'imagem-estampa-carta';
         img.alt = ''; img.draggable = false;
         img.decoding = 'async';
-        img.src = srcEstampa(estampa);
         d.classList.add('com-estampa');
-        img.onerror = () => { d.classList.remove('com-estampa'); img.remove(); }; // sem arquivo: mantém o verso padrão
         d.appendChild(img);
+        // sem arquivo em nenhuma extensão: mantém o verso padrão
+        carregarImagemEstampa(img, estampa, () => { d.classList.remove('com-estampa'); img.remove(); });
     }
     return d;
 }
@@ -1938,6 +1938,24 @@ function arquivoEstampa(personagemId) {
     return nome.replace(/^.*[\\/]/, '').replace(/\.(jpe?g|webp)$/i, '.png');
 }
 function srcEstampa(personagemId) { return `estampa/${encodeURIComponent(arquivoEstampa(personagemId))}`; }
+// V67 — a imagem da estampa pode estar como .png, .jpg, .jpeg ou .webp (qualquer caixa).
+// Tenta uma extensão após a outra e memoriza a que funcionou; se nenhuma existir, chama aoFalhar.
+const EXT_ESTAMPA = ['png', 'jpg', 'jpeg', 'webp', 'PNG', 'JPG', 'JPEG', 'WEBP'];
+const EXT_ESTAMPA_OK = {};
+function carregarImagemEstampa(img, personagemId, aoFalhar) {
+    const base = arquivoEstampa(personagemId).replace(/\.[^.]+$/, '');
+    const url = ext => `estampa/${encodeURIComponent(base)}.${ext}`;
+    const memo = EXT_ESTAMPA_OK[base];
+    const ordem = memo ? [memo, ...EXT_ESTAMPA.filter(e => e !== memo)] : EXT_ESTAMPA.slice();
+    let k = 0;
+    img.onerror = () => {
+        k++;
+        if (k < ordem.length) img.src = url(ordem[k]);
+        else { img.onerror = null; if (aoFalhar) aoFalhar(); }
+    };
+    img.onload = () => { EXT_ESTAMPA_OK[base] = ordem[k]; };
+    img.src = url(ordem[0]);
+}
 function salvarCacheEstampas() {
     try {
         localStorage.setItem(chaveEstampasLocal(), JSON.stringify([...ESTAMPAS_USUARIO]));
@@ -1999,9 +2017,9 @@ function abrirColecaoEstampas() {
         btn.className = 'item-estampa' + (String(item.id) === ativa ? ' selecionada' : '');
         const preview = document.createElement('div'); preview.className = 'preview-estampa';
         if (item.id !== 'padrao') {
-            const img = document.createElement('img'); img.src = srcEstampa(item.id); img.alt = '';
-            img.onerror = () => { img.remove(); preview.classList.add('estampa-padrao-fallback'); };
+            const img = document.createElement('img'); img.alt = ''; img.draggable = false;
             preview.appendChild(img);
+            carregarImagemEstampa(img, item.id, () => { img.remove(); preview.classList.add('estampa-padrao-fallback'); });
         } else preview.classList.add('estampa-padrao-fallback');
         const nome = document.createElement('span'); nome.textContent = item.nome;
         btn.append(preview, nome);

@@ -917,3 +917,55 @@ html > #painelChat .chat-linha { flex: 0 0 auto; }
     pointer-events: none !important;
     border-radius: inherit !important;
 }
+
+
+/* V67 — chat: abre um pouco acima da metade da tela e mostra os online em grade 3x3 (arrasta para ver mais 9). */
+html > #painelChat {
+    top: 36vh !important;
+    top: 36dvh !important;
+    bottom: auto !important;
+    max-height: calc(100vh - 36vh - 12px) !important;
+    max-height: calc(100dvh - 36dvh - 12px) !important;
+}
+/* com o teclado aberto o painel sobe para o campo de texto não ficar escondido */
+html > #painelChat.chat-teclado-aberto {
+    top: max(8px, env(safe-area-inset-top, 0px)) !important;
+    max-height: calc(100vh - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+}
+html > #painelChat .chat-bola {
+    --linha-bola: 54px;
+    --espaco-bola: 6px;
+    flex: 0 0 auto;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: var(--linha-bola);
+    gap: var(--espaco-bola) 8px;
+    justify-items: center;
+    align-content: start;
+    box-sizing: content-box;
+    padding: 8px;
+    min-height: 0 !important;
+    height: calc(var(--linha-bola) * 3 + var(--espaco-bola) * 2) !important;
+    max-height: calc(var(--linha-bola) * 3 + var(--espaco-bola) * 2) !important;
+    overflow-x: hidden;
+    overflow-y: auto !important;
+    scroll-snap-type: y mandatory;
+    scroll-padding-top: 8px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    border-radius: 22px;
+}
+/* cada "página" tem 9 bolinhas (3 linhas de 3); o arrasto para na primeira linha de cada página */
+html > #painelChat .chat-bola > .chat-online:nth-child(9n+1),
+html > #painelChat .chat-bola > .chat-online:nth-child(9n+2),
+html > #painelChat .chat-bola > .chat-online:nth-child(9n+3) { scroll-snap-align: start; }
+html > #painelChat .chat-bola > .chat-online { height: var(--linha-bola); width: 48px; }
+html > #painelChat.chat-teclado-aberto .chat-bola {
+    height: calc(var(--linha-bola) * 3 + var(--espaco-bola) * 2) !important;
+    max-height: calc(var(--linha-bola) * 3 + var(--espaco-bola) * 2) !important;
+    min-height: 0 !important;
+    padding: 8px;
+}
+html > #painelChat .chat-msgs { flex: 1 1 auto; min-height: 60px; }
