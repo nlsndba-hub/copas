@@ -3,8 +3,8 @@ window.MISSOES = [
     {
         id: 'missao_azul',
         nome: 'Missão Azul',
-        descricao: 'Fique em primeiro lugar no modo Sozinho em uma partida que contenha Marcio, Alcy e Nelson.',
-        personagensNecessarios: [4, 1, 2],
+        descricao: 'No modo Sozinho, não termine em último lugar em uma partida que contenha Alcy e Marcio.',
+        personagensNecessarios: [1, 4],
         recompensa: {
             personagemId: 100,
             estampaId: 100,
@@ -17,8 +17,8 @@ window.MISSOES = [
     {
         id: 'missao_patixa',
         nome: 'Missão Patixa',
-        descricao: 'Fique em primeiro lugar no modo Sozinho em uma partida que contenha Ronaldo, Xandão e Alcy.',
-        personagensNecessarios: [15, 13, 1],
+        descricao: 'No modo Sozinho, não termine em último lugar em uma partida que contenha Xandão e Caio.',
+        personagensNecessarios: [13, 3],
         recompensa: {
             personagemId: 101,
             estampaId: 101,

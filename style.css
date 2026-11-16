@@ -991,3 +991,40 @@ html[data-tela="jogo"] > #btnChat {
 .missao-card p { margin:5px 0; }
 .missao-status { font-weight:700; margin-top:9px !important; }
 .missao-status.concluida { color:#65d98b; }
+
+
+/* V81 — estabilidade dos avatares e nomes após redimensionamentos e novos renders */
+.oponente {
+    min-width: 0;
+}
+.avatar-jogador {
+    width: var(--av);
+    height: var(--av);
+    min-width: var(--av);
+    min-height: var(--av);
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+    object-position: center;
+    flex: 0 0 var(--av);
+}
+.info-jogador {
+    min-width: 0;
+    max-width: 100%;
+}
+.nome {
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
+}
+@media (max-height: 520px) {
+    .oponente .avatar-jogador {
+        width: max(30px, calc(var(--u) * 4));
+        height: max(30px, calc(var(--u) * 4));
+        min-width: max(30px, calc(var(--u) * 4));
+        min-height: max(30px, calc(var(--u) * 4));
+        flex-basis: max(30px, calc(var(--u) * 4));
+    }
+}

@@ -2110,8 +2110,9 @@ function salvarMissoesLocais() {
 async function concluirMissoesDaPartida(d) {
     if (!usuarioAtual || !jogadorHumano || !Array.isArray(window.MISSOES)) return;
     const participantes = new Set((d.pers || []).map(Number));
-    const venceu = (d.vencIds || []).map(Number).includes(Number(jogadorHumano.id));
-    if (!venceu) return;
+    // A missão é válida se o jogador não terminar em último na classificação final.
+    const classificacao = (d.ordem || []).map(Number);
+    if (!classificacao.length || classificacao[classificacao.length - 1] === Number(jogadorHumano.id)) return;
     for (const missao of window.MISSOES) {
         if (MISSION_UNLOCKS.has(missao.id)) continue;
         const requisitos = missao.personagensNecessarios || [];
