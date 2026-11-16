@@ -879,3 +879,41 @@ body > #painelChat.chat-teclado-aberto {
 }
 body > #painelChat .chat-msgs { min-height: 24px; overflow-y: auto; }
 body > #painelChat .chat-linha { flex: 0 0 auto; }
+
+/* V61 — estampa como capa integral do verso e chat na raiz do documento. */
+html > #btnChat {
+    position: fixed !important;
+    z-index: 2147483646 !important;
+}
+html > #painelChat,
+html > #painelChat.chat-teclado-aberto {
+    position: fixed !important;
+    z-index: 2147483647 !important;
+    top: max(8px, env(safe-area-inset-top, 0px)) !important;
+    bottom: auto !important;
+    left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    right: auto !important;
+    width: min(340px, calc(100vw - 16px)) !important;
+    max-height: min(70vh, 520px) !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+    contain: none !important;
+    box-sizing: border-box !important;
+}
+html > #painelChat .chat-msgs { min-height: 24px; overflow-y: auto; }
+html > #painelChat .chat-linha { flex: 0 0 auto; }
+.carta.verso.com-estampa { background: transparent !important; }
+.carta.verso.com-estampa::after { content: none !important; display: none !important; }
+.carta.verso .imagem-estampa-carta {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: fill !important;
+    z-index: 10 !important;
+    pointer-events: none !important;
+    border-radius: inherit !important;
+}

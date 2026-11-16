@@ -1285,8 +1285,10 @@ function criarVersoCarta() {
         const img = document.createElement('img');
         img.className = 'imagem-estampa-carta';
         img.alt = ''; img.draggable = false;
+        img.decoding = 'async';
         img.src = srcEstampa(estampa);
-        img.onerror = () => img.remove(); // sem arquivo correspondente: mantém o verso padrão
+        d.classList.add('com-estampa');
+        img.onerror = () => { d.classList.remove('com-estampa'); img.remove(); }; // sem arquivo: mantém o verso padrão
         d.appendChild(img);
     }
     return d;
@@ -2888,33 +2890,21 @@ async function carregarChat() {
 // do tabuleiro e não participa do cálculo de escala das cartas e fotos.
 function elevarChatParaCamadaSuperior() {
     const botao = $('btnChat'), painel = $('painelChat');
-    if (botao && botao.parentElement !== document.body) document.body.appendChild(botao);
-    if (painel && painel.parentElement !== document.body) document.body.appendChild(painel);
+    // O elemento é movido para a raiz do documento, fora de qualquer stacking context
+    // criado pelo tabuleiro, telas, transformações ou contêineres com overflow.
+    if (botao && botao.parentElement !== document.documentElement) document.documentElement.appendChild(botao);
+    if (painel && painel.parentElement !== document.documentElement) document.documentElement.appendChild(painel);
 }
 elevarChatParaCamadaSuperior();
-let alturaChatSemTeclado = window.innerHeight || document.documentElement.clientHeight;
 function atualizarViewportChat() {
-    const vv = window.visualViewport;
     const painel = $('painelChat');
     if (!painel) return;
     const focado = document.activeElement === $('chatInp');
-    const altura = vv ? vv.height : (window.innerHeight || document.documentElement.clientHeight);
-    const topoViewport = vv ? vv.offsetTop : 0;
-    const teclado = focado && alturaChatSemTeclado - altura > 80;
-    painel.classList.toggle('chat-teclado-aberto', teclado);
-    if (teclado) {
-        // Posiciona o painel dentro do retângulo visível do navegador, acima do teclado.
-        const maxH = Math.max(150, altura - 20);
-        painel.style.top = `${Math.max(6, topoViewport + 8)}px`;
-        painel.style.bottom = 'auto';
-        painel.style.maxHeight = `${maxH}px`;
-        painel.style.setProperty('--chat-visual-height', `${altura}px`);
-    } else {
-        painel.style.top = '';
-        painel.style.bottom = '';
-        painel.style.maxHeight = '';
-        if (!focado) alturaChatSemTeclado = Math.max(window.innerHeight || 0, vv ? vv.height : 0);
-    }
+    painel.classList.toggle('chat-teclado-aberto', focado);
+    // O painel não acompanha o visualViewport nem muda de tamanho ao abrir o teclado.
+    painel.style.top = '';
+    painel.style.bottom = '';
+    painel.style.maxHeight = '';
 }
 function focarCampoChat() {
     elevarChatParaCamadaSuperior();
@@ -2933,7 +2923,6 @@ $('chatInp').addEventListener('blur', () => setTimeout(atualizarViewportChat, 18
 function abrirChat() {
     if (!usuarioAtual) return;
     elevarChatParaCamadaSuperior();
-    alturaChatSemTeclado = Math.max(window.innerHeight || 0, window.visualViewport ? window.visualViewport.height : 0);
     SES.aberto = true;
     $('chatLimpar').classList.toggle('escondido', !souAdmin());
     $('painelChat').classList.remove('escondido');
