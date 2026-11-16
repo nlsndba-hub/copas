@@ -1,42 +1,43 @@
-V80 — MISSÕES / CANETA AZUL
+V80 — MISSÕES AZUL E PATIXA
 
-ARQUIVOS PARA SUBIR NO GITHUB
-- index.html (atualizado: carrega os três módulos e mostra a tela Missões)
-- script.js (integração com sorteio, desbloqueio e áudio)
-- style.css (estilo da lista de missões)
-- personagens.js (catálogo de personagens especiais)
-- usuarios.js (vínculo de conta com personagem)
-- missoes.js (cadastro das missões)
-- supabase-missoes-v80.sql (nova tabela e RPCs)
+ARQUIVOS INCLUÍDOS NESTA ATUALIZAÇÃO
+- script.js: sorteio dos personagens especiais e reprodução dos áudios por personagem.
+- missoes.js: cadastro das missões Azul e Patixa.
+- personagens.js: cadastro dos personagens 100 e 101.
 
-PASSOS
-1. Suba os arquivos acima, mantendo-os na raiz do projeto.
-2. No Supabase SQL Editor, execute o conteúdo de supabase-missoes-v80.sql.
-   O SQL depende da função existente public.sessao_ping(p_usuario, p_token)
-   da sua instalação atual (V31).
-3. Crie/adicione manualmente o arquivo audio/azul.mp3 no repositório.
-4. Os arquivos fotos/100.png e estampa/100.png já estavam no ZIP original;
-   mantenha-os no projeto.
+Os demais arquivos da V80 anterior permanecem iguais. Esta atualização não exige
+rodar novamente o SQL da V80, desde que a tabela usuario_missoes e as funções
+missoes_listar/missoes_concluir já tenham sido criadas.
 
 MISSÃO AZUL
 - Modo: Sozinho.
-- Participantes exigidos: Marcio (4), Alcy (1), Nelson (2).
-- O usuário logado precisa terminar em primeiro lugar.
-- O personagem do próprio usuário conta como participante da missão.
-- Recompensa: personagem 100 (Caneta Azul) e estampa 100.
+- Participantes exigidos: Marcio (4), Alcy (1) e Nelson (2).
+- O usuário logado precisa terminar em primeiro; o personagem dele conta como participante.
+- Recompensas: personagem 100 (Caneta Azul) e estampa 100.
+- Foto: fotos/100.png | Estampa: estampa/100.png | Áudio: audio/100.mp3
 
-SORTEIO
-- Depois de desbloqueado pela Missão Azul, Caneta Azul tem 10% de chance de
-  ser incluído em cada partida nova do modo Sozinho. Ele não aparece na seleção
-  de personagem/conta.
-- Quando entra na mesa, o jogo tenta tocar audio/azul.mp3.
+MISSÃO PATIXA
+- Modo: Sozinho.
+- Participantes exigidos: Ronaldo (15), Xandão (13) e Alcy (1).
+- O usuário logado precisa terminar em primeiro; o personagem dele conta como participante.
+- Recompensas: personagem 101 (Patixa Teló) e estampa 101.
+- Foto: fotos/101.png | Estampa: estampa/101.png | Áudio: audio/101.mp3
 
-PERSISTÊNCIA
-- O Supabase grava a missão concluída por usuário, com personagem e estampa.
-- O navegador mantém cache local para a experiência continuar disponível offline.
-- A coleção de estampas fica acessível a todos os usuários, pois a recompensa
-  é individual e não deve depender de ser administrador.
+SORTEIO E ÁUDIO
+- Depois de desbloqueado pela missão correspondente, cada personagem especial tem
+  10% de chance independente de aparecer entre os bots de uma nova partida Sozinho.
+- O áudio correspondente toca quando o personagem especial entra na mesa.
+- Se ambos forem sorteados na mesma partida, os áudios tocam em sequência.
 
-OBSERVAÇÃO
-- O ZIP contém somente os arquivos alterados e os novos arquivos. Não substitui
-  a pasta inteira do projeto.
+ARQUIVOS DE MÍDIA
+Adicione manualmente no GitHub:
+- audio/100.mp3
+- audio/101.mp3
+- fotos/101.png
+- estampa/101.png
+A foto e a estampa 100 já estavam no ZIP original.
+
+BANCO DE DADOS
+- Nenhuma alteração adicional no banco para esta atualização.
+- Os desbloqueios continuam registrados por usuário na tabela usuario_missoes,
+  usando as funções RPC criadas pelo SQL da V80 anterior.

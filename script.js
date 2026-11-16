@@ -204,16 +204,28 @@ let filaMaquinas = [];
 let maquinasEliminadas = [];
 
 function sortearBotsSozinho(personagemHumano, quantidade) {
-    const especiais = PERSONAGENS.filter(p => p.somenteBot && p.chanceSolo > 0 && MISSION_UNLOCKS.has('missao_azul'));
+    // Cada personagem especial tem sua própria chance de 10%, mas só entra
+    // no sorteio depois que o usuário concluiu a missão correspondente.
+    const especiais = PERSONAGENS.filter(p => p.somenteBot && p.chanceSolo > 0 && p.missaoId && MISSION_UNLOCKS.has(p.missaoId));
     const escolhidos = [];
-    especiais.forEach(p => { if (escolhidos.length < quantidade && Math.random() < p.chanceSolo) escolhidos.push(p); });
+    especiais.forEach(p => {
+        if (escolhidos.length < quantidade && Math.random() < Number(p.chanceSolo)) escolhidos.push(p);
+    });
     const pool = embaralhar(PERSONAGENS.filter(p => !p.somenteBot && p.id !== personagemHumano.id));
     while (escolhidos.length < quantidade && pool.length) escolhidos.push(pool.shift());
     return escolhidos;
 }
 function tocarAudioEntradaEspecial(personagens) {
-    if (!(personagens || []).some(p => p && p.id === 100)) return;
-    try { const audio = new Audio('audio/azul.mp3'); audio.preload = 'auto'; setTimeout(() => audio.play().catch(() => {}), 500); } catch (e) {}
+    const especiais = (personagens || []).filter(p => p && p.somenteBot && p.audioEntrada);
+    // Se os dois personagens especiais forem sorteados na mesma partida,
+    // toca os áudios em sequência para que um não corte o outro.
+    especiais.forEach((p, i) => {
+        try {
+            const audio = new Audio(p.audioEntrada);
+            audio.preload = 'auto';
+            setTimeout(() => audio.play().catch(() => {}), 500 + i * 1800);
+        } catch (e) {}
+    });
 }
 
 function montarSelecao() {
