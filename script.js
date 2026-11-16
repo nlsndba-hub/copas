@@ -846,8 +846,39 @@ function fimRodada() {
 // ================= MODAL DO RANKING GERAL =================
 function abrirRankingGeral() {
     if (!G) return;
+    // No modo Sozinho, o troféu mostra apenas a classificação da partida atual.
+    if (MP.modo === 'solo') {
+        desenharPlacarPartida();
+        return;
+    }
     desenharRanking();
     if (getSB()) carregarRankServidor().then(ok => { if (ok && !$('modalRanking').classList.contains('escondido')) desenharRanking(); });
+}
+
+function desenharPlacarPartida() {
+    if (!G) return;
+    const linhas = G.personagens.map((p, i) => ({ p, total: p.total || 0, i }))
+        .sort((a, b) => a.total - b.total);
+    let h = '<h2>🏆 Placar da partida</h2>';
+    h += '<table><tr><th>#</th><th>Jogador</th><th>Pontos</th></tr>';
+    linhas.forEach((l, i) => {
+        const ehEu = jogadorHumano && l.p.id === jogadorHumano.id;
+        h += `<tr class="${ehEu ? 'eu' : ''}"><td>${i + 1}º</td><td>${l.p.nome}${ehEu ? ' (Você)' : ''}</td><td><b>${l.total}</b></td></tr>`;
+    });
+    h += '</table>';
+    h += '<button type="button" class="btn-modo" id="btnRodarMesa" style="margin:0 0 8px">🔄 Rodar mesa</button>';
+    h += '<button type="button" class="btn-sec" id="btnSairBar" style="margin:0 0 8px">🚪 Sair do bar</button>';
+    h += '<button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
+    $('modalRankingBox').innerHTML = h;
+    $('modalRanking').classList.remove('escondido');
+    $('btnFecharRanking').focus();
+    $('btnRodarMesa').onclick = () => {
+        $('modalRanking').classList.add('escondido');
+        // iniciarPartida reinicia os pontos e sorteia três novos adversários no modo Sozinho.
+        iniciarPartida();
+    };
+    $('btnFecharRanking').onclick = () => $('modalRanking').classList.add('escondido');
+    $('btnSairBar').onclick = sairDoBar;
 }
 
 function desenharRanking() {
