@@ -794,9 +794,16 @@ body[data-tela="jogo"] .chat-msgs { min-height: 70px; }
 
 /* V41 — com o teclado aberto, sobe o painel para deixar a caixa de mensagem
    totalmente visível e afastada da área ocupada pelo teclado do celular. */
+/* V50 — mantém o painel do chat inteiramente acima do teclado virtual,
+   com uma folga mínima de 24px entre o painel e o teclado. */
 .painel-chat.chat-teclado-aberto {
-    bottom: calc(var(--chat-keyboard-gap, 0px) + 105px + env(safe-area-inset-bottom, 0px));
-    max-height: calc(var(--chat-visual-height, 100dvh) - 120px - env(safe-area-inset-top, 0px));
+    bottom: calc(var(--chat-keyboard-gap, 0px) + 24px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(var(--chat-visual-height, 100dvh) - 48px - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.painel-chat.chat-teclado-aberto .chat-linha {
+    flex: 0 0 auto;
 }
 .painel-chat.chat-teclado-aberto .chat-msgs { min-height: 36px; }
 .painel-chat.chat-teclado-aberto .chat-bola { max-height: 56px; min-height: 38px; padding: 4px; }

@@ -25,7 +25,7 @@ const MP = {
     ultimoSnap: null, mesaMeta: '', volta: false, ultimoD: null
 };
 const VOZ = { pcs: {}, mic: null, ativo: false, token: 0, fonte: '', semClique: 0, negado: false };
-const TEMPO_MISTO = 2 * 60 * 1000;
+const TEMPO_MISTO = 30 * 1000;
 const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'jogo'];
 let ultimaTela = '';
 function mostrarTela(id) {
