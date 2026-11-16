@@ -48,6 +48,7 @@
                 <button type="button" id="btnModoSozinho" class="btn-modo-grande"><i class="fas fa-user"></i><strong>Sozinho</strong><small>Você contra 3 máquinas</small></button>
                 <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 30 segundos. Quem entrar joga junto e as máquinas completam a mesa. Com 4 jogadores começa na hora</small></button>
                 <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar e chame os amigos. Só humanos: a partida começa quando entrarem 4 jogadores</small></button>
+                <button type="button" id="btnModoMissoes" class="btn-modo-grande"><i class="fas fa-flag-checkered"></i><strong>Missões</strong><small>Conquiste personagens e estampas especiais</small></button>
                 <button type="button" id="btnModoEstampas" class="btn-modo-grande escondido"><i class="fas fa-images"></i><strong>Estampas</strong><small>Veja e escolha as costas de suas cartas desbloqueadas</small></button>
                 <button type="button" id="btnModoAdmin" class="btn-modo-grande escondido"><i class="fas fa-user-shield"></i><strong>Administrador</strong><small>Cadastrar usuários e trocar senhas</small></button>
             </div>
@@ -62,6 +63,16 @@
             <p class="sub">Escolha uma estampa desbloqueada para o verso das cartas.</p>
             <div id="gradeEstampas" class="grade-estampas"></div>
             <button type="button" id="btnFecharEstampas" class="btn-sec">Voltar</button>
+        </div>
+    </div>
+
+    <!-- MISSÕES -->
+    <div id="telaMissoes" class="tela-overlay escondido">
+        <div class="selecao-box caixa-modo">
+            <h1>🎯 Missões</h1>
+            <p class="sub">Complete os desafios no modo Sozinho para liberar recompensas.</p>
+            <div id="listaMissoes" class="lista-missoes"></div>
+            <button type="button" id="btnFecharMissoes" class="btn-sec">Voltar</button>
         </div>
     </div>
 
@@ -219,6 +230,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script src="config.js?v=35"></script>
-    <script src="script.js?v=67"></script>
+    <script src="personagens.js?v=80"></script>
+    <script src="usuarios.js?v=80"></script>
+    <script src="missoes.js?v=80"></script>
+    <script src="script.js?v=80"></script>
 </body>
 </html>

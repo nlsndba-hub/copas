@@ -26,7 +26,7 @@ const MP = {
 };
 const VOZ = { pcs: {}, mic: null, ativo: false, token: 0, fonte: '', semClique: 0, negado: false };
 const TEMPO_MISTO = 30 * 1000;
-const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'jogo'];
+const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'telaMissoes', 'jogo'];
 let ultimaTela = '';
 function mostrarTela(id) {
     TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id));
@@ -153,6 +153,8 @@ const PERSONAGENS = [
     'Alcy','Nelson','Caio','Marcio','Julio','Motoboy','Alex',
     'Big Z','Samuel','Raphael','Metello','Dezinho','Xandão','Gordo','Ronaldo'
 ].map((nome, i) => ({ id: i + 1, nome, foto: `fotos/${i + 1}.png`, total: 0, pontosRank: 0 }));
+// Personagens especiais: catálogo separado, sem necessidade de conta.
+(window.PERSONAGENS_MISSAO || []).forEach(p => { if (!PERSONAGENS.some(x => x.id === p.id)) PERSONAGENS.push({ ...p, total: 0, pontosRank: 0 }); });
 
 // Personagens cadastrados pelo administrador (V35): vêm do banco e ficam em cache neste aparelho.
 // Os 15 acima são fixos no código; os extras têm número de foto acima do maior fixo.
@@ -201,10 +203,23 @@ let jogadorHumano = null;
 let filaMaquinas = [];
 let maquinasEliminadas = [];
 
+function sortearBotsSozinho(personagemHumano, quantidade) {
+    const especiais = PERSONAGENS.filter(p => p.somenteBot && p.chanceSolo > 0 && MISSION_UNLOCKS.has('missao_azul'));
+    const escolhidos = [];
+    especiais.forEach(p => { if (escolhidos.length < quantidade && Math.random() < p.chanceSolo) escolhidos.push(p); });
+    const pool = embaralhar(PERSONAGENS.filter(p => !p.somenteBot && p.id !== personagemHumano.id));
+    while (escolhidos.length < quantidade && pool.length) escolhidos.push(pool.shift());
+    return escolhidos;
+}
+function tocarAudioEntradaEspecial(personagens) {
+    if (!(personagens || []).some(p => p && p.id === 100)) return;
+    try { const audio = new Audio('audio/azul.mp3'); audio.preload = 'auto'; setTimeout(() => audio.play().catch(() => {}), 500); } catch (e) {}
+}
+
 function montarSelecao() {
     const grade = $('gradePersonagens');
     grade.innerHTML = '';
-    PERSONAGENS.forEach(p => {
+    PERSONAGENS.filter(p => !p.somenteBot).forEach(p => {
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'personagem-card';
@@ -235,14 +250,18 @@ function iniciarPartida(hum) {
     PERSONAGENS.forEach(p => { p.total = 0; });
     const idsHum = new Set(hum.map(h => h.p.id));
     const disponiveis = embaralhar(PERSONAGENS.filter(p => !idsHum.has(p.id)));
-    const bots = disponiveis.splice(0, 4 - hum.length);
-    filaMaquinas = disponiveis;
+    const bots = MP.modo === 'solo' && hum.length === 1
+        ? sortearBotsSozinho(hum[0].p, 3)
+        : disponiveis.splice(0, 4 - hum.length);
+    const idsBots = new Set(bots.map(p => p.id));
+    filaMaquinas = disponiveis.filter(p => !idsBots.has(p.id));
     maquinasEliminadas = [];
     // anfitrião no assento 0; os demais humanos e as máquinas sorteados nos outros lugares
     const resto = embaralhar([...hum.slice(1), ...bots.map(b => ({ pid: null, p: b }))]);
     const lugares = [hum[0], ...resto];
     const participantes = lugares.map(l => l.p);
     nomeJogador = jogadorHumano.nome;
+    tocarAudioEntradaEspecial(participantes);
     mostrarTela('jogo');
     $('btnChave').classList.add('escondido');
     pararIntro();
@@ -734,10 +753,12 @@ function criarAvancar(fim, saindo) {
             if (MP.modo === 'solo') {
                 // No modo sozinho o jogador permanece no assento 0; os três bots
                 // são sorteados novamente a cada partida, independentemente de quem perdeu.
-                const pool = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id));
-                const botsNovos = pool.splice(0, 3);
+                const botsNovos = sortearBotsSozinho(jogadorHumano, 3);
+                const idsBotsNovos = new Set(botsNovos.map(p => p.id));
+                const pool = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id && !idsBotsNovos.has(p.id)));
                 G.personagens = [jogadorHumano, ...botsNovos];
                 G.fila = pool;
+                tocarAudioEntradaEspecial(botsNovos);
                 G.participantes = new Set(G.personagens);
                 G.humanos = [true, false, false, false];
                 G.donos = [null, null, null, null];
@@ -798,7 +819,7 @@ function fimRodada() {
     d.saindo = saindo.map(i => G.nomes[i]);
     d.entram = G.fila.slice(0, saindo.length).map(p => p.nome);
 
-    if (fim && MP.modo === 'solo') desbloquearEstampasDosUltimos(d);
+    if (fim && MP.modo === 'solo') { desbloquearEstampasDosUltimos(d); concluirMissoesDaPartida(d); }
     aplicarFim(d);
 
     const avancar = criarAvancar(fim, saindo);
@@ -1975,6 +1996,15 @@ async function carregarEstampasUsuario() {
             }
         } catch (e) { console.warn('Estampas: usando cache local até sincronizar com o banco.', e); }
     }
+    if (getSB() && SES.token && usuarioAtual) {
+        try {
+            const mr = await rpc('missoes_listar', { p_usuario: usuarioAtual.usuario, p_token: SES.token });
+            (mr && mr.desbloqueadas || []).forEach(x => MISSION_UNLOCKS.add(x.missao_id));
+            (mr && mr.recompensas || []).forEach(r => { if (Number(r.estampa_id) > 0) ESTAMPAS_USUARIO.add(Number(r.estampa_id)); });
+            salvarCacheEstampas();
+            salvarMissoesLocais();
+        } catch (e) { console.warn('Missões: não foi possível sincronizar agora.', e); }
+    }
     if (!ESTAMPAS_USUARIO.has(Number(ESTAMPA_ATIVA)) && ESTAMPA_ATIVA !== 'padrao') ESTAMPA_ATIVA = 'padrao';
     estampasCarregando = false;
 }
@@ -2022,8 +2052,68 @@ function pulsarEstampa(origem) {
     ], { duration: 3000, easing: 'ease-in-out', fill: 'forwards' });
     a.onfinish = fim; a.oncancel = fim;
 }
+// ================= MISSÕES E RECOMPENSAS (V80) =================
+let MISSION_UNLOCKS = new Set();
+const MISSION_LOCAL_KEY = 'copasMissoesDesbloqueadas';
+function carregarMissoesLocais() {
+    try {
+        const v = JSON.parse(localStorage.getItem(`${MISSION_LOCAL_KEY}:${usuarioAtual?.usuario || 'anon'}`) || '[]');
+        (Array.isArray(v) ? v : []).forEach(id => MISSION_UNLOCKS.add(id));
+    } catch (e) { MISSION_UNLOCKS = new Set(); }
+}
+function salvarMissoesLocais() {
+    try { localStorage.setItem(`${MISSION_LOCAL_KEY}:${usuarioAtual?.usuario || 'anon'}`, JSON.stringify([...MISSION_UNLOCKS])); } catch (e) {}
+}
+async function concluirMissoesDaPartida(d) {
+    if (!usuarioAtual || !jogadorHumano || !Array.isArray(window.MISSOES)) return;
+    const participantes = new Set((d.pers || []).map(Number));
+    const venceu = (d.vencIds || []).map(Number).includes(Number(jogadorHumano.id));
+    if (!venceu) return;
+    for (const missao of window.MISSOES) {
+        if (MISSION_UNLOCKS.has(missao.id)) continue;
+        const requisitos = missao.personagensNecessarios || [];
+        if (!requisitos.every(id => participantes.has(Number(id)))) continue;
+        MISSION_UNLOCKS.add(missao.id);
+        const recompensa = missao.recompensa || {};
+        if (recompensa.estampaId) ESTAMPAS_USUARIO.add(Number(recompensa.estampaId));
+        salvarCacheEstampas();
+        salvarMissoesLocais();
+        if (getSB() && SES.token) {
+            try {
+                await rpc('missoes_concluir', {
+                    p_usuario: usuarioAtual.usuario, p_token: SES.token,
+                    p_missao: missao.id,
+                    p_personagem: Number(recompensa.personagemId || 0),
+                    p_estampa: Number(recompensa.estampaId || 0)
+                });
+            } catch (e) { console.warn('Missão concluída localmente; sincronização com o banco pendente.', e); }
+        }
+        avisoTemp(`🏆 Missão concluída: ${missao.nome}! ${recompensa.nomePersonagem || 'Recompensa'} liberado(a)!`, 6000);
+    }
+}
+function abrirMissoes() {
+    carregarMissoesLocais();
+    const lista = $('listaMissoes');
+    lista.textContent = '';
+    (window.MISSOES || []).forEach(m => {
+        const concluida = MISSION_UNLOCKS.has(m.id);
+        const card = document.createElement('div');
+        card.className = 'missao-card';
+        const titulo = document.createElement('h3'); titulo.textContent = `${concluida ? '✅' : '🔒'} ${m.nome}`;
+        const desc = document.createElement('p'); desc.textContent = m.descricao;
+        const premio = document.createElement('p'); premio.textContent = `Recompensa: ${m.recompensa.nomePersonagem} + estampa ${m.recompensa.estampaId}`;
+        const status = document.createElement('p'); status.className = 'missao-status' + (concluida ? ' concluida' : '');
+        status.textContent = concluida ? 'Missão concluída — recompensa liberada' : 'Ainda não concluída';
+        card.append(titulo, desc, premio, status);
+        lista.appendChild(card);
+    });
+    $('telaMissoes').classList.remove('escondido');
+}
+$('btnModoMissoes').onclick = abrirMissoes;
+$('btnFecharMissoes').onclick = () => $('telaMissoes').classList.add('escondido');
+$('telaMissoes').addEventListener('click', e => { if (e.target === $('telaMissoes')) $('telaMissoes').classList.add('escondido'); });
+
 function abrirColecaoEstampas() {
-    if (!souAdmin()) return;
     const grade = $('gradeEstampas'); grade.textContent = '';
     const itens = [{ id: 'padrao', nome: 'Padrão' }, ...[...estampasDesbloqueadas()].sort((a,b)=>a-b).map(id => ({ id: String(id), nome: (PERSONAGENS.find(p => p.id === id) || {}).nome || `Personagem ${id}` }))];
     const ativa = estampaSelecionada();
@@ -2694,7 +2784,8 @@ try {
     const s = JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null');
     if (s && s.usuario && PERSONAGENS.some(p => p.id === s.personagem)) usuarioAtual = s;
 } catch (e) {}
-const personagemDoUsuario = () => usuarioAtual ? PERSONAGENS.find(p => p.id === usuarioAtual.personagem) : null;
+carregarMissoesLocais();
+const personagemDoUsuario = () => USUARIOS.personagemDaConta(usuarioAtual, PERSONAGENS);
 
 function abrirAcesso() {
     if (usuarioAtual) { validarEIrParaModo(); return; }
@@ -2707,7 +2798,7 @@ function irParaModo() {
     jogadorHumano = personagemDoUsuario();
     if (!jogadorHumano) { deslogar('Personagem não encontrado. Entre novamente.'); return; }
     $('btnModoAdmin').classList.toggle('escondido', !souAdmin());
-    $('btnModoEstampas').classList.toggle('escondido', !souAdmin());
+    $('btnModoEstampas').classList.remove('escondido');
     $('modoFoto').src = jogadorHumano.foto;
     $('modoNome').textContent = `${jogadorHumano.nome} (${usuarioAtual.usuario})`;
     mostrarTela('telaModo');
@@ -2717,7 +2808,7 @@ function irParaModo() {
 async function fazerLogin() {
     const erro = $('acessoErro');
     if (!getSB()) { erro.textContent = MSG_CONFIG.split('\n')[0]; return; }
-    const u = $('inpUsuario').value.trim().toLowerCase(), s = $('inpSenha').value;
+    const u = USUARIOS.normalizarLogin($('inpUsuario').value), s = $('inpSenha').value;
     if (!u || !s) { erro.textContent = 'Digite o usuário e a senha.'; return; }
     $('btnEntrar').disabled = true; erro.textContent = 'Entrando…';
     try {
