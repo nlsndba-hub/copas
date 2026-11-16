@@ -836,3 +836,29 @@ body[data-tela="jogo"] .painel-chat.chat-teclado-aberto {
 .carta.verso { overflow: hidden; }
 .carta.verso .imagem-estampa-carta { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .carta.verso:has(.imagem-estampa-carta)::after { content: none; }
+
+
+/* V58 — chat em portal no topo absoluto da interface. Não cria/recalcula layout do jogo. */
+body > #btnChat { z-index: 2147483000 !important; }
+body > #painelChat {
+    position: fixed !important;
+    z-index: 2147483001 !important;
+    isolation: isolate;
+    contain: layout paint;
+    max-height: min(70dvh, 520px);
+}
+body[data-tela="jogo"] > #painelChat { background: rgba(12, 30, 14, .5) !important; }
+body > #painelChat.chat-teclado-aberto {
+    left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    width: auto !important;
+    max-height: var(--chat-visual-height, 70dvh) !important;
+    overflow: hidden !important;
+}
+body > #painelChat.chat-teclado-aberto .chat-msgs { min-height: 24px; overflow-y: auto; }
+body > #painelChat.chat-teclado-aberto .chat-linha { flex: 0 0 auto; }
+/* O PNG fica na camada superior do verso, sem ser coberto pelo ornamento padrão. */
+.carta.verso { position: relative; isolation: isolate; }
+.carta.verso::after { z-index: 1; pointer-events: none; }
+.carta.verso .imagem-estampa-carta { z-index: 2 !important; object-fit: fill; border-radius: 2px; }
+.preview-estampa img { object-fit: fill; }

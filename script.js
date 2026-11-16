@@ -1285,7 +1285,7 @@ function criarVersoCarta() {
         const img = document.createElement('img');
         img.className = 'imagem-estampa-carta';
         img.alt = ''; img.draggable = false;
-        img.src = `estampa/${estampa}.png`;
+        img.src = srcEstampa(estampa);
         img.onerror = () => img.remove(); // sem arquivo correspondente: mantém o verso padrão
         d.appendChild(img);
     }
@@ -1919,34 +1919,73 @@ function tick() {
     if (MP.modo === 'misto' && restante() <= 0) iniciarMP();   // fim dos 2 min: máquinas completam
 }
 
-// ================= COLEÇÃO DE ESTAMPAS (somente Nelson) =================
-const ESTAMPAS_KEY = 'copasEstampasDesbloqueadas';
+// ================= COLEÇÃO DE ESTAMPAS (persistência por usuário) =================
+const ESTAMPAS_KEY = 'copasEstampasDesbloqueadas'; // cache legado/local
 const ESTAMPA_ATIVA_KEY = 'copasEstampaAtiva';
-function estampasDesbloqueadas() {
-    try { return new Set((JSON.parse(localStorage.getItem(ESTAMPAS_KEY) || '[]') || []).map(Number)); }
-    catch (e) { return new Set(); }
+let ESTAMPAS_USUARIO = new Set();
+let ESTAMPA_ATIVA = 'padrao';
+let estampasCarregando = false;
+function chaveEstampasLocal() { return `${ESTAMPAS_KEY}:${usuarioAtual?.usuario || 'anon'}`; }
+function chaveEstampaAtivaLocal() { return `${ESTAMPA_ATIVA_KEY}:${usuarioAtual?.usuario || 'anon'}`; }
+function estampasDesbloqueadas() { return new Set(ESTAMPAS_USUARIO); }
+function estampaSelecionada() { return ESTAMPAS_USUARIO.has(Number(ESTAMPA_ATIVA)) || ESTAMPA_ATIVA === 'padrao' ? ESTAMPA_ATIVA : 'padrao'; }
+function arquivoEstampa(personagemId) {
+    const p = PERSONAGENS.find(x => Number(x.id) === Number(personagemId));
+    if (!p) return `${personagemId}.png`;
+    const nome = p.fotoNome || (p.foto || '').split('/').pop() || `${personagemId}.png`;
+    return nome.replace(/^.*[\\/]/, '').replace(/\.(jpe?g|webp)$/i, '.png');
 }
-function estampaSelecionada() {
+function srcEstampa(personagemId) { return `estampa/${encodeURIComponent(arquivoEstampa(personagemId))}`; }
+function salvarCacheEstampas() {
     try {
-        const id = localStorage.getItem(ESTAMPA_ATIVA_KEY) || 'padrao';
-        return id === 'padrao' || estampasDesbloqueadas().has(Number(id)) ? id : 'padrao';
-    } catch (e) { return 'padrao'; }
+        localStorage.setItem(chaveEstampasLocal(), JSON.stringify([...ESTAMPAS_USUARIO]));
+        localStorage.setItem(chaveEstampaAtivaLocal(), String(ESTAMPA_ATIVA));
+    } catch (e) {}
 }
-function salvarEstampaAtiva(id) {
-    try { localStorage.setItem(ESTAMPA_ATIVA_KEY, String(id)); } catch (e) {}
+async function carregarEstampasUsuario() {
+    if (!usuarioAtual) return;
+    estampasCarregando = true;
+    try {
+        const local = JSON.parse(localStorage.getItem(chaveEstampasLocal()) || '[]');
+        ESTAMPAS_USUARIO = new Set((Array.isArray(local) ? local : []).map(Number).filter(Number.isFinite));
+        ESTAMPA_ATIVA = localStorage.getItem(chaveEstampaAtivaLocal()) || 'padrao';
+    } catch (e) { ESTAMPAS_USUARIO = new Set(); ESTAMPA_ATIVA = 'padrao'; }
+    if (getSB() && SES.token) {
+        try {
+            const r = await rpc('estampas_listar', { p_usuario: usuarioAtual.usuario, p_token: SES.token });
+            if (r && r.ok) {
+                ESTAMPAS_USUARIO = new Set((r.desbloqueadas || []).map(Number).filter(Number.isFinite));
+                ESTAMPA_ATIVA = String(r.ativa || 'padrao');
+                salvarCacheEstampas();
+            }
+        } catch (e) { console.warn('Estampas: usando cache local até sincronizar com o banco.', e); }
+    }
+    if (!ESTAMPAS_USUARIO.has(Number(ESTAMPA_ATIVA)) && ESTAMPA_ATIVA !== 'padrao') ESTAMPA_ATIVA = 'padrao';
+    estampasCarregando = false;
 }
-function desbloquearEstampasDosUltimos(d) {
+async function salvarEstampaAtiva(id) {
+    ESTAMPA_ATIVA = String(id);
+    salvarCacheEstampas();
+    if (getSB() && SES.token && usuarioAtual) {
+        try { await rpc('estampas_selecionar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_personagem: id === 'padrao' ? null : Number(id) }); }
+        catch (e) { console.warn('Estampa escolhida ficou salva localmente; sincronização pendente.', e); }
+    }
+}
+async function desbloquearEstampasDosUltimos(d) {
     const maximo = Math.max(...d.totais);
-    const desbloqueadas = estampasDesbloqueadas();
-    let mudou = false;
+    const novos = [];
     d.totais.forEach((total, i) => {
-        // Só desbloqueia personagens-máquina que terminaram em último lugar.
         if (i > 0 && total === maximo) {
             const id = Number(d.pers[i]);
-            if (Number.isFinite(id) && !desbloqueadas.has(id)) { desbloqueadas.add(id); mudou = true; }
+            if (Number.isFinite(id) && !ESTAMPAS_USUARIO.has(id)) { ESTAMPAS_USUARIO.add(id); novos.push(id); }
         }
     });
-    if (mudou) { try { localStorage.setItem(ESTAMPAS_KEY, JSON.stringify([...desbloqueadas])); } catch (e) {} }
+    if (!novos.length) return;
+    salvarCacheEstampas();
+    if (getSB() && SES.token && usuarioAtual) {
+        try { await rpc('estampas_desbloquear', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_personagens: novos }); }
+        catch (e) { console.warn('Estampas desbloqueadas no aparelho; sincronização com o banco pendente.', e); }
+    }
 }
 function abrirColecaoEstampas() {
     if (!souAdmin()) return;
@@ -1958,14 +1997,14 @@ function abrirColecaoEstampas() {
         btn.className = 'item-estampa' + (String(item.id) === ativa ? ' selecionada' : '');
         const preview = document.createElement('div'); preview.className = 'preview-estampa';
         if (item.id !== 'padrao') {
-            const img = document.createElement('img'); img.src = `estampa/${item.id}.png`; img.alt = '';
+            const img = document.createElement('img'); img.src = srcEstampa(item.id); img.alt = '';
             img.onerror = () => { img.remove(); preview.classList.add('estampa-padrao-fallback'); };
             preview.appendChild(img);
         } else preview.classList.add('estampa-padrao-fallback');
         const nome = document.createElement('span'); nome.textContent = item.nome;
         btn.append(preview, nome);
-        btn.onclick = () => {
-            salvarEstampaAtiva(item.id);
+        btn.onclick = async () => {
+            await salvarEstampaAtiva(item.id);
             document.querySelectorAll('.item-estampa').forEach(x => x.classList.remove('selecionada'));
             btn.classList.add('selecionada');
             if (G) render();
@@ -2636,6 +2675,7 @@ function irParaModo() {
     $('modoFoto').src = jogadorHumano.foto;
     $('modoNome').textContent = `${jogadorHumano.nome} (${usuarioAtual.usuario})`;
     mostrarTela('telaModo');
+    carregarEstampasUsuario().then(() => { if (G) render(); });
     if (!SES.tPing) iniciarSessao();
 }
 async function fazerLogin() {
@@ -2844,58 +2884,56 @@ async function carregarChat() {
     } catch (e) { /* tenta no próximo ciclo */ }
     finally { SES.carregando = false; }
 }
-// Guarda a altura da área disponível antes da abertura do teclado. Em alguns
-// Androids o teclado reduz também window.innerHeight; em outros, só visualViewport.
-let alturaChatSemTeclado = Math.max(
-    window.innerHeight || 0,
-    window.visualViewport ? window.visualViewport.height : 0
-);
+// O painel de chat é um portal direto no BODY: fica fora das camadas/transformações
+// do tabuleiro e não participa do cálculo de escala das cartas e fotos.
+function elevarChatParaCamadaSuperior() {
+    const botao = $('btnChat'), painel = $('painelChat');
+    if (botao && botao.parentElement !== document.body) document.body.appendChild(botao);
+    if (painel && painel.parentElement !== document.body) document.body.appendChild(painel);
+}
+elevarChatParaCamadaSuperior();
+let alturaChatSemTeclado = window.innerHeight || document.documentElement.clientHeight;
 function atualizarViewportChat() {
     const vv = window.visualViewport;
-    const raiz = document.documentElement;
-    const inp = $('chatInp');
     const painel = $('painelChat');
-    if (!vv || !painel) return;
-
-    const alturaVisivel = Math.max(0, vv.height);
-    const campoEmFoco = !!inp && document.activeElement === inp;
-    const tecladoDetectado = campoEmFoco && (alturaChatSemTeclado - alturaVisivel > 80);
-
-    // Se o navegador já redimensionou o layout, o bottom do fixed já termina
-    // acima do teclado. Caso contrário, compensamos a parte coberta pelo teclado.
-    const layoutRedimensionado = window.innerHeight < alturaChatSemTeclado - 80;
-    const deslocamentoTeclado = tecladoDetectado && !layoutRedimensionado
-        ? Math.max(0, alturaChatSemTeclado - alturaVisivel - vv.offsetTop)
-        : 0;
-
-    raiz.style.setProperty('--chat-visual-height', `${alturaVisivel}px`);
-    raiz.style.setProperty('--chat-keyboard-gap', `${deslocamentoTeclado}px`);
-    painel.classList.toggle('chat-teclado-aberto', tecladoDetectado);
+    if (!painel) return;
+    const focado = document.activeElement === $('chatInp');
+    const altura = vv ? vv.height : (window.innerHeight || document.documentElement.clientHeight);
+    const topoViewport = vv ? vv.offsetTop : 0;
+    const teclado = focado && alturaChatSemTeclado - altura > 80;
+    painel.classList.toggle('chat-teclado-aberto', teclado);
+    if (teclado) {
+        // Posiciona o painel dentro do retângulo visível do navegador, acima do teclado.
+        const maxH = Math.max(150, altura - 20);
+        painel.style.top = `${Math.max(6, topoViewport + 8)}px`;
+        painel.style.bottom = 'auto';
+        painel.style.maxHeight = `${maxH}px`;
+        painel.style.setProperty('--chat-visual-height', `${altura}px`);
+    } else {
+        painel.style.top = '';
+        painel.style.bottom = '';
+        painel.style.maxHeight = '';
+        if (!focado) alturaChatSemTeclado = Math.max(window.innerHeight || 0, vv ? vv.height : 0);
+    }
 }
 function focarCampoChat() {
-    // Reposiciona imediatamente e novamente após o Android terminar de abrir o teclado.
+    elevarChatParaCamadaSuperior();
     $('painelChat').classList.add('chat-teclado-aberto');
     atualizarViewportChat();
-    requestAnimationFrame(() => {
-        atualizarViewportChat();
-        if (window.visualViewport) setTimeout(atualizarViewportChat, 180);
-        setTimeout(atualizarViewportChat, 400);
-    });
+    requestAnimationFrame(() => { atualizarViewportChat(); setTimeout(atualizarViewportChat, 120); setTimeout(atualizarViewportChat, 350); });
 }
 if (window.visualViewport) {
     visualViewport.addEventListener('resize', atualizarViewportChat);
     visualViewport.addEventListener('scroll', atualizarViewportChat);
 }
+window.addEventListener('resize', atualizarViewportChat);
 $('chatInp').addEventListener('focus', focarCampoChat);
-$('chatInp').addEventListener('blur', () => {
-    setTimeout(() => {
-        alturaChatSemTeclado = Math.max(window.innerHeight || 0, window.visualViewport ? window.visualViewport.height : 0);
-        atualizarViewportChat();
-    }, 180);
-});
+$('chatInp').addEventListener('blur', () => setTimeout(atualizarViewportChat, 180));
 
 function abrirChat() {
     if (!usuarioAtual) return;
+    elevarChatParaCamadaSuperior();
+    alturaChatSemTeclado = Math.max(window.innerHeight || 0, window.visualViewport ? window.visualViewport.height : 0);
     SES.aberto = true;
     $('chatLimpar').classList.toggle('escondido', !souAdmin());
     $('painelChat').classList.remove('escondido');
