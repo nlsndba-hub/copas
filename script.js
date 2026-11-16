@@ -204,14 +204,18 @@ let filaMaquinas = [];
 let maquinasEliminadas = [];
 
 function sortearBotsSozinho(personagemHumano, quantidade) {
-    // Cada personagem especial tem sua própria chance de 10%, mas só entra
-    // no sorteio depois que o usuário concluiu a missão correspondente.
+    // Personagens especiais continuam dependendo das missões e da chance individual.
     const especiais = PERSONAGENS.filter(p => p.somenteBot && p.chanceSolo > 0 && p.missaoId && MISSION_UNLOCKS.has(p.missaoId));
     const escolhidos = [];
     especiais.forEach(p => {
         if (escolhidos.length < quantidade && Math.random() < Number(p.chanceSolo)) escolhidos.push(p);
     });
-    const pool = embaralhar(PERSONAGENS.filter(p => !p.somenteBot && p.id !== personagemHumano.id));
+    const disponiveis = PERSONAGENS.filter(p => !p.somenteBot && p.id !== personagemHumano.id);
+    const fracos = embaralhar(disponiveis.filter(p => PERFIL_BOT[p.id] === 'fraco'));
+    // No modo Sozinho, sempre haverá pelo menos um bot fraco, se houver vaga.
+    if (quantidade > escolhidos.length && fracos.length) escolhidos.push(fracos.shift());
+    const jaEscolhidos = new Set(escolhidos.map(p => p.id));
+    const pool = embaralhar(disponiveis.filter(p => !jaEscolhidos.has(p.id)));
     while (escolhidos.length < quantidade && pool.length) escolhidos.push(pool.shift());
     return escolhidos;
 }
@@ -1225,16 +1229,63 @@ function montarEstadoIA(i) {
     };
 }
 
-// Escolhe a carta da máquina conforme o nível da partida.
+// Perfil individual dos bots. A dificuldade da partida também pesa:
+// no Mestre eles cometem menos erros; no Normal, mais.
+const PERFIL_BOT = {
+    1: 'forte', 5: 'forte', 6: 'forte', 8: 'forte',
+    2: 'medio', 3: 'medio', 4: 'medio', 7: 'medio',
+    9: 'fraco', 10: 'fraco', 11: 'fraco', 12: 'fraco',
+    13: 'fraco', 14: 'fraco', 15: 'fraco'
+};
+const CHANCE_ERRO_BOT = { forte: 0.035, medio: 0.17, fraco: 0.43 };
+
+// Escolhe a carta considerando o nível global e a capacidade do personagem.
 function escolherBot(i) {
-    if (G.nivel === 'normal') return escolherBotV7(i);
+    const mao = G.maos[i];
+    const legais = mao.filter(c => !validar(i, c)); // Bots nunca renunciam.
+    if (!legais.length) return mao[0];
+
+    let escolha;
     try {
         const S = montarEstadoIA(i);
-        const codigo = G.nivel === 'mestre' ? IA.mestre(S, i, 110) : IA.dificil(S, i);
-        const carta = G.maos[i].find(c => c.naipe * 13 + c.valor === codigo);
-        if (carta && !validar(i, carta)) return carta;
+        const codigo = G.nivel === 'mestre'
+            ? IA.mestre(S, i, 110)
+            : G.nivel === 'normal' ? null : IA.dificil(S, i);
+        escolha = codigo == null
+            ? escolherBotV7(i)
+            : mao.find(c => c.naipe * 13 + c.valor === codigo);
     } catch (e) { console.warn('IA:', e); }
-    return escolherBotV7(i);
+    if (!escolha || validar(i, escolha)) escolha = escolherBotV7(i);
+
+    const perfil = PERFIL_BOT[G.personagens[i] && G.personagens[i].id] || 'medio';
+    const multiplicadorNivel = G.nivel === 'mestre' ? 0.55 : G.nivel === 'dificil' ? 0.78 : 1;
+    const chanceErro = CHANCE_ERRO_BOT[perfil] * multiplicadorNivel;
+    if (legais.length < 2 || Math.random() >= chanceErro) return escolha;
+
+    // Erros intencionais: não avalia bem os pontos, segura cartas altas
+    // e, principalmente nos bots fracos, pode entregar a Dama de Espadas.
+    const dama = legais.find(ehDama);
+    const cartasAltas = legais.filter(c => c.valor >= 9);
+    const opcoes = [];
+
+    // Dificuldade para passar a Dama: às vezes joga Q mesmo quando isso
+    // pode fazê-lo ganhar a vaza e assumir os 13 pontos.
+    if (dama && Math.random() < (perfil === 'fraco' ? 0.72 : perfil === 'medio' ? 0.30 : 0.08)) {
+        const projetado = vencedorProjetado([...G.mesa, { jogador: i, carta: dama }], G.mesa.length ? G.lider : dama.naipe);
+        if (projetado === i) return dama;
+    }
+
+    // Não percebe que está segurando carta alta: pode guardar a alta e jogar baixa.
+    if (cartasAltas.length && Math.random() < (perfil === 'fraco' ? 0.58 : perfil === 'medio' ? 0.25 : 0.07)) {
+        const baixas = legais.filter(c => c.valor <= 5 && !ehDama(c));
+        if (baixas.length) opcoes.push(baixas[Math.floor(Math.random() * baixas.length)]);
+    }
+
+    // Falha ao contar os pontos e perceber que pode evitar/distribuir os 26 pontos.
+    if (Math.random() < (perfil === 'fraco' ? 0.78 : perfil === 'medio' ? 0.32 : 0.10)) {
+        opcoes.push(legais[Math.floor(Math.random() * legais.length)]);
+    }
+    return opcoes.length ? opcoes[Math.floor(Math.random() * opcoes.length)] : escolha;
 }
 
 // ================= IA ESTRATÉGICA (V7 = nível Normal) =================
