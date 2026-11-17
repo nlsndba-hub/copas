@@ -1245,7 +1245,7 @@ html > #painelChat.chat-teclado-aberto .chat-bola {
 /* V92 · linha de sala com olhinho */
 .sala-linha { display: flex; gap: 6px; align-items: stretch; }
 .sala-linha .sala-item { flex: 1; }
-.sala-olho { width: 52px; border: 1px solid #4a7a5a; background: #161e18; color: #9fd3ae; border-radius: 8px; font-size: 20px; cursor: pointer; }
+.sala-olho { width: 96px; font-size: 14px; font-weight: bold; border: 1px solid #4a7a5a; background: #161e18; color: #9fd3ae; border-radius: 8px; cursor: pointer; }
 .sala-olho:active { background: #2e7d32; }
 
 /* V92 · botão de frases: mesma altura do chat, lado direito */

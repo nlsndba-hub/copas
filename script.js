@@ -2032,31 +2032,46 @@ function senhaAleatoria() {
 // ---------- canal em tempo real ----------
 async function conectarCanal(canal) {
     const sb = getSB();
-    const ch = sb.channel('mq-' + canal, { config: { broadcast: { self: false }, presence: { key: MP.pid } } });
-    MP.ch = ch; MP.ativo = true; MP.membros = []; MP.naEspera = false; MP.emJogo = false; MP.papel = null;
-    ch.on('presence', { event: 'sync' }, () => typeof aoPresenca === 'function' ? aoPresenca() : aoPresencaBase());
-    ch.on('broadcast', { event: 'snap' }, ({ payload }) => aoSnap(payload));
-    ch.on('broadcast', { event: 'jogar' }, ({ payload }) => aoJogar(payload));
-    ch.on('broadcast', { event: 'evt' }, ({ payload }) => aoEvento(payload));
-    ch.on('broadcast', { event: 'sig' }, ({ payload }) => aoSinal(payload));
-    ch.on('broadcast', { event: 'voz' }, ({ payload }) => setFalando(payload.pid, payload.on));
-    await new Promise((res, rej) => {
-        const t = setTimeout(() => rej(new Error('Tempo esgotado ao conectar')), 12000);
-        ch.subscribe(st => {
-            if (st === 'SUBSCRIBED') { clearTimeout(t); res(); }
-            else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(t); rej(new Error('Falha ao conectar (' + st + ')')); }
-        });
-    });
-    clearInterval(MP.tick); MP.tick = setInterval(tick, 500);
-    aoPresenca();
+    MP.ativo = true; MP.membros = []; MP.naEspera = false; MP.emJogo = false; MP.papel = null;
+    let ultimo = null;
+    for (let tent = 1; tent <= 3; tent++) {            // Supabase às vezes dá TIMED_OUT: tenta de novo com canal limpo
+        const ch = sb.channel('mq-' + canal, { config: { broadcast: { self: false }, presence: { key: MP.pid } } });
+        MP.ch = ch;
+        ch.on('presence', { event: 'sync' }, () => typeof aoPresenca === 'function' ? aoPresenca() : aoPresencaBase());
+        ch.on('broadcast', { event: 'snap' }, ({ payload }) => aoSnap(payload));
+        ch.on('broadcast', { event: 'jogar' }, ({ payload }) => aoJogar(payload));
+        ch.on('broadcast', { event: 'evt' }, ({ payload }) => aoEvento(payload));
+        ch.on('broadcast', { event: 'sig' }, ({ payload }) => aoSinal(payload));
+        ch.on('broadcast', { event: 'voz' }, ({ payload }) => setFalando(payload.pid, payload.on));
+        try {
+            await new Promise((res, rej) => {
+                const t = setTimeout(() => rej(new Error('Tempo esgotado ao conectar')), 10000);
+                ch.subscribe(st => {
+                    if (st === 'SUBSCRIBED') { clearTimeout(t); res(); }
+                    else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(t); rej(new Error('Falha ao conectar (' + st + ')')); }
+                });
+            });
+            clearInterval(MP.tick); MP.tick = setInterval(tick, 500);
+            aoPresenca();
+            return;
+        } catch (e) {
+            ultimo = e;
+            try { await sb.removeChannel(ch); } catch (e2) {}
+            MP.ch = null;
+            if (tent < 3) await new Promise(r => setTimeout(r, 800));
+        }
+    }
+    throw ultimo || new Error('Falha ao conectar');
 }
 function enviar(event, payload) { if (MP.ch) MP.ch.send({ type: 'broadcast', event, payload }); }
+function pingAgora() {
+    if (MP.sala && !MP.espectador && getSB()) rpc('ping_sala', { p_canal: MP.sala.canal, p_n: Math.max(1, MP.membros.length) }).catch(() => {});
+}
 function iniciarPing() {
     clearInterval(MP.tPing);
-    MP.tPing = setInterval(() => {
-        if (MP.sala && !MP.espectador && getSB()) rpc('ping_sala', { p_canal: MP.sala.canal, p_n: Math.max(1, MP.membros.length) }).catch(() => {});
-    }, 30000);
+    MP.tPing = setInterval(pingAgora, 20000);
 }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pingAgora(); });
 
 function aoPresencaBase() {
     if (!MP.ch) return;
@@ -2127,8 +2142,20 @@ function atualizarEspera() {
     marcarFalando();
 }
 
+function vigiarSalaVazia() {
+    if (MP.membros.length > 0) { MP.vazioDesde = 0; return; }
+    if (Date.now() - (MP.espectadorDesde || 0) < 6000) return;
+    if (!MP.vazioDesde) MP.vazioDesde = Date.now();
+    if (Date.now() - MP.vazioDesde < 4000) return;
+    const c = MP.sala && MP.sala.canal;
+    if (c && getSB()) rpc('ping_sala', { p_canal: c, p_n: 0 }).catch(() => {});   // ninguém jogando: zera a sala
+    sairParaMenu('telaModo');
+    setTimeout(() => alert('Essa sala foi encerrada: ninguém está jogando.'), 50);
+}
+
 function tick() {
     if (!MP.ativo) return;
+    if (MP.espectador) vigiarSalaVazia();
     atualizarFaixa();
     if (!MP.naEspera || MP.emJogo || MP.membros.some(m => m.jogando) || !souHost()) { MP.cheiaDesde = 0; return; }
     if (MP.membros.length >= 4) {                    // mesa cheia: começa na hora (sem máquinas)
@@ -2482,7 +2509,7 @@ async function entrarMisto() {
         MP.modo = 'misto';
         await conectarCanal(r.canal);
         iniciarPing(); await entrarNaEspera();
-    } catch (e) { alert('Não foi possível entrar no modo Misto: ' + (e.message || e)); sairSala(); }
+    } catch (e) { alert('Não foi possível entrar no modo Misto: ' + (e.message || e)); await sairSala(); MP.modo = 'solo'; abrirSalas('misto'); }
 }
 
 let listaModo = 'sala';
@@ -2491,7 +2518,7 @@ async function abrirSalas(modo) {
     listaModo = modo === 'misto' ? 'misto' : 'sala';
     const m = listaModo === 'misto';
     $('tituloSalas').textContent = m ? '👥 Salas Misto' : '🍺 Bares abertos';
-    $('subSalas').textContent = m ? 'Toque no 👁 para assistir uma sala, ou entre para jogar (a sala inicia em 30 segundos).' : 'Toque em um bar para entrar, ou crie o seu. Toque no 👁 para só assistir.';
+    $('subSalas').textContent = m ? 'Existe uma única sala Misto. Entre para jogar ou toque em 👁 Assistir.' : 'Toque em um bar para entrar, ou crie o seu. Toque no 👁 para só assistir.';
     $('btnJogarMisto').classList.toggle('escondido', !m);
     $('btnCriarSala').classList.toggle('escondido', m);
     mostrarTela('telaSalas');
@@ -2503,7 +2530,7 @@ async function carregarSalas() {
     const box = $('listaSalas'), m = listaModo === 'misto';
     try {
         const lista = await rpc(m ? 'listar_mistos' : 'listar_salas');
-        if (!lista || !lista.length) { box.innerHTML = '<div class="vazio">' + (m ? 'Nenhuma sala Misto aberta agora.' : 'Nenhum bar aberto agora. Crie o primeiro!') + '</div>'; return; }
+        if (!lista || !lista.length) { box.innerHTML = '<div class="vazio">' + (m ? 'Nenhuma partida Misto aberta. Toque em Jogar para abrir a sala (inicia em 30 s e as máquinas completam a mesa).' : 'Nenhum bar aberto agora. Crie o primeiro!') + '</div>'; return; }
         box.innerHTML = '';
         lista.forEach((s, k) => {
             const row = document.createElement('div');
@@ -2511,12 +2538,12 @@ async function carregarSalas() {
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 'sala-item' + (s.status === 'jogando' ? ' jogando' : '') + (!m && s.contagem >= 4 ? ' cheia' : '');
-            const n = document.createElement('b'); n.textContent = m ? 'Misto ' + (k + 1) : s.nome;
+            const n = document.createElement('b'); n.textContent = m ? 'Sala Misto' : s.nome;
             const i = document.createElement('span'); i.textContent = `${m ? '👥' : '🍺'} ${s.contagem}/4${s.status === 'jogando' ? ' · jogando' : ''}`;
             b.append(n, i);
             b.onclick = () => m ? $('btnJogarMisto').click() : entrarNaSala(s);
             const e = document.createElement('button');
-            e.type = 'button'; e.className = 'sala-olho'; e.textContent = '👁'; e.title = 'Assistir como telespectador';
+            e.type = 'button'; e.className = 'sala-olho'; e.textContent = '👁 Assistir'; e.title = 'Assistir como telespectador';
             e.onclick = () => assistirSala(s, m ? 'misto' : 'sala');
             row.append(b, e);
             box.appendChild(row);
@@ -2533,18 +2560,20 @@ async function entrarNaSala(s) {
         MP.offset = Date.parse(r.agora) - Date.now(); MP.modo = 'sala';
         await conectarCanal(r.canal);
         iniciarPing(); await entrarNaEspera();
-    } catch (e) { alert('Erro ao entrar na sala: ' + (e.message || e)); sairSala(); }
+    } catch (e) { alert('Erro ao entrar na sala: ' + (e.message || e)); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
 }
 $('btnCriarSala').onclick = async () => {
     const nome = nomeBarAleatorio(), senha = '';
+    let canalCriado = null;
     try {
         const r = await rpc('criar_sala', { p_nome: nome, p_senha: senha });
+        canalCriado = r.canal;
         clearInterval(MP.tLista);
         MP.sala = { id: r.id, canal: r.canal, nome, tipo: 'sala', senha };
         MP.offset = Date.parse(r.agora) - Date.now(); MP.modo = 'sala';
         await conectarCanal(r.canal);
         iniciarPing(); await entrarNaEspera();
-    } catch (e) { alert('Erro ao criar a sala: ' + (e.message || e)); sairSala(); }
+    } catch (e) { alert('Erro ao criar a sala: ' + (e.message || e)); if (canalCriado && getSB()) rpc('ping_sala', { p_canal: canalCriado, p_n: 0 }).catch(() => {}); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
 };
 
 async function entrarNaEspera() {
@@ -2557,9 +2586,9 @@ async function entrarNaEspera() {
     MP.volta = false;
     if (emJogo) {                                   // partida em andamento: só volta quem tem lugar vago na mesa
         const assento = emJogo.mesa.find(a => a.c === jogadorHumano.id && a.h);
-        if (!assento || MP.membros.some(m => m.char === jogadorHumano.id)) return recusa('Essa sala já está com partida em andamento.');
+        if (!assento || MP.membros.some(m => m.char === jogadorHumano.id)) return recusa('Essa sala já está com partida em andamento. Toque no 👁 para assistir.');
         MP.volta = true;
-    } else if (MP.membros.some(m => m.jogando)) return recusa('Essa sala já está com partida em andamento.');
+    } else if (MP.membros.some(m => m.jogando)) return recusa('Essa sala já está com partida em andamento. Toque no 👁 para assistir.');
     if (MP.membros.length >= 4 && !MP.membros.some(m => m.pid === MP.pid)) return recusa('A sala está cheia (4 jogadores).');
     if (MP.membros.some(m => m.char === jogadorHumano.id && m.pid !== MP.pid)) return recusa('Esse usuário já está nesta sala em outro aparelho.');
     MP.naEspera = true; MP.char = jogadorHumano.id; MP.ordem = Date.now() + MP.offset; MP.avisoEspera = '';
@@ -2576,11 +2605,12 @@ async function sairSala() {
     MP.ultimoSnap = null; MP.mesaMeta = ''; MP.volta = false;
     $('pausaJogo').classList.add('escondido');
     const ch = MP.ch, sala = MP.sala, restam = MP.membros.filter(m => m.pid !== MP.pid).length;
+    const estava = !MP.espectador && MP.membros.some(m => m.pid === MP.pid);   // falha ao conectar não pode apagar a sala dos outros
     MP.ch = null; MP.ativo = false; MP.emJogo = false; MP.papel = null; MP.naEspera = false;
     MP.membros = []; MP.falando.clear(); MP.sala = null; MP.ultimo = ''; MP.tDif = null; MP.espectador = false;
     $('btnChave').classList.add('escondido');
     if (ch) { try { await ch.untrack(); } catch (e) {} try { getSB().removeChannel(ch); } catch (e) {} }
-    if (sala && getSB()) rpc('ping_sala', { p_canal: sala.canal, p_n: restam }).catch(() => {});
+    if (sala && estava && getSB()) rpc('ping_sala', { p_canal: sala.canal, p_n: restam }).catch(() => {});
 }
 function sairParaMenu(destino) {
     if (G && G.timer) clearTimeout(G.timer);
@@ -3686,7 +3716,7 @@ async function assistirSala(s, tipo) {
         MP.offset = Date.parse(r.agora) - Date.now();
         if (tipo === 'misto') MP.inicio = Date.parse(r.inicio_em);
         MP.modo = tipo;
-        MP.espectador = true;
+        MP.espectador = true; MP.espectadorDesde = Date.now(); MP.vazioDesde = 0;
         await conectarCanal(r.canal);
         iniciarPing();
         await entrarNaEsperaEspectador();
