@@ -43,7 +43,21 @@ window.MISSOES = [
             estampa: 'estampa/102.png',
             audioEntrada: 'audio/102.mp3'
         }
-    }
+    },
+        {
+        id: 'missao_103',
+        nome: 'Reciclagem de papelão molhado',
+        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Ronaldo.',
+        personagensNecessarios: [1, 15],
+        recompensa: {
+            personagemId: 103,
+            estampaId: 103,
+            nomePersonagem: 'P. Molhado',
+            foto: 'fotos/103.png',
+            estampa: 'estampa/103.png',
+            audioEntrada: 'audio/103.mp3'
+        }
+    },
     
 ];
 
@@ -56,20 +70,7 @@ window.MISSOES = [
  * Os objetivos usam a regra: não terminar em último lugar.
  */
 /*
-    {
-        id: 'missao_103',
-        nome: 'Definir nome da missão 103',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Caio.',
-        personagensNecessarios: [1, 3],
-        recompensa: {
-            personagemId: 103,
-            estampaId: 103,
-            nomePersonagem: 'DEFINIR_NOME_103',
-            foto: 'fotos/103.png',
-            estampa: 'estampa/103.png',
-            audioEntrada: 'audio/103.mp3'
-        }
-    },
+
     {
         id: 'missao_104',
         nome: 'Definir nome da missão 104',
