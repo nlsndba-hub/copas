@@ -69,7 +69,7 @@ function criarElementoCarta(c, extra = '') {
 // ================= EFEITOS SONOROS (sintetizados, sem arquivos) =================
 const SFX = (() => {
     let ctx = null, ligado = true, ruido = null;
-    try { ligado = localStorage.getItem('miq_sfx') !== '0'; } catch (e) {}
+    // V92: o botão de som não controla mais os efeitos; eles ficam sempre ligados.
     const audio = () => {
         if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
@@ -287,6 +287,14 @@ function mostrarAlertaMesaMissao() {
     el._timer = setTimeout(() => el.classList.remove('ativo'), 3600);
 }
 // V92 — áudios da pasta audio/ (entrada dos personagens especiais): ficam registrados para poder parar.
+const AUDIO_PERS = (() => {
+    let ligado = true;
+    try { ligado = localStorage.getItem('miq_audio_pers') !== '0'; } catch (e) {}
+    return {
+        get ligado() { return ligado; },
+        alternar() { ligado = !ligado; try { localStorage.setItem('miq_audio_pers', ligado ? '1' : '0'); } catch (e) {} }
+    };
+})();
 const AUDIOS_ENTRADA = [];
 function pararAudiosEntrada() {
     while (AUDIOS_ENTRADA.length) {
@@ -297,7 +305,7 @@ function pararAudiosEntrada() {
 }
 function tocarAudioEntradaEspecial(personagens) {
     pararAudiosEntrada();                         // nova mesa: o áudio anterior não continua
-    if (!SFX.ligado) return;                      // botão de som desligado = sem esses áudios
+    if (!AUDIO_PERS.ligado) return;               // botão de som desligado = sem áudios de personagens
     const especiais = (personagens || []).filter(p => p && p.somenteBot && p.audioEntrada);
     // Se os dois personagens especiais forem sorteados na mesma partida,
     // toca os áudios em sequência para que um não corte o outro.
@@ -306,7 +314,7 @@ function tocarAudioEntradaEspecial(personagens) {
             const audio = new Audio(p.audioEntrada);
             audio.preload = 'auto';
             const it = { audio, tm: null };
-            it.tm = setTimeout(() => { if (SFX.ligado) audio.play().catch(() => {}); }, 500 + i * 1800);
+            it.tm = setTimeout(() => { if (AUDIO_PERS.ligado) audio.play().catch(() => {}); }, 500 + i * 1800);
             AUDIOS_ENTRADA.push(it);
         } catch (e) {}
     });
@@ -1018,11 +1026,11 @@ function desenharRanking() {
 $('btnRanking').onclick = abrirRankingGeral;
 function marcarSom() {
     const b = $('btnSom');
-    b.innerHTML = `<i class="fas fa-volume-${SFX.ligado ? 'high' : 'xmark'}"></i>`;
-    b.setAttribute('aria-pressed', String(!SFX.ligado));
-    b.title = SFX.ligado ? 'Efeitos sonoros ligados' : 'Efeitos sonoros desligados';
+    b.innerHTML = `<i class="fas fa-volume-${AUDIO_PERS.ligado ? 'high' : 'xmark'}"></i>`;
+    b.setAttribute('aria-pressed', String(!AUDIO_PERS.ligado));
+    b.title = AUDIO_PERS.ligado ? 'Áudios de personagens ligados' : 'Áudios de personagens desligados';
 }
-$('btnSom').onclick = () => { SFX.alternar(); if (!SFX.ligado) pararAudiosEntrada(); marcarSom(); };
+$('btnSom').onclick = () => { AUDIO_PERS.alternar(); if (!AUDIO_PERS.ligado) pararAudiosEntrada(); marcarSom(); };
 marcarSom();
 $('modalRanking').addEventListener('click', e => {
     if (e.target === $('modalRanking')) $('modalRanking').classList.add('escondido');
