@@ -1240,6 +1240,28 @@ html > #painelChat.chat-teclado-aberto .chat-bola {
 }
 
 /* V92 · alternar Jogar/Telespectador nas salas */
-.alterna-assistir { display: flex; gap: 6px; margin: 8px 0; }
-.alterna-assistir button { flex: 1; padding: 9px; border: 1px solid #4a7a5a; background: #161e18; color: #9fd3ae; border-radius: 8px; cursor: pointer; font-weight: bold; }
-.alterna-assistir button.ativo { background: #2e7d32; color: #fff; }
+
+
+/* V92 · linha de sala com olhinho */
+.sala-linha { display: flex; gap: 6px; align-items: stretch; }
+.sala-linha .sala-item { flex: 1; }
+.sala-olho { width: 52px; border: 1px solid #4a7a5a; background: #161e18; color: #9fd3ae; border-radius: 8px; font-size: 20px; cursor: pointer; }
+.sala-olho:active { background: #2e7d32; }
+
+/* V92 · botão de frases: mesma altura do chat, lado direito */
+.btn-frases { left: auto !important; right: calc(12px + env(safe-area-inset-right, 0px)); }
+html[data-tela="jogo"] .btn-frases, body[data-tela="jogo"] .btn-frases {
+    bottom: calc(var(--mao-h) + var(--safe-b) + var(--folga) + 8px) !important;
+    width: 44px; height: 44px; font-size: 19px;
+}
+.painel-frases { left: auto !important; right: calc(10px + env(safe-area-inset-right, 0px)); }
+html[data-tela="jogo"] .painel-frases, body[data-tela="jogo"] .painel-frases {
+    bottom: calc(var(--mao-h) + var(--safe-b) + var(--folga) + 60px) !important;
+}
+
+/* V92 · balão ao lado da foto de quem fala */
+.balao-frase { position: fixed !important; bottom: auto !important; left: auto; transform: translateY(-50%) !important; z-index: 6500 !important;
+    white-space: normal !important; width: max-content; overflow: visible; text-overflow: clip; animation: balaoEntrar2 .22s ease-out !important; }
+.balao-frase.balao-dir { border-radius: 10px 10px 10px 2px; }
+.balao-frase.balao-esq { border-radius: 10px 10px 2px 10px; }
+@keyframes balaoEntrar2 { from { opacity: 0; transform: translateY(-50%) scale(.9); } to { opacity: 1; transform: translateY(-50%) scale(1); } }

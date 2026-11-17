@@ -2054,14 +2054,14 @@ function enviar(event, payload) { if (MP.ch) MP.ch.send({ type: 'broadcast', eve
 function iniciarPing() {
     clearInterval(MP.tPing);
     MP.tPing = setInterval(() => {
-        if (MP.sala && getSB()) rpc('ping_sala', { p_canal: MP.sala.canal, p_n: Math.max(1, MP.membros.length) }).catch(() => {});
+        if (MP.sala && !MP.espectador && getSB()) rpc('ping_sala', { p_canal: MP.sala.canal, p_n: Math.max(1, MP.membros.length) }).catch(() => {});
     }, 30000);
 }
 
 function aoPresencaBase() {
     if (!MP.ch) return;
     const lista = [];
-    Object.values(MP.ch.presenceState()).forEach(arr => { const m = arr[arr.length - 1]; if (m && m.pid) lista.push(m); });
+    Object.values(MP.ch.presenceState()).forEach(arr => { const m = arr[arr.length - 1]; if (m && m.pid && !m.espectador) lista.push(m); });
     lista.sort((a, b) => a.ordem - b.ordem || a.pid.localeCompare(b.pid));
     MP.membros = lista;
     const vivos = new Set(lista.map(m => m.pid));
@@ -2460,11 +2460,8 @@ $('btnModoSozinho').onclick = () => {
     if (!jogadorHumano) { abrirAcesso(); return; }
     iniciarPartida();
 };
-$('btnModoMisto').onclick = () => { bloquearOrientacaoRetrato(); $('telaMistoEscolha').classList.remove('escondido'); };
-$('btnMistoJogar').onclick = () => { $('telaMistoEscolha').classList.add('escondido'); entrarMisto(); };
-$('btnMistoAssistir').onclick = () => { $('telaMistoEscolha').classList.add('escondido'); entrarMistoEspectador(); };
-$('btnMistoVoltar').onclick = () => $('telaMistoEscolha').classList.add('escondido');
-$('btnModoSala').onclick = () => { bloquearOrientacaoRetrato(); abrirSalas(); };
+$('btnModoMisto').onclick = () => { bloquearOrientacaoRetrato(); abrirSalas('misto'); };
+$('btnModoSala').onclick = () => { bloquearOrientacaoRetrato(); abrirSalas('sala'); };
 $('btnVoltarSalas').onclick = () => { clearInterval(MP.tLista); mostrarTela('telaModo'); };
 $('btnSairEspera').onclick = () => sairParaMenu('telaInicial');
 $('btnChave').onclick = () => {
@@ -2488,37 +2485,41 @@ async function entrarMisto() {
     } catch (e) { alert('Não foi possível entrar no modo Misto: ' + (e.message || e)); sairSala(); }
 }
 
-let salasAssistir = false;
-function ajustarAlternaSalas() {
-    $('btnSalasJogar').classList.toggle('ativo', !salasAssistir);
-    $('btnSalasAssistir').classList.toggle('ativo', salasAssistir);
-    $('btnCriarSala').classList.toggle('escondido', salasAssistir);
-}
-$('btnSalasJogar').onclick = () => { salasAssistir = false; ajustarAlternaSalas(); carregarSalas(); };
-$('btnSalasAssistir').onclick = () => { salasAssistir = true; ajustarAlternaSalas(); carregarSalas(); };
-async function abrirSalas() {
+let listaModo = 'sala';
+async function abrirSalas(modo) {
     if (!getSB()) { alert(MSG_CONFIG); return; }
-    salasAssistir = false; ajustarAlternaSalas();
+    listaModo = modo === 'misto' ? 'misto' : 'sala';
+    const m = listaModo === 'misto';
+    $('tituloSalas').textContent = m ? '👥 Salas Misto' : '🍺 Bares abertos';
+    $('subSalas').textContent = m ? 'Toque no 👁 para assistir uma sala, ou entre para jogar (a sala inicia em 30 segundos).' : 'Toque em um bar para entrar, ou crie o seu. Toque no 👁 para só assistir.';
+    $('btnJogarMisto').classList.toggle('escondido', !m);
+    $('btnCriarSala').classList.toggle('escondido', m);
     mostrarTela('telaSalas');
     await carregarSalas();
     clearInterval(MP.tLista); MP.tLista = setInterval(carregarSalas, 4000);
 }
+$('btnJogarMisto').onclick = () => { clearInterval(MP.tLista); entrarMisto(); };
 async function carregarSalas() {
-    if (salasAssistir) return carregarSalasEspectador();
-    const box = $('listaSalas');
+    const box = $('listaSalas'), m = listaModo === 'misto';
     try {
-        const lista = await rpc('listar_salas');
-        if (!lista || !lista.length) { box.innerHTML = '<div class="vazio">Nenhum bar aberto agora. Crie o primeiro!</div>'; return; }
+        const lista = await rpc(m ? 'listar_mistos' : 'listar_salas');
+        if (!lista || !lista.length) { box.innerHTML = '<div class="vazio">' + (m ? 'Nenhuma sala Misto aberta agora.' : 'Nenhum bar aberto agora. Crie o primeiro!') + '</div>'; return; }
         box.innerHTML = '';
-        lista.forEach(s => {
+        lista.forEach((s, k) => {
+            const row = document.createElement('div');
+            row.className = 'sala-linha';
             const b = document.createElement('button');
             b.type = 'button';
-            b.className = 'sala-item' + (s.status === 'jogando' ? ' jogando' : '') + (s.contagem >= 4 ? ' cheia' : '');
-            const n = document.createElement('b'); n.textContent = s.nome;
-            const i = document.createElement('span'); i.textContent = `🍺 ${s.contagem}/4${s.status === 'jogando' ? ' · jogando' : ''}`;
+            b.className = 'sala-item' + (s.status === 'jogando' ? ' jogando' : '') + (!m && s.contagem >= 4 ? ' cheia' : '');
+            const n = document.createElement('b'); n.textContent = m ? 'Misto ' + (k + 1) : s.nome;
+            const i = document.createElement('span'); i.textContent = `${m ? '👥' : '🍺'} ${s.contagem}/4${s.status === 'jogando' ? ' · jogando' : ''}`;
             b.append(n, i);
-            b.onclick = () => entrarNaSala(s);
-            box.appendChild(b);
+            b.onclick = () => m ? $('btnJogarMisto').click() : entrarNaSala(s);
+            const e = document.createElement('button');
+            e.type = 'button'; e.className = 'sala-olho'; e.textContent = '👁'; e.title = 'Assistir como telespectador';
+            e.onclick = () => assistirSala(s, m ? 'misto' : 'sala');
+            row.append(b, e);
+            box.appendChild(row);
         });
     } catch (e) { box.innerHTML = '<div class="vazio">Erro ao carregar as salas. Verifique a configuração do Supabase.</div>'; }
 }
@@ -3675,59 +3676,21 @@ $('btnAdmVoltar').onclick = () => { admMsg(''); mostrarTela('telaModo'); };
 // Clique no avatar de um jogador para ver suas cartas.
 // =====================================================================
 
-async function entrarMistoEspectador() {
+async function assistirSala(s, tipo) {
     if (!getSB()) { alert(MSG_CONFIG); return; }
     try {
-        const r = await rpc('entrar_misto');
-        MP.sala = { id: r.id, canal: r.canal, nome: 'Misto', tipo: 'misto', senha: '' };
-        MP.offset = Date.parse(r.agora) - Date.now();
-        MP.inicio = Date.parse(r.inicio_em);
-        MP.modo = 'misto';
-        MP.espectador = true;
-        await conectarCanal(r.canal);
-        iniciarPing();
-        await entrarNaEsperaEspectador();
-    } catch (e) { alert('Não foi possível entrar como telespectador: ' + (e.message || e)); MP.espectador = false; sairSala(); }
-}
-
-async function abrirSalasEspectador() {
-    if (!getSB()) { alert(MSG_CONFIG); return; }
-    mostrarTela('telaSalas');
-    await carregarSalasEspectador();
-    clearInterval(MP.tLista); MP.tLista = setInterval(carregarSalasEspectador, 4000);
-}
-
-async function carregarSalasEspectador() {
-    const box = $('listaSalas');
-    try {
-        const lista = await rpc('listar_salas');
-        if (!lista || !lista.length) { box.innerHTML = '<div class="vazio">Nenhum bar aberto agora.</div>'; return; }
-        box.innerHTML = '';
-        lista.forEach(s => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'sala-item' + (s.status === 'jogando' ? ' jogando' : '');
-            const n = document.createElement('b'); n.textContent = s.nome;
-            const i = document.createElement('span'); i.textContent = `👁 Assistir · ${s.contagem}/4${s.status === 'jogando' ? ' · jogando' : ''}`;
-            b.append(n, i);
-            b.onclick = () => entrarNaSalaEspectador(s);
-            box.appendChild(b);
-        });
-    } catch (e) { box.innerHTML = '<div class="vazio">Erro ao carregar as salas.</div>'; }
-}
-
-async function entrarNaSalaEspectador(s) {
-    try {
-        const r = await rpc('entrar_sala_aberta', { p_id: s.id });
-        if (!r || r.erro) { alert('Esse bar não existe mais.'); return carregarSalasEspectador(); }
+        const r = await rpc('assistir_sala', { p_id: s.id });
+        if (!r || r.erro) { alert('Essa sala não existe mais.'); return carregarSalas(); }
         clearInterval(MP.tLista);
-        MP.sala = { id: s.id, canal: r.canal, nome: r.nome, tipo: 'sala', senha: '' };
-        MP.offset = Date.parse(r.agora) - Date.now(); MP.modo = 'sala';
+        MP.sala = { id: s.id, canal: r.canal, nome: r.nome, tipo, senha: '' };
+        MP.offset = Date.parse(r.agora) - Date.now();
+        if (tipo === 'misto') MP.inicio = Date.parse(r.inicio_em);
+        MP.modo = tipo;
         MP.espectador = true;
         await conectarCanal(r.canal);
         iniciarPing();
         await entrarNaEsperaEspectador();
-    } catch (e) { alert('Erro ao entrar na sala: ' + (e.message || e)); MP.espectador = false; sairSala(); }
+    } catch (e) { alert('Não foi possível assistir (rode o SQL v92 no Supabase): ' + (e.message || e)); MP.espectador = false; sairSala(); }
 }
 
 async function entrarNaEsperaEspectador() {
@@ -3876,7 +3839,7 @@ const _aoPresencaOrig = aoPresenca;
 function aoPresenca() {
     if (!MP.ch) return;
     const lista = [];
-    Object.values(MP.ch.presenceState()).forEach(arr => { const m = arr[arr.length - 1]; if (m && m.pid) lista.push(m); });
+    Object.values(MP.ch.presenceState()).forEach(arr => { const m = arr[arr.length - 1]; if (m && m.pid && !m.espectador) lista.push(m); });
     lista.sort((a, b) => a.ordem - b.ordem || a.pid.localeCompare(b.pid));
     MP.membros = lista;
     const vivos = new Set(lista.map(m => m.pid));
@@ -3967,20 +3930,26 @@ function usarFrase(texto) {
     mostrarBalaoFrase(0, texto, true);
 }
 
+const _baloes = {};
 function mostrarBalaoFrase(assento, texto, meu) {
-    // assento = posição na mesa (0-3)
+    // assento = posição na mesa (0-3); o balão aparece ao lado da foto, como se o jogador falasse
     const box = $(`j${assento}`);
     if (!box) return;
-    // Remove balão anterior do mesmo assento
-    const anterior = box.querySelector('.balao-frase');
-    if (anterior) anterior.remove();
+    if (_baloes[assento]) { clearTimeout(_baloes[assento].t); _baloes[assento].el.remove(); }
+    const foto = box.querySelector('.avatar-jogador') || box;
+    const rb = box.getBoundingClientRect(), rf = foto.getBoundingClientRect();
     const balao = document.createElement('div');
-    balao.className = 'balao-frase' + (meu ? ' balao-meu' : '');
+    const aDireita = (rb.left + rb.width / 2) > window.innerWidth * 0.55;   // mesa à direita: balão para a esquerda
+    balao.className = 'balao-frase' + (meu ? ' balao-meu' : '') + (aDireita ? ' balao-esq' : ' balao-dir');
     balao.textContent = texto;
-    box.appendChild(balao);
-    clearTimeout(frasesBalaoTimer);
-    frasesBalaoTimer = setTimeout(() => { if (balao.parentNode) balao.remove(); }, 4500);
+    balao.style.top = (rf.top + rf.height / 2) + 'px';
+    if (aDireita) { balao.style.right = (window.innerWidth - rb.left + 8) + 'px'; balao.style.maxWidth = Math.max(80, rb.left - 16) + 'px'; }
+    else { balao.style.left = (rb.right + 8) + 'px'; balao.style.maxWidth = Math.max(80, window.innerWidth - rb.right - 16) + 'px'; }
+    document.body.appendChild(balao);
+    _baloes[assento] = { el: balao, t: setTimeout(() => { balao.remove(); delete _baloes[assento]; }, 4500) };
 }
+// botão e painel de frases ficam na raiz (fixos à direita, na altura do botão do chat)
+document.body.appendChild($('btnFrases')); document.body.appendChild($('painelFrases'));
 
 // Recebe frase de outro jogador via evento
 const _aoEventoOrig = aoEvento;

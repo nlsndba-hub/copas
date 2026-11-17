@@ -111,22 +111,12 @@
     <!-- LISTA DE SALAS (BARES) -->
     <div id="telaSalas" class="tela-overlay escondido">
         <div class="selecao-box caixa-modo">
-            <h1>🍺 Bares abertos</h1>
-            <p class="sub">Toque em um bar para entrar, ou crie o seu. Bares vazios somem sozinhos.</p>
-            <div class="alterna-assistir"><button type="button" id="btnSalasJogar" class="ativo">🍺 Jogar</button><button type="button" id="btnSalasAssistir">👁 Telespectador</button></div>
+            <h1 id="tituloSalas">🍺 Bares abertos</h1>
+            <p class="sub" id="subSalas">Toque em um bar para entrar, ou crie o seu. Toque no 👁 para só assistir.</p>
             <div id="listaSalas" class="lista-salas"></div>
+            <button type="button" id="btnJogarMisto" class="btn-modo escondido"><i class="fas fa-user-group"></i> Jogar (entrar ou criar sala)</button>
             <button type="button" id="btnCriarSala" class="btn-modo"><i class="fas fa-plus"></i> Criar sala</button>
             <button type="button" id="btnVoltarSalas" class="btn-sec">Voltar</button>
-        </div>
-    </div>
-
-    <!-- MISTO: jogar ou assistir -->
-    <div id="telaMistoEscolha" class="tela-overlay escondido">
-        <div class="selecao-box caixa-modo">
-            <h1>Misto</h1>
-            <button type="button" id="btnMistoJogar" class="btn-modo"><i class="fas fa-user-group"></i> Jogar</button>
-            <button type="button" id="btnMistoAssistir" class="btn-modo btn-modo-sec"><i class="fas fa-eye"></i> Entrar como telespectador</button>
-            <button type="button" id="btnMistoVoltar" class="btn-sec">Voltar</button>
         </div>
     </div>
 
