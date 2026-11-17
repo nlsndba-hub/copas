@@ -50,6 +50,7 @@
                 <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar e chame os amigos. Só humanos: a partida começa quando entrarem 4 jogadores</small></button>
                 <button type="button" id="btnModoMissoes" class="btn-modo-grande"><i class="fas fa-flag-checkered"></i><strong>Missões</strong><small>Conquiste personagens e estampas especiais</small></button>
                 <button type="button" id="btnModoEstampas" class="btn-modo-grande escondido"><i class="fas fa-images"></i><strong>Estampas</strong><small>Veja e escolha as costas de suas cartas desbloqueadas</small></button>
+                <button type="button" id="btnModoManutencao" class="btn-modo-grande escondido"><i class="fas fa-screwdriver-wrench"></i><strong>Jogo em manutenção</strong><small id="manutEstado">Desligada</small></button>
                 <button type="button" id="btnModoAdmin" class="btn-modo-grande escondido"><i class="fas fa-user-shield"></i><strong>Administrador</strong><small>Cadastrar usuários e trocar senhas</small></button>
             </div>
         </div>
@@ -63,6 +64,15 @@
             <p class="sub">Escolha uma estampa desbloqueada para o verso das cartas.</p>
             <div id="gradeEstampas" class="grade-estampas"></div>
             <button type="button" id="btnFecharEstampas" class="btn-sec">Voltar</button>
+        </div>
+    </div>
+
+    <!-- EM MANUTENÇÃO -->
+    <div id="telaManutencao" class="tela-overlay escondido">
+        <div class="selecao-box caixa-modo">
+            <h1>🛠 Em manutenção</h1>
+            <p class="sub">O jogo está em manutenção no momento. Esta tela libera sozinha quando terminar.</p>
+            <button type="button" id="btnManutSair" class="btn-sec">Trocar de usuário</button>
         </div>
     </div>
 

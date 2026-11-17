@@ -26,7 +26,7 @@ const MP = {
 };
 const VOZ = { pcs: {}, mic: null, ativo: false, token: 0, fonte: '', semClique: 0, negado: false };
 const TEMPO_MISTO = 30 * 1000;
-const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'telaMissoes', 'jogo'];
+const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'telaMissoes', 'telaManutencao', 'jogo'];
 let ultimaTela = '';
 function mostrarTela(id) {
     TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id));
@@ -151,9 +151,9 @@ function pararIntro() {
 $('btnIniciarMiquilino').addEventListener('click', async () => {
     tocarIntroUmaVez();
     abrirAcesso();
-    // O clique em Iniciar também solicita tela cheia.
+    // Tela cheia nunca abre sozinha: sempre pergunta antes.
     try {
-        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen && confirm('Deseja abrir o jogo em tela cheia?')) {
             await document.documentElement.requestFullscreen();
         }
     } catch (err) {
@@ -1969,7 +1969,7 @@ let camuflado = false;
 function alternarTelaCheia() {
     if (document.fullscreenElement) {
         if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
-    } else if (document.documentElement.requestFullscreen) {
+    } else if (document.documentElement.requestFullscreen && confirm('Deseja abrir o jogo em tela cheia?')) {
         document.documentElement.requestFullscreen().catch(() => {});
     }
 }
@@ -2003,7 +2003,7 @@ function getSB() {
     if (MP.sb) return MP.sb;
     const c = window.MIQ_SUPABASE || {};
     if (!c.url || !c.anonKey || /COLE_AQUI/.test(c.url + c.anonKey) || !window.supabase) return null;
-    MP.sb = window.supabase.createClient(c.url, c.anonKey, { realtime: { params: { eventsPerSecond: 20 } } });
+    MP.sb = window.supabase.createClient(c.url, c.anonKey, { realtime: { params: { eventsPerSecond: 20 }, timeout: 12000, heartbeatIntervalMs: 15000 } });
     return MP.sb;
 }
 async function rpc(nome, args) {
@@ -2045,7 +2045,7 @@ async function conectarCanal(canal) {
         ch.on('broadcast', { event: 'voz' }, ({ payload }) => setFalando(payload.pid, payload.on));
         try {
             await new Promise((res, rej) => {
-                const t = setTimeout(() => rej(new Error('Tempo esgotado ao conectar')), 10000);
+                const t = setTimeout(() => rej(new Error('Tempo esgotado ao conectar')), 14000);
                 ch.subscribe(st => {
                     if (st === 'SUBSCRIBED') { clearTimeout(t); res(); }
                     else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(t); rej(new Error('Falha ao conectar (' + st + ')')); }
@@ -3160,7 +3160,8 @@ function irParaModo() {
     $('btnModoEstampas').classList.remove('escondido');
     $('modoFoto').src = jogadorHumano.foto;
     $('modoNome').textContent = `${jogadorHumano.nome} (${usuarioAtual.usuario})`;
-    mostrarTela('telaModo');
+    $('btnModoManutencao').classList.toggle('escondido', !souAdmin());
+    mostrarTela(manutencao && !liberadoManut() ? 'telaManutencao' : 'telaModo');
     carregarEstampasUsuario().then(() => { if (G) render(); });
     if (!SES.tPing) iniciarSessao();
 }
@@ -3182,6 +3183,7 @@ async function fazerLogin() {
         } catch (e) {}
         erro.textContent = ''; $('inpSenha').value = '';
         try { await carregarExtras(); } catch (e) {}
+        await checarManutencao();
         irParaModo();
     } catch (e) { erro.textContent = 'Não foi possível entrar. Verifique a internet e tente de novo.'; }
     finally { $('btnEntrar').disabled = false; }
@@ -3266,6 +3268,7 @@ async function pingSessao() {
         }
         SES.online = r.online || [];
         desenharOnline();
+        checarManutencao();
         if (r.pver !== undefined && r.pver !== null) {
             if (SES.pver === null) SES.pver = r.pver;
             else if (r.pver !== SES.pver) { SES.pver = r.pver; carregarExtras(); }
@@ -3287,6 +3290,7 @@ async function validarEIrParaModo() {
             }
         } catch (e) { /* offline: deixa entrar; o ping seguinte confere */ }
         try { await carregarExtras(); } catch (e) {}
+        await checarManutencao();
         irParaModo();
     } else {
         deslogar('Entre novamente para continuar.');
@@ -3306,6 +3310,41 @@ function deslogar(msg, avisarServidor, motivo) {
 
 // ---------- conversa geral ----------
 const souAdmin = () => !!usuarioAtual && usuarioAtual.usuario === 'nelson';
+
+// =====================================================================
+// ===== V94 · JOGO EM MANUTENÇÃO =======================================
+// Nelson liga/desliga. Só Nelson, Ronaldo, Xandão e Dezinho continuam jogando;
+// os demais caem na tela "Em manutenção" (e voltam sozinhos quando acabar).
+// =====================================================================
+const MANUT_LIBERADOS = ['nelson', 'ronaldo', 'xandao', 'dezinho'];
+const semAcento = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+const liberadoManut = () => !!usuarioAtual && MANUT_LIBERADOS.includes(semAcento(usuarioAtual.usuario));
+let manutencao = false;
+async function checarManutencao() {
+    if (!getSB()) return;
+    try { aplicarManutencao((await rpc('manutencao_ler')) === true); } catch (e) { /* sem rede/SQL: mantém o estado atual */ }
+}
+function aplicarManutencao(on) {
+    manutencao = on;
+    $('manutEstado').textContent = on ? 'LIGADA — toque para desligar' : 'Desligada — toque para ligar';
+    if (!usuarioAtual) return;
+    const tela = $('telaManutencao'), visivel = !tela.classList.contains('escondido');
+    if (on && !liberadoManut() && !visivel) {
+        if (G || MP.ativo || MP.sala) sairParaMenu('telaManutencao');   // derruba da partida/sala
+        else mostrarTela('telaManutencao');
+    } else if (!on && visivel) irParaModo();
+}
+$('btnManutSair').onclick = () => deslogar('', true);
+$('btnModoManutencao').onclick = async () => {
+    if (!souAdmin()) return;
+    const novo = !manutencao;
+    if (!confirm(novo ? 'Ligar a manutenção? Todos serão derrubados, menos Nelson, Ronaldo, Xandão e Dezinho.' : 'Encerrar a manutenção e liberar o jogo para todos?')) return;
+    try {
+        const r = await rpc('manutencao_definir', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_ligado: novo });
+        if (r && r.erro) { alert('Não foi possível alterar: ' + r.erro); return; }
+        aplicarManutencao(novo);
+    } catch (e) { alert('Erro (rode o SQL v94 no Supabase): ' + (e.message || e)); }
+};
 const avisoChat = m => { $('chatAviso').textContent = m || ''; };
 const doisD = n => String(n).padStart(2, '0');
 function fmtDataHora(iso) {
