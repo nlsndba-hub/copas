@@ -2602,7 +2602,7 @@ async function sairSala() {
     falarParar();
     Object.keys(VOZ.pcs).forEach(fecharPC);
     clearInterval(MP.tick); clearInterval(MP.tPing); clearInterval(MP.tLista); clearTimeout(MP.tDif); clearTimeout(MP.tSaida);
-    MP.tkCli = null;
+    MP.tkCli = null; document.body.classList.remove('modo-espectador');
     MP.tSaida = null; MP.gid = null; MP.gidMorto = null; MP.avisoEspera = ''; MP.cheiaDesde = 0;
     MP.ultimoSnap = null; MP.mesaMeta = ''; MP.volta = false;
     $('pausaJogo').classList.add('escondido');
@@ -3800,7 +3800,7 @@ function aoSnapEspectador(payload) {
     g.distMsg = legendaCliente(g, false);
     const primeira = !MP.emJogo;
     if (primeira) {
-        MP.emJogo = true; MP.papel = 'espectador'; MP.naEspera = false; MP.volta = false; MP.mesaMeta = '';
+        document.body.classList.add('modo-espectador'); MP.emJogo = true; MP.papel = 'espectador'; MP.naEspera = false; MP.volta = false; MP.mesaMeta = '';
         jogadorHumano = g.personagens[0]; // usa o primeiro como referência para htmlFim etc.
         mostrarTela('jogo'); pararIntro();
         $('btnChave').classList.add('escondido');

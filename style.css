@@ -1269,3 +1269,6 @@ html[data-tela="jogo"] .painel-frases, body[data-tela="jogo"] .painel-frases {
 /* V95 · balão dos outros jogadores: embaixo da caixa, 3 s */
 .balao-frase.balao-baixo { transform: none !important; border-radius: 10px 10px 10px 10px; animation: balaoBaixo .2s ease-out !important; }
 @keyframes balaoBaixo { from { opacity: 0; } to { opacity: 1; } }
+
+/* V97 · mesa azul para o telespectador */
+body.modo-espectador { background: radial-gradient(circle, #2a6fc0 0%, #0f3566 100%); }
