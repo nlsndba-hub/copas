@@ -93,8 +93,21 @@ const SFX = (() => {
         src.connect(f); f.connect(g); g.connect(c.destination);
         src.start(t, Math.random() * 0.1); src.stop(t + dur + 0.02);
     }
+    function tom(freq, dur, vol, atraso) {
+        if (!ligado) return;
+        const c = audio(); if (!c) return;
+        const t = c.currentTime + (atraso || 0);
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = 'triangle'; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol * escala(), t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(c.destination);
+        o.start(t); o.stop(t + dur + 0.03);
+    }
     return {
         get ligado() { return ligado; },
+        conquista() { [659.25, 783.99, 987.77, 1318.5].forEach((f, i) => tom(f, 0.42, 0.22, i * 0.11)); },
         alternar() { ligado = !ligado; try { localStorage.setItem('miq_sfx', ligado ? '1' : '0'); } catch (e) {} if (ligado) this.dar(); },
         dar() { estalo(3600 + Math.random() * 1400, 1.1, 0.05, 0.22, 'bandpass'); },
         folhear() { estalo(2600 + Math.random() * 1800, 0.9, 0.04, 0.2, 'bandpass'); },
@@ -155,6 +168,16 @@ const PERSONAGENS = [
 ].map((nome, i) => ({ id: i + 1, nome, foto: `fotos/${i + 1}.png`, total: 0, pontosRank: 0 }));
 // Personagens especiais: catálogo separado, sem necessidade de conta.
 (window.PERSONAGENS_MISSAO || []).forEach(p => { if (!PERSONAGENS.some(x => x.id === p.id)) PERSONAGENS.push({ ...p, total: 0, pontosRank: 0 }); });
+// V90 — toda recompensa de missão vira um personagem especial automaticamente,
+// mesmo que ainda não esteja listado em personagens.js (ex.: Robô Maicon, 102).
+(window.MISSOES || []).forEach(m => {
+    const r = m.recompensa || {}, id = Number(r.personagemId);
+    if (!id || PERSONAGENS.some(x => x.id === id)) return;
+    PERSONAGENS.push({ id, nome: r.nomePersonagem || `Personagem ${id}`, foto: r.foto || `fotos/${id}.png`,
+        somenteBot: true, missaoId: m.id, audioEntrada: r.audioEntrada || `audio/${id}.mp3`, total: 0, pontosRank: 0 });
+});
+// V90 — chance (única, por partida) de UM personagem especial desbloqueado aparecer no modo Sozinho.
+const CHANCE_ESPECIAL_SOLO = 0.15;
 
 // Personagens cadastrados pelo administrador (V35): vêm do banco e ficam em cache neste aparelho.
 // Os 15 acima são fixos no código; os extras têm número de foto acima do maior fixo.
@@ -212,11 +235,13 @@ function sortearBotsSozinho(personagemHumano, quantidade, missaoAtiva = null) {
             if (p && p.id !== personagemHumano.id && !escolhidos.some(x => x.id === p.id) && escolhidos.length < quantidade) escolhidos.push(p);
         });
     }
-    // Personagens especiais continuam dependendo do desbloqueio da missão.
-    const especiais = PERSONAGENS.filter(p => p.somenteBot && p.chanceSolo > 0 && p.missaoId && MISSION_UNLOCKS.has(p.missaoId));
-    especiais.forEach(p => {
-        if (escolhidos.length < quantidade && Math.random() < Number(p.chanceSolo)) escolhidos.push(p);
-    });
+    // V90 — personagens especiais só entram depois de desbloqueados pela missão.
+    // Por partida: 15% de chance de aparecer, e no máximo UM especial na mesa.
+    carregarMissoesLocais();
+    const especiais = PERSONAGENS.filter(p => p.somenteBot && p.missaoId && MISSION_UNLOCKS.has(p.missaoId));
+    if (especiais.length && escolhidos.length < quantidade && Math.random() < CHANCE_ESPECIAL_SOLO) {
+        escolhidos.push(especiais[Math.floor(Math.random() * especiais.length)]);
+    }
     const ids = new Set(escolhidos.map(p => p.id));
     const pool = embaralhar(PERSONAGENS.filter(p => !p.somenteBot && p.id !== personagemHumano.id && !ids.has(p.id)));
     while (escolhidos.length < quantidade && pool.length) escolhidos.push(pool.shift());
@@ -234,10 +259,15 @@ function prepararMissaoDaMesa(personagemHumano) {
     contadores[chave] = (Number(contadores[chave]) || 0) + 1;
     try { localStorage.setItem(CHAVE_CONTADOR_MISSOES, JSON.stringify(contadores)); } catch (e) {}
     if (contadores[chave] % 3 !== 0) return null;
-    const candidatas = (window.MISSOES || []).filter(m => !MISSION_UNLOCKS.has(m.id)
-        && (m.personagensNecessarios || []).length > 0
-        && (m.personagensNecessarios || []).every(id => Number(id) !== Number(personagemHumano.id)
-            && PERSONAGENS.some(p => p.id === Number(id) && !p.somenteBot)));
+    // V90 — se o personagem do usuário é um dos objetivos, a missão só precisa dos outros.
+    const candidatas = (window.MISSOES || []).filter(m => {
+        if (MISSION_UNLOCKS.has(m.id)) return false;
+        const req = (m.personagensNecessarios || []).map(Number);
+        if (!req.length) return false;
+        if (!req.every(id => PERSONAGENS.some(p => p.id === id && !p.somenteBot))) return false;
+        const outros = req.filter(id => id !== Number(personagemHumano.id));
+        return outros.length > 0 && outros.length <= 3;
+    });
     return candidatas.length ? candidatas[Math.floor(Math.random() * candidatas.length)] : null;
 }
 
@@ -302,7 +332,7 @@ function iniciarPartida(hum) {
     cartaSelecionadaId = null;
     PERSONAGENS.forEach(p => { p.total = 0; });
     const idsHum = new Set(hum.map(h => h.p.id));
-    const disponiveis = embaralhar(PERSONAGENS.filter(p => !idsHum.has(p.id)));
+    const disponiveis = embaralhar(PERSONAGENS.filter(p => !idsHum.has(p.id) && !p.somenteBot));
     const missaoDaMesa = MP.modo === 'solo' && hum.length === 1 ? prepararMissaoDaMesa(hum[0].p) : null;
     const bots = MP.modo === 'solo' && hum.length === 1
         ? sortearBotsSozinho(hum[0].p, 3, missaoDaMesa)
@@ -341,6 +371,7 @@ function iniciarPartida(hum) {
         carteador: Math.floor(Math.random() * 4)
     };
     novaRodada();
+    reforcarEscala();
     if (missaoDaMesa) mostrarAlertaMesaMissao();
 }
 
@@ -824,7 +855,7 @@ function criarAvancar(fim, saindo) {
                 G.missaoAtivaId = missaoDaMesa ? missaoDaMesa.id : null;
                 if (missaoDaMesa) mostrarAlertaMesaMissao();
                 const idsBotsNovos = new Set(botsNovos.map(p => p.id));
-                const pool = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id && !idsBotsNovos.has(p.id)));
+                const pool = embaralhar(PERSONAGENS.filter(p => p.id !== jogadorHumano.id && !p.somenteBot && !idsBotsNovos.has(p.id)));
                 G.personagens = [jogadorHumano, ...botsNovos];
                 G.fila = pool;
                 tocarAudioEntradaEspecial(botsNovos);
@@ -1441,18 +1472,26 @@ function cabeNaMesa() {
     return true;
 }
 
+// V90 — a medição ignora transformações/animações passageiras (carta recebida, pulso do turno)
+// e não aceita medir uma mesa "colapsada" (teclado aberto, transição de tela): nesses casos
+// mantém a escala anterior em vez de encolher tudo para o tamanho mínimo.
 function ajustarEscala() {
-    if ($('jogo').classList.contains('escondido')) return;
-    const W = document.documentElement.clientWidth;
-    let hi = Math.min(U_MAX, W / 22), lo = U_MIN;
-    aplicarEscala(hi);
-    if (cabeNaMesa()) return;                 // cabe no tamanho máximo
-    for (let i = 0; i < 12; i++) {            // busca binária pelo maior que cabe
-        const mid = (lo + hi) / 2;
-        aplicarEscala(mid);
-        if (cabeNaMesa()) lo = mid; else hi = mid;
-    }
-    aplicarEscala(lo);
+    const jogo = $('jogo');
+    if (jogo.classList.contains('escondido')) return;
+    if ($('mesa').clientHeight < 140 || $('mesa').clientWidth < 140) return;
+    jogo.classList.add('medindo');
+    try {
+        const W = document.documentElement.clientWidth;
+        let hi = Math.min(U_MAX, W / 22), lo = U_MIN;
+        aplicarEscala(hi);
+        if (cabeNaMesa()) return;                 // cabe no tamanho máximo
+        for (let i = 0; i < 12; i++) {            // busca binária pelo maior que cabe
+            const mid = (lo + hi) / 2;
+            aplicarEscala(mid);
+            if (cabeNaMesa()) lo = mid; else hi = mid;
+        }
+        aplicarEscala(lo);
+    } finally { jogo.classList.remove('medindo'); }
 }
 
 let rafEscala = 0;
@@ -1475,24 +1514,51 @@ function atualizarOrientacao() {
     document.documentElement.classList.toggle('orientacao-deitada', !!deitada);
     document.documentElement.classList.toggle('orientacao-em-pe', !deitada);
 }
+// V90 — altura estável da tela do jogo (--app-h). O teclado virtual NUNCA muda esse valor,
+// então abrir/fechar o chat não mexe na mesa, nos personagens nem nas cartas.
+const TECLADO = { ativo: false, tSaida: 0 };
+function tecladoDoChatAtivo() { return TECLADO.ativo || document.activeElement === $('chatInp'); }
+function atualizarAlturaApp() {
+    if (tecladoDoChatAtivo()) return;
+    document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
+}
+let ultimaEscalaU = 0;
+function recalcularMesa(forcarRender) {
+    if (tecladoDoChatAtivo()) return;
+    atualizarAlturaApp();
+    ajustarEscala();
+    if (G && (forcarRender || Math.abs(ESC.u - ultimaEscalaU) > 0.02)) render();
+    ultimaEscalaU = ESC.u;
+}
+// Reforço: remede logo depois e de novo quando as transições terminam (cura qualquer medida ruim).
+function reforcarEscala() {
+    [0, 120, 450, 1000].forEach(ms => setTimeout(() => recalcularMesa(ms === 0), ms));
+}
 function reajustar() {
     atualizarOrientacao();
-    // O teclado virtual pode disparar resize no Android. Não recalculamos a mesa
-    // enquanto o campo do chat estiver em foco para evitar fotos/cartas mudando de escala.
-    if (document.activeElement === $('chatInp')) return;
-    cancelAnimationFrame(rafEscala);
-    rafEscala = requestAnimationFrame(() => {
-        if (document.activeElement === $('chatInp')) return;
-        ajustarEscala(); if (G) render();
-    });
+    // O teclado virtual pode disparar vários resize seguidos. Esperamos a tela assentar
+    // (debounce) e não medimos nada enquanto o campo do chat estiver em uso.
+    clearTimeout(rafEscala);
+    rafEscala = setTimeout(() => recalcularMesa(true), 180);
 }
 atualizarOrientacao();
+atualizarAlturaApp();
 addEventListener('resize', reajustar);
 addEventListener('orientationchange', () => setTimeout(reajustar, 300));
+addEventListener('pageshow', reforcarEscala);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) reforcarEscala(); });
+document.addEventListener('fullscreenchange', () => setTimeout(reajustar, 250));
 if (screen.orientation && screen.orientation.addEventListener) {
     screen.orientation.addEventListener('change', reajustar);
 }
-// visualViewport é reservado ao reposicionamento do chat; não redimensiona a mesa.
+// Vigia: se algum momento ruim deixar a mesa fora de proporção (personagens encolhidos ou
+// cortados), remede sozinho. Só mede com o jogo visível, sem distribuição de cartas em andamento
+// e com o teclado do chat fechado. A busca é determinística: se já está certo, nada muda.
+setInterval(() => {
+    if (document.hidden || !G || G.distribuindo || $('jogo').classList.contains('escondido') || tecladoDoChatAtivo()) return;
+    if ($('mesa').clientHeight < 140) return;
+    recalcularMesa(false);
+}, 1500);
 
 // ================= TELA =================
 function avisoTemp(msg, ms) {
@@ -2127,6 +2193,7 @@ async function desbloquearEstampasDosUltimos(d) {
     });
     if (!novos.length) return;
     salvarCacheEstampas();
+    novos.forEach(conquistaEstampa);
     if (getSB() && SES.token && usuarioAtual) {
         try { await rpc('estampas_desbloquear', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_personagens: novos }); }
         catch (e) { console.warn('Estampas desbloqueadas no aparelho; sincronização com o banco pendente.', e); }
@@ -2188,6 +2255,64 @@ function pulsarEstampa(origem) {
         } else remover();
     };
 }
+// ================= CONQUISTAS (V90) — aviso estilo "Xbox", só nosso =================
+// Aparece quando uma estampa ou um personagem de missão é desbloqueado.
+// Várias conquistas ao mesmo tempo entram numa fila e aparecem uma após a outra.
+const FILA_CONQUISTAS = [];
+let conquistaEmTela = false;
+function mostrarConquista(c) {
+    FILA_CONQUISTAS.push(c);
+    if (!conquistaEmTela) proximaConquista();
+}
+function proximaConquista() {
+    const c = FILA_CONQUISTAS.shift();
+    if (!c) { conquistaEmTela = false; return; }
+    conquistaEmTela = true;
+    let host = document.getElementById('conquistas');
+    if (!host) {
+        host = document.createElement('div');
+        host.id = 'conquistas';
+        host.setAttribute('role', 'status');
+        host.setAttribute('aria-live', 'polite');
+        document.documentElement.appendChild(host);
+    }
+    const el = document.createElement('div');
+    el.className = 'conquista';
+    const icone = document.createElement('div'); icone.className = 'conquista-icone';
+    const img = document.createElement('img'); img.alt = ''; img.draggable = false;
+    icone.appendChild(img);
+    const sel = document.createElement('span'); sel.className = 'conquista-selo'; sel.textContent = '🏆';
+    icone.appendChild(sel);
+    const txt = document.createElement('div'); txt.className = 'conquista-texto';
+    const topo = document.createElement('small'); topo.textContent = c.tipo || 'Conquista desbloqueada';
+    const nome = document.createElement('strong'); nome.textContent = c.titulo || '';
+    const det = document.createElement('span'); det.textContent = c.detalhe || '';
+    txt.append(topo, nome); if (c.detalhe) txt.appendChild(det);
+    el.append(icone, txt);
+    host.appendChild(el);
+    if (c.estampaId != null) carregarImagemEstampa(img, c.estampaId, () => { img.onerror = null; img.src = c.imagem || ''; });
+    else img.src = c.imagem || '';
+    try { SFX.conquista(); } catch (e) {}
+    let fechada = false;
+    const fechar = () => {
+        if (fechada) return; fechada = true;
+        el.classList.remove('entrando'); el.classList.add('saindo');
+        setTimeout(() => { el.remove(); proximaConquista(); }, 450);
+    };
+    el.onclick = fechar;
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('entrando')));
+    setTimeout(fechar, 5200);
+}
+function nomeDoPersonagemPorId(id) {
+    const p = PERSONAGENS.find(x => Number(x.id) === Number(id));
+    return p ? p.nome : `Personagem ${id}`;
+}
+function conquistaEstampa(id) {
+    const p = PERSONAGENS.find(x => Number(x.id) === Number(id));
+    mostrarConquista({ tipo: 'Estampa desbloqueada', titulo: `Estampa de ${nomeDoPersonagemPorId(id)}`,
+        detalhe: 'Disponível na coleção de estampas', estampaId: id, imagem: p ? p.foto : '' });
+}
+
 // ================= MISSÕES E RECOMPENSAS (V80) =================
 let MISSION_UNLOCKS = new Set();
 const MISSION_LOCAL_KEY = 'copasMissoesDesbloqueadas';
@@ -2217,8 +2342,13 @@ async function concluirMissoesDaPartida(d) {
 
     MISSION_UNLOCKS.add(missao.id);
     const recompensa = missao.recompensa || {};
+    const estampaNova = !!recompensa.estampaId && !ESTAMPAS_USUARIO.has(Number(recompensa.estampaId));
     if (recompensa.estampaId) ESTAMPAS_USUARIO.add(Number(recompensa.estampaId));
     salvarCacheEstampas();
+    mostrarConquista({ tipo: 'Missão concluída', titulo: `${recompensa.nomePersonagem || 'Personagem'} desbloqueado`,
+        detalhe: missao.nome, imagem: recompensa.foto || `fotos/${recompensa.personagemId}.png` });
+    if (estampaNova) mostrarConquista({ tipo: 'Estampa desbloqueada', titulo: `Estampa de ${recompensa.nomePersonagem || nomeDoPersonagemPorId(recompensa.estampaId)}`,
+        detalhe: 'Disponível na coleção de estampas', estampaId: Number(recompensa.estampaId), imagem: recompensa.foto || '' });
     salvarMissoesLocais();
     if (getSB() && SES.token) {
         try {
@@ -3163,29 +3293,72 @@ function elevarChatParaCamadaSuperior() {
     if (painel && painel.parentElement !== document.documentElement) document.documentElement.appendChild(painel);
 }
 elevarChatParaCamadaSuperior();
+// V90 — chat fluido. A janela é um "bottom sheet" independente da mesa:
+//  • fechada: fica logo acima do botão (e da mão de cartas);
+//  • ao escrever: sobe até ficar COLADA no topo do teclado, com a caixa de texto sempre visível;
+//  • a mesa não é remedida nem mexe: o teclado é tratado como sobreposição (overlay).
+// Altura do teclado: VirtualKeyboard API (Chrome/Android) ou visualViewport (iOS e demais).
+function sobreporTeclado(sim) { try { if (navigator.virtualKeyboard) navigator.virtualKeyboard.overlaysContent = !!sim; } catch (e) {} }
+function alturaDoTeclado() {
+    const layoutH = document.documentElement.clientHeight;
+    let kb = 0;
+    const vk = navigator.virtualKeyboard;
+    if (vk && vk.overlaysContent && vk.boundingRect) kb = vk.boundingRect.height || 0;
+    if (!kb && window.visualViewport) {
+        const vv = window.visualViewport;
+        kb = layoutH - vv.height - vv.offsetTop;   // 0 quando o navegador já redimensiona a tela sozinho
+    }
+    return kb > 80 ? Math.round(kb) : 0;           // barras do navegador/zoom não contam como teclado
+}
 function atualizarViewportChat() {
     const painel = $('painelChat');
     if (!painel) return;
     const focado = document.activeElement === $('chatInp');
-    painel.classList.toggle('chat-teclado-aberto', focado);
-    // O painel não acompanha o visualViewport nem muda de tamanho ao abrir o teclado.
-    painel.style.top = '';
-    painel.style.bottom = '';
-    painel.style.maxHeight = '';
+    const raiz = document.documentElement.style;
+    if (!focado) {
+        painel.classList.remove('chat-teclado-aberto');
+        raiz.removeProperty('--chat-kb'); raiz.removeProperty('--chat-max');
+        return;
+    }
+    const kb = alturaDoTeclado();
+    const layoutH = document.documentElement.clientHeight;
+    const visivel = kb ? layoutH - kb : (window.visualViewport ? window.visualViewport.height : layoutH);
+    painel.classList.add('chat-teclado-aberto');
+    raiz.setProperty('--chat-kb', kb + 'px');
+    raiz.setProperty('--chat-max', Math.max(190, Math.min(440, Math.round(visivel - 20))) + 'px');
+}
+let rafChat = 0;
+function agendarViewportChat() {
+    cancelAnimationFrame(rafChat);
+    rafChat = requestAnimationFrame(atualizarViewportChat);
 }
 function focarCampoChat() {
     elevarChatParaCamadaSuperior();
-    $('painelChat').classList.add('chat-teclado-aberto');
+    clearTimeout(TECLADO.tSaida);
+    TECLADO.ativo = true;                 // congela a medição da mesa enquanto escreve
+    sobreporTeclado(true);                // só durante o chat: os outros formulários seguem como antes
     atualizarViewportChat();
-    requestAnimationFrame(() => { atualizarViewportChat(); setTimeout(atualizarViewportChat, 120); setTimeout(atualizarViewportChat, 350); });
+    [60, 160, 320, 600].forEach(ms => setTimeout(atualizarViewportChat, ms));
 }
+// Teclado fechou: solta o congelamento e remede a mesa uma única vez, já com tudo assentado.
+function soltarTecladoChat() {
+    clearTimeout(TECLADO.tSaida);
+    TECLADO.tSaida = setTimeout(() => {
+        if (document.activeElement === $('chatInp')) return;
+        TECLADO.ativo = false;
+        sobreporTeclado(false);
+        atualizarViewportChat();
+        reforcarEscala();
+    }, 450);
+}
+if (navigator.virtualKeyboard) navigator.virtualKeyboard.addEventListener('geometrychange', agendarViewportChat);
 if (window.visualViewport) {
-    visualViewport.addEventListener('resize', atualizarViewportChat);
-    visualViewport.addEventListener('scroll', atualizarViewportChat);
+    visualViewport.addEventListener('resize', agendarViewportChat);
+    visualViewport.addEventListener('scroll', agendarViewportChat);
 }
-window.addEventListener('resize', atualizarViewportChat);
+window.addEventListener('resize', agendarViewportChat);
 $('chatInp').addEventListener('focus', focarCampoChat);
-$('chatInp').addEventListener('blur', () => setTimeout(atualizarViewportChat, 180));
+$('chatInp').addEventListener('blur', () => { setTimeout(atualizarViewportChat, 60); soltarTecladoChat(); });
 
 function abrirChat() {
     if (!usuarioAtual) return;
@@ -3203,9 +3376,12 @@ function abrirChat() {
     }, 3000);
 }
 function fecharChat() {
+    const tinhaTeclado = TECLADO.ativo;
     SES.aberto = false; clearInterval(SES.tChat); SES.tChat = null;
     $('painelChat').classList.remove('chat-teclado-aberto');
     $('painelChat').classList.add('escondido');
+    try { $('chatInp').blur(); } catch (e) {}
+    if (tinhaTeclado) soltarTecladoChat();
 }
 function atualizarContChat() {
     const n = Array.from($('chatInp').value).length;
