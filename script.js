@@ -3947,7 +3947,8 @@ const FRASES = [
     'Vai pagar a coca!',
     'Hoje é valendo a bunda hein.',
     'Tá valendo o quê?',
-    'Isso não é bicho pra ficar cercando não.'
+    'Isso não é bicho pra ficar cercando não.',
+    '😄', '😡', '😭', '😮'
 ];
 const MAX_FRASES = 3;
 let frasesUsadas = 0;
@@ -4008,14 +4009,28 @@ function mostrarBalaoFrase(assento, texto, meu) {
     const foto = box.querySelector('.avatar-jogador') || box;
     const rb = box.getBoundingClientRect(), rf = foto.getBoundingClientRect();
     const balao = document.createElement('div');
-    const aDireita = (rb.left + rb.width / 2) > window.innerWidth * 0.55;   // mesa à direita: balão para a esquerda
-    balao.className = 'balao-frase' + (meu ? ' balao-meu' : '') + (aDireita ? ' balao-esq' : ' balao-dir');
-    balao.textContent = texto;
-    balao.style.top = (rf.top + rf.height / 2) + 'px';
-    if (aDireita) { balao.style.right = (window.innerWidth - rb.left + 8) + 'px'; balao.style.maxWidth = Math.max(80, rb.left - 16) + 'px'; }
-    else { balao.style.left = (rb.right + 8) + 'px'; balao.style.maxWidth = Math.max(80, window.innerWidth - rb.right - 16) + 'px'; }
+    const meuLugar = Number(assento) === 0;
+    if (meuLugar) {          // meu personagem: balão ao lado da foto
+        const aDireita = (rb.left + rb.width / 2) > window.innerWidth * 0.55;
+        balao.className = 'balao-frase' + (meu ? ' balao-meu' : '') + (aDireita ? ' balao-esq' : ' balao-dir');
+        balao.textContent = texto;
+        balao.style.top = (rf.top + rf.height / 2) + 'px';
+        if (aDireita) { balao.style.right = (window.innerWidth - rb.left + 8) + 'px'; balao.style.maxWidth = Math.max(80, rb.left - 16) + 'px'; }
+        else { balao.style.left = (rb.right + 8) + 'px'; balao.style.maxWidth = Math.max(80, window.innerWidth - rb.right - 16) + 'px'; }
+    } else {                 // os outros: balão embaixo da caixa, para não cobrir as cartas
+        balao.className = 'balao-frase balao-baixo';
+        balao.textContent = texto;
+        balao.style.top = (rb.bottom + 6) + 'px';
+        balao.style.maxWidth = Math.min(200, window.innerWidth - 16) + 'px';
+        balao.style.visibility = 'hidden';
+    }
     document.body.appendChild(balao);
-    _baloes[assento] = { el: balao, t: setTimeout(() => { balao.remove(); delete _baloes[assento]; }, 4500) };
+    if (!meuLugar) {         // centraliza na caixa sem sair da tela
+        const w = balao.offsetWidth;
+        balao.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, rb.left + rb.width / 2 - w / 2)) + 'px';
+        balao.style.visibility = '';
+    }
+    _baloes[assento] = { el: balao, t: setTimeout(() => { balao.remove(); delete _baloes[assento]; }, 3000) };
 }
 // botão e painel de frases ficam na raiz (fixos à direita, na altura do botão do chat)
 document.body.appendChild($('btnFrases')); document.body.appendChild($('painelFrases'));
