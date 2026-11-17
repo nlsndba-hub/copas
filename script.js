@@ -286,7 +286,18 @@ function mostrarAlertaMesaMissao() {
     clearTimeout(el._timer);
     el._timer = setTimeout(() => el.classList.remove('ativo'), 3600);
 }
+// V92 — áudios da pasta audio/ (entrada dos personagens especiais): ficam registrados para poder parar.
+const AUDIOS_ENTRADA = [];
+function pararAudiosEntrada() {
+    while (AUDIOS_ENTRADA.length) {
+        const it = AUDIOS_ENTRADA.pop();
+        clearTimeout(it.tm);
+        try { it.audio.pause(); it.audio.currentTime = 0; } catch (e) {}
+    }
+}
 function tocarAudioEntradaEspecial(personagens) {
+    pararAudiosEntrada();                         // nova mesa: o áudio anterior não continua
+    if (!SFX.ligado) return;                      // botão de som desligado = sem esses áudios
     const especiais = (personagens || []).filter(p => p && p.somenteBot && p.audioEntrada);
     // Se os dois personagens especiais forem sorteados na mesma partida,
     // toca os áudios em sequência para que um não corte o outro.
@@ -294,7 +305,9 @@ function tocarAudioEntradaEspecial(personagens) {
         try {
             const audio = new Audio(p.audioEntrada);
             audio.preload = 'auto';
-            setTimeout(() => audio.play().catch(() => {}), 500 + i * 1800);
+            const it = { audio, tm: null };
+            it.tm = setTimeout(() => { if (SFX.ligado) audio.play().catch(() => {}); }, 500 + i * 1800);
+            AUDIOS_ENTRADA.push(it);
         } catch (e) {}
     });
 }
@@ -962,6 +975,7 @@ function desenharPlacarPartida() {
     $('btnFecharRanking').focus();
     $('btnRodarMesa').onclick = () => {
         $('modalRanking').classList.add('escondido');
+        pararAudiosEntrada();
         // iniciarPartida reinicia os pontos e sorteia três novos adversários no modo Sozinho.
         iniciarPartida();
     };
@@ -1008,7 +1022,7 @@ function marcarSom() {
     b.setAttribute('aria-pressed', String(!SFX.ligado));
     b.title = SFX.ligado ? 'Efeitos sonoros ligados' : 'Efeitos sonoros desligados';
 }
-$('btnSom').onclick = () => { SFX.alternar(); marcarSom(); };
+$('btnSom').onclick = () => { SFX.alternar(); if (!SFX.ligado) pararAudiosEntrada(); marcarSom(); };
 marcarSom();
 $('modalRanking').addEventListener('click', e => {
     if (e.target === $('modalRanking')) $('modalRanking').classList.add('escondido');
@@ -2536,6 +2550,7 @@ function sairParaMenu(destino) {
     if (G && G.tAuto) clearTimeout(G.tAuto);
     if (G && G.tk) G.tk.pular = true;
     ocultarPalco();
+    pararAudiosEntrada();
     sairSala();
     G = null; jogadorHumano = null; cartaSelecionadaId = null; MP.modo = 'solo';
     maquinasEliminadas = []; filaMaquinas = [];
@@ -2556,6 +2571,7 @@ function voltarParaEspera(msg) {
     if (G && G.tAuto) clearTimeout(G.tAuto);
     if (G && G.tk) G.tk.pular = true;
     ocultarPalco();
+    pararAudiosEntrada();
     clearTimeout(MP.tDif); MP.tDif = null; MP.ultimo = '';
     MP.gidMorto = G ? G.gid : null;
     G = null; cartaSelecionadaId = null;
