@@ -919,7 +919,7 @@ html > #painelChat .chat-linha { flex: 0 0 auto; }
 }
 
 
-/* V67 — chat: abre um pouco acima da metade da tela e mostra os online em grade 3x3 (arrasta para ver mais 9). */
+/* V67/V92 — chat: abre um pouco acima da metade da tela e mostra os online em 2 linhas (arrasta para o lado para ver mais). */
 html > #painelChat {
     top: 36vh !important;
     top: 36dvh !important;
@@ -938,33 +938,33 @@ html > #painelChat .chat-bola {
     --espaco-bola: 6px;
     flex: 0 0 auto;
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-auto-rows: var(--linha-bola);
+    /* V92 — 2 linhas; com muita gente, arrasta para o lado (rolagem horizontal) */
+    grid-template-rows: repeat(2, var(--linha-bola));
+    grid-auto-flow: column;
+    grid-auto-columns: 52px;
     gap: var(--espaco-bola) 8px;
+    justify-content: start;
     justify-items: center;
     align-content: start;
     box-sizing: content-box;
     padding: 8px;
     min-height: 0 !important;
-    height: calc(var(--linha-bola) * 3 + var(--espaco-bola) * 2) !important;
-    max-height: calc(var(--linha-bola) * 3 + var(--espaco-bola) * 2) !important;
-    overflow-x: hidden;
-    overflow-y: auto !important;
-    scroll-snap-type: y mandatory;
-    scroll-padding-top: 8px;
-    overscroll-behavior: contain;
+    height: calc(var(--linha-bola) * 2 + var(--espaco-bola)) !important;
+    max-height: calc(var(--linha-bola) * 2 + var(--espaco-bola)) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: none;
+    overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
+    touch-action: pan-x;
+    scrollbar-width: none;
     border-radius: 22px;
 }
-/* cada "página" tem 9 bolinhas (3 linhas de 3); o arrasto para na primeira linha de cada página */
-html > #painelChat .chat-bola > .chat-online:nth-child(9n+1),
-html > #painelChat .chat-bola > .chat-online:nth-child(9n+2),
-html > #painelChat .chat-bola > .chat-online:nth-child(9n+3) { scroll-snap-align: start; }
-html > #painelChat .chat-bola > .chat-online { height: var(--linha-bola); width: 48px; }
+html > #painelChat .chat-bola::-webkit-scrollbar { display: none; }
+html > #painelChat .chat-bola > .chat-online { height: var(--linha-bola); width: 48px; touch-action: pan-x; }
 html > #painelChat.chat-teclado-aberto .chat-bola {
-    height: calc(var(--linha-bola) * 3 + var(--espaco-bola) * 2) !important;
-    max-height: calc(var(--linha-bola) * 3 + var(--espaco-bola) * 2) !important;
+    height: calc(var(--linha-bola) * 2 + var(--espaco-bola)) !important;
+    max-height: calc(var(--linha-bola) * 2 + var(--espaco-bola)) !important;
     min-height: 0 !important;
     padding: 8px;
 }
@@ -1076,6 +1076,7 @@ html > #painelChat .chat-msgs { flex: 1 1 auto; min-height: 0 !important; overfl
 html > #painelChat .chat-topo, html > #painelChat .chat-linha, html > #painelChat .chat-cont { flex: 0 0 auto; }
 /* com o teclado aberto, os "online" ficam numa linha só para sobrar espaço às mensagens */
 html > #painelChat.chat-teclado-aberto .chat-bola {
+    grid-template-rows: var(--linha-bola, 54px);
     height: var(--linha-bola, 54px) !important;
     max-height: var(--linha-bola, 54px) !important;
 }

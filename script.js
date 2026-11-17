@@ -306,7 +306,7 @@ function montarSelecao() {
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'personagem-card';
-        card.innerHTML = `<img src="${p.foto}" alt="${p.nome}" onerror="this.src='fotos/${p.id}.png'; this.onerror=null"><strong>${p.nome}</strong>`;
+        card.innerHTML = `<img src="${p.foto}" alt="${p.nome}" onerror="this.src='fotos/${p.id}.png'; this.onerror=null"><strong title="${p.nome}">${nomeCurto(p.nome, 12)}</strong>`;
         card.onclick = () => {
             if (card.classList.contains('ocupado')) return;
             jogadorHumano = p;
@@ -1682,10 +1682,11 @@ function render(piscar) {
         const ranking = posicoes(G.personagens, p => p.total, 'partida').get(G.personagens[i]);
         box.innerHTML = `<img class="avatar-jogador" data-pid="${(G.donos && G.donos[i]) || ''}" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
             <div class="info-jogador">
-                <span class="nome">${G.nomes[i]} <small class="ranking">${ranking}º</small><i class="indicador-sala ${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'sala-online' : 'sala-offline'}" data-pid="${(G.donos && G.donos[i]) || ''}" title="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}" aria-label="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}"></i></span>
+                <span class="nome nome-ajusta" title="${G.nomes[i]}"><span class="nome-txt">${nomeCurto(G.nomes[i])}</span> <small class="ranking">${ranking}º</small><i class="indicador-sala ${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'sala-online' : 'sala-offline'}" data-pid="${(G.donos && G.donos[i]) || ''}" title="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}" aria-label="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}"></i></span>
                 <span class="tot">Total: ${G.totais[i]}</span>
                 <span class="rod">Rodada: ${G.pts[i]}</span>
             </div>`;
+        ajustarNomes(box);
         if (G.rodadaEncerrada && i !== 0) {
             const faixa = document.createElement('div'); faixa.className = 'pontos-mao-final';
             G.pegas[i].forEach(c => faixa.appendChild(criarElementoCarta(c, 'carta-ponto-final')));
@@ -3225,6 +3226,26 @@ function fmtDataHora(iso) {
     const d = new Date(iso);
     return `${doisD(d.getDate())}/${doisD(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)} ${doisD(d.getHours())}:${doisD(d.getMinutes())}:${doisD(d.getSeconds())}`;
 }
+// V92 — nomes grandes: abrevia a primeira palavra ("Caneta Azul" -> "C. Azul"); se ainda não couber, reduz a fonte.
+function nomeCurto(nome, max = 9) {
+    nome = String(nome == null ? '' : nome).trim();
+    if (nome.length <= max) return nome;
+    const partes = nome.split(/\s+/);
+    if (partes.length < 2) return nome;
+    const abrev = Array.from(partes[0])[0].toUpperCase() + '.';
+    return [abrev, ...partes.slice(1)].join(' ');
+}
+function ajustarFonteNome(el) {
+    if (!el) return;
+    el.style.fontSize = '';
+    if (!el.clientWidth) return;
+    let px = parseFloat(getComputedStyle(el).fontSize) || 12;
+    const min = 7;
+    while (el.scrollWidth > el.clientWidth + 1 && px > min) { px -= 0.5; el.style.fontSize = px + 'px'; }
+}
+function ajustarNomes(raiz) {
+    (raiz || document).querySelectorAll('.nome-ajusta').forEach(ajustarFonteNome);
+}
 const nomeDoPersonagem = id => { const p = PERSONAGENS.find(x => x.id === id); return p ? p.nome : '?'; };
 
 function desenharOnline(forcar) {
@@ -3240,9 +3261,10 @@ function desenharOnline(forcar) {
         const it = document.createElement('div'); it.className = 'chat-online'; it.dataset.personagem = id;
         const img = document.createElement('img'); img.src = p.foto; img.alt = p.nome; img.draggable = false;
         img.title = souAdmin() && usuarioAtual && id !== usuarioAtual.personagem ? `${p.nome} — segure 3 s para desligar` : p.nome;
-        const nm = document.createElement('span'); nm.textContent = p.nome;
+        const nm = document.createElement('span'); nm.textContent = nomeCurto(p.nome); nm.className = 'nome-ajusta'; nm.title = p.nome;
         it.append(img, nm); bola.appendChild(it);
     });
+    ajustarNomes(bola);
 }
 function atualizarChatVisivel() {
     const ok = !!usuarioAtual && (ultimaTela === 'telaModo' || ultimaTela === 'jogo');
