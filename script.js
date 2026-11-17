@@ -2460,9 +2460,10 @@ $('btnModoSozinho').onclick = () => {
     if (!jogadorHumano) { abrirAcesso(); return; }
     iniciarPartida();
 };
-$('btnModoMisto').onclick = () => { bloquearOrientacaoRetrato(); entrarMisto(); };
-$('btnModoMistoEspectador').onclick = () => { bloquearOrientacaoRetrato(); entrarMistoEspectador(); };
-$('btnModoSalaEspectador').onclick = () => { bloquearOrientacaoRetrato(); abrirSalasEspectador(); };
+$('btnModoMisto').onclick = () => { bloquearOrientacaoRetrato(); $('telaMistoEscolha').classList.remove('escondido'); };
+$('btnMistoJogar').onclick = () => { $('telaMistoEscolha').classList.add('escondido'); entrarMisto(); };
+$('btnMistoAssistir').onclick = () => { $('telaMistoEscolha').classList.add('escondido'); entrarMistoEspectador(); };
+$('btnMistoVoltar').onclick = () => $('telaMistoEscolha').classList.add('escondido');
 $('btnModoSala').onclick = () => { bloquearOrientacaoRetrato(); abrirSalas(); };
 $('btnVoltarSalas').onclick = () => { clearInterval(MP.tLista); mostrarTela('telaModo'); };
 $('btnSairEspera').onclick = () => sairParaMenu('telaInicial');
@@ -2487,13 +2488,23 @@ async function entrarMisto() {
     } catch (e) { alert('Não foi possível entrar no modo Misto: ' + (e.message || e)); sairSala(); }
 }
 
+let salasAssistir = false;
+function ajustarAlternaSalas() {
+    $('btnSalasJogar').classList.toggle('ativo', !salasAssistir);
+    $('btnSalasAssistir').classList.toggle('ativo', salasAssistir);
+    $('btnCriarSala').classList.toggle('escondido', salasAssistir);
+}
+$('btnSalasJogar').onclick = () => { salasAssistir = false; ajustarAlternaSalas(); carregarSalas(); };
+$('btnSalasAssistir').onclick = () => { salasAssistir = true; ajustarAlternaSalas(); carregarSalas(); };
 async function abrirSalas() {
     if (!getSB()) { alert(MSG_CONFIG); return; }
+    salasAssistir = false; ajustarAlternaSalas();
     mostrarTela('telaSalas');
     await carregarSalas();
     clearInterval(MP.tLista); MP.tLista = setInterval(carregarSalas, 4000);
 }
 async function carregarSalas() {
+    if (salasAssistir) return carregarSalasEspectador();
     const box = $('listaSalas');
     try {
         const lista = await rpc('listar_salas');
