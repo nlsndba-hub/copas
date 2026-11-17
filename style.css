@@ -1129,3 +1129,112 @@ html > #painelChat.chat-teclado-aberto .chat-bola {
     .conquista.saindo { transform: none; }
     .conquista.entrando::after { animation: none; }
 }
+
+/* =====================================================================
+   V91 · TELESPECTADOR, FRASES RÁPIDAS, ESTAMPAS NO EMBARALHAR
+   ===================================================================== */
+
+/* ---- Botão modo espectador (menor/sec) ---- */
+.btn-modo-sec { background: linear-gradient(#2a4030, #161e18) !important; border-color: #4a7a5a !important; opacity: .88; }
+.btn-modo-sec strong { color: #9fd3ae; }
+.btn-modo-sec:hover { opacity: 1; }
+
+/* ---- Overlay telespectador (ver cartas de um jogador) ---- */
+#espectadorOverlay {
+    position: fixed; inset: 0; z-index: 8500;
+    background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center;
+}
+#espectadorOverlay.escondido { display: none; }
+.espectador-box {
+    background: #1a2b1e; border: 2px solid #d5b65b; border-radius: 12px;
+    padding: 14px; max-width: min(96vw, 520px); width: 100%;
+    max-height: 80vh; overflow-y: auto;
+}
+.espectador-topo {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; font-weight: 700; color: #ffd54f; font-size: 15px;
+}
+.espectador-topo button {
+    background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer; line-height: 1;
+}
+.espectador-cartas {
+    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+}
+.espectador-cartas .carta { flex: none; }
+
+/* ---- Aviso telespectador na mão ---- */
+#maoJogador .espectador-aviso {
+    color: #9fd3ae; text-align: center; padding: 10px; font-size: 13px; width: 100%;
+}
+
+/* ---- Frases rápidas ---- */
+.btn-frases {
+    position: fixed;
+    bottom: calc(var(--safe-b, 0px) + 14px);
+    left: 14px; /* lado oposto ao chat (chat fica à direita) */
+    z-index: 7000;
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 2px solid #d5b65b;
+    background: linear-gradient(145deg, #3a4f3a, #1a2b1e);
+    color: #ffd54f; font-size: 20px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,.5);
+    transition: transform .12s;
+}
+.btn-frases:not(.escondido):active { transform: scale(.92); }
+
+.painel-frases {
+    position: fixed;
+    bottom: calc(var(--safe-b, 0px) + 68px);
+    left: 10px;
+    z-index: 7100;
+    width: min(260px, calc(100vw - 20px));
+    background: #1a2b1e;
+    border: 2px solid #d5b65b;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0,0,0,.55);
+}
+.painel-frases.escondido { display: none; }
+.frases-topo {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: #0d1a10;
+    font-size: 13px; color: #ffd54f; font-weight: 600;
+}
+.frases-topo button { background: none; border: none; color: #ccc; cursor: pointer; font-size: 17px; line-height: 1; }
+#frasesRestantes { color: #9fd3ae; font-weight: 400; margin-left: 4px; }
+.frases-lista { display: flex; flex-direction: column; }
+.frase-item {
+    padding: 10px 14px;
+    background: none; border: none; border-top: 1px solid #2a3f2a;
+    color: #e8dfc5; text-align: left; cursor: pointer; font-size: 13px;
+    transition: background .1s;
+}
+.frase-item:hover, .frase-item:focus { background: #263626; }
+
+/* ---- Balão de frase do jogador ---- */
+.balao-frase {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%; transform: translateX(-50%);
+    background: #263e2b;
+    color: #f0e8c8;
+    border: 1.5px solid #d5b65b;
+    border-radius: 10px 10px 10px 2px;
+    padding: 6px 10px;
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap; max-width: 180px;
+    overflow: hidden; text-overflow: ellipsis;
+    z-index: 20;
+    animation: balaoEntrar .22s ease-out;
+    pointer-events: none;
+}
+.balao-frase.balao-meu {
+    border-radius: 10px 10px 2px 10px;
+    background: #2a3e50; border-color: #64b5f6;
+}
+.oponente { position: relative; }  /* garante que o balão se posicione corretamente */
+@keyframes balaoEntrar {
+    from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(.92); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}

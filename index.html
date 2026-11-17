@@ -7,8 +7,8 @@
     <meta name="description" content="Miquilino V38 — jogo de Copas com IA nível Mestre, baralho animado e efeitos sonoros.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Miquilino V90</title>
-    <link rel="stylesheet" href="style.css?v=90">
+    <title>Miquilino V91</title>
+    <link rel="stylesheet" href="style.css?v=91">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -47,7 +47,9 @@
             <div class="modo-botoes">
                 <button type="button" id="btnModoSozinho" class="btn-modo-grande"><i class="fas fa-user"></i><strong>Sozinho</strong><small>Você contra 3 máquinas</small></button>
                 <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 30 segundos. Quem entrar joga junto e as máquinas completam a mesa. Com 4 jogadores começa na hora</small></button>
+                <button type="button" id="btnModoMistoEspectador" class="btn-modo-grande btn-modo-sec"><i class="fas fa-eye"></i><strong>Misto · Telespectador</strong><small>Entre só para assistir a partida</small></button>
                 <button type="button" id="btnModoSala" class="btn-modo-grande"><i class="fas fa-beer-mug-empty"></i><strong>Sala</strong><small>Crie um bar e chame os amigos. Só humanos: a partida começa quando entrarem 4 jogadores</small></button>
+                <button type="button" id="btnModoSalaEspectador" class="btn-modo-grande btn-modo-sec"><i class="fas fa-eye"></i><strong>Sala · Telespectador</strong><small>Entre num bar só para assistir</small></button>
                 <button type="button" id="btnModoMissoes" class="btn-modo-grande"><i class="fas fa-flag-checkered"></i><strong>Missões</strong><small>Conquiste personagens e estampas especiais</small></button>
                 <button type="button" id="btnModoEstampas" class="btn-modo-grande escondido"><i class="fas fa-images"></i><strong>Estampas</strong><small>Veja e escolha as costas de suas cartas desbloqueadas</small></button>
                 <button type="button" id="btnModoAdmin" class="btn-modo-grande escondido"><i class="fas fa-user-shield"></i><strong>Administrador</strong><small>Cadastrar usuários e trocar senhas</small></button>
@@ -185,6 +187,21 @@
 
         <div id="maoJogador" aria-label="Sua mão"></div>
 
+        <!-- Frases rápidas (lado oposto ao chat) -->
+        <button type="button" id="btnFrases" class="btn-frases escondido" title="Frases rápidas" aria-label="Frases rápidas">💬</button>
+        <div id="painelFrases" class="painel-frases escondido">
+            <div class="frases-topo"><span>Frases rápidas <span id="frasesRestantes">(3 restantes)</span></span><button type="button" id="frasesFechar" aria-label="Fechar">✕</button></div>
+            <div id="frasesList" class="frases-lista"></div>
+        </div>
+
+        <!-- Telespectador: overlay mostrando cartas de um jogador -->
+        <div id="espectadorOverlay" class="escondido">
+            <div class="espectador-box">
+                <div class="espectador-topo"><span id="espectadorNome"></span><button type="button" id="espectadorFechar">✕</button></div>
+                <div id="espectadorCartas" class="espectador-cartas"></div>
+            </div>
+        </div>
+
         <!-- Palco do baralho: embaralhar, cortar e dar as cartas -->
         <div id="palcoBaralho" class="escondido" aria-hidden="true">
             <div id="baralhoMesa"></div>
@@ -233,6 +250,6 @@
     <script src="personagens.js?v=90"></script>
     <script src="usuarios.js?v=80"></script>
     <script src="missoes.js?v=81"></script>
-    <script src="script.js?v=90"></script>
+    <script src="script.js?v=91"></script>
 </body>
 </html>

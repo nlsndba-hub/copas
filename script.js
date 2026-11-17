@@ -20,7 +20,7 @@ const MP = {
     modo: 'solo', sb: null, ch: null, ativo: false, emJogo: false, papel: null, naEspera: false,
     pid: Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3),
     sala: null, membros: [], offset: 0, inicio: 0, eu: 0, falando: new Set(),
-    tick: null, tPing: null, tLista: null, tDif: null, ultimo: '',
+    tick: null, tPing: null, tLista: null, tDif: null, ultimo: '', espectador: false,
     ordem: 0, gid: null, gidMorto: null, tSaida: null, cheiaDesde: 0, avisoEspera: '',
     ultimoSnap: null, mesaMeta: '', volta: false, ultimoD: null
 };
@@ -352,6 +352,8 @@ function iniciarPartida(hum) {
     ultimoCliqueCarta = { id: null, tempo: 0 };
     cartaSelecionadaId = null;
     PERSONAGENS.forEach(p => { p.total = 0; });
+    frasesUsadas = 0;
+    atualizarBtnFrases();
     const idsHum = new Set(hum.map(h => h.p.id));
     const disponiveis = embaralhar(PERSONAGENS.filter(p => !idsHum.has(p.id) && !p.somenteBot));
     const missaoDaMesa = MP.modo === 'solo' && hum.length === 1 ? prepararMissaoDaMesa(hum[0].p) : null;
@@ -389,7 +391,17 @@ function iniciarPartida(hum) {
         missaoAtivaId: missaoDaMesa ? missaoDaMesa.id : null,
         nivel: nivelIA,
         venc: null,
-        carteador: Math.floor(Math.random() * 4)
+        carteador: Math.floor(Math.random() * 4),
+        estampasJogadores: (() => {
+            const e = Array(4).fill('');
+            const myStamp = estampaSelecionada();
+            e[0] = myStamp !== 'padrao' ? String(myStamp) : '';
+            MP.membros.forEach(m => {
+                const idx = lugares.findIndex(l => l.pid === m.pid);
+                if (idx >= 0) e[idx] = m.estampa || '';
+            });
+            return e;
+        })()
     };
     novaRodada();
     reforcarEscala();
@@ -554,7 +566,7 @@ function voarCarta(tk, jogador, de) {
     } else {
         para = centroDe($(`j${jogador}`));
     }
-    const el = criarVersoCarta();
+    const el = criarVersoCartaParaJogador(jogador);
     el.classList.add('voando');
     el.style.left = (de.x - w / 2) + 'px';
     el.style.top = (de.y - h / 2) + 'px';
@@ -1702,7 +1714,8 @@ function render(piscar) {
         const box = $(`j${i}`);
         box.classList.toggle('turno-ativo', i === G.turno && !G.ocupado && !G.distribuindo);
         const ranking = posicoes(G.personagens, p => p.total, 'partida').get(G.personagens[i]);
-        box.innerHTML = `<img class="avatar-jogador" data-pid="${(G.donos && G.donos[i]) || ''}" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null">
+        const espClick = MP.espectador ? ' onclick="verCartasEspectador(' + i + ')" style="cursor:pointer" title="Ver cartas de ' + G.nomes[i] + '"' : '';
+        box.innerHTML = `<img class="avatar-jogador" data-pid="${(G.donos && G.donos[i]) || ''}" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null"${espClick}>
             <div class="info-jogador">
                 <span class="nome nome-ajusta" title="${G.nomes[i]}"><span class="nome-txt">${nomeCurto(G.nomes[i])}</span> <small class="ranking">${ranking}º</small><i class="indicador-sala ${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'sala-online' : 'sala-offline'}" data-pid="${(G.donos && G.donos[i]) || ''}" title="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}" aria-label="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}"></i></span>
                 <span class="tot">Total: ${G.totais[i]}</span>
@@ -1719,6 +1732,7 @@ function render(piscar) {
     atualizarIndicadoresSala();
     atualizarStatus();
     marcarFalando();
+    atualizarBtnFrases();
     agendarDifusao();
     atualizarPausa();
     publicarMesa();
@@ -2020,7 +2034,7 @@ async function conectarCanal(canal) {
     const sb = getSB();
     const ch = sb.channel('mq-' + canal, { config: { broadcast: { self: false }, presence: { key: MP.pid } } });
     MP.ch = ch; MP.ativo = true; MP.membros = []; MP.naEspera = false; MP.emJogo = false; MP.papel = null;
-    ch.on('presence', { event: 'sync' }, aoPresenca);
+    ch.on('presence', { event: 'sync' }, () => typeof aoPresenca === 'function' ? aoPresenca() : aoPresencaBase());
     ch.on('broadcast', { event: 'snap' }, ({ payload }) => aoSnap(payload));
     ch.on('broadcast', { event: 'jogar' }, ({ payload }) => aoJogar(payload));
     ch.on('broadcast', { event: 'evt' }, ({ payload }) => aoEvento(payload));
@@ -2044,7 +2058,7 @@ function iniciarPing() {
     }, 30000);
 }
 
-function aoPresenca() {
+function aoPresencaBase() {
     if (!MP.ch) return;
     const lista = [];
     Object.values(MP.ch.presenceState()).forEach(arr => { const m = arr[arr.length - 1]; if (m && m.pid) lista.push(m); });
@@ -2447,6 +2461,8 @@ $('btnModoSozinho').onclick = () => {
     iniciarPartida();
 };
 $('btnModoMisto').onclick = () => { bloquearOrientacaoRetrato(); entrarMisto(); };
+$('btnModoMistoEspectador').onclick = () => { bloquearOrientacaoRetrato(); entrarMistoEspectador(); };
+$('btnModoSalaEspectador').onclick = () => { bloquearOrientacaoRetrato(); abrirSalasEspectador(); };
 $('btnModoSala').onclick = () => { bloquearOrientacaoRetrato(); abrirSalas(); };
 $('btnVoltarSalas').onclick = () => { clearInterval(MP.tLista); mostrarTela('telaModo'); };
 $('btnSairEspera').onclick = () => sairParaMenu('telaInicial');
@@ -2520,6 +2536,7 @@ $('btnCriarSala').onclick = async () => {
 };
 
 async function entrarNaEspera() {
+    if (MP.espectador) { return entrarNaEsperaEspectador(); }
     jogadorHumano = personagemDoUsuario();
     if (!jogadorHumano || !MP.ch) return;
     await new Promise(r => setTimeout(r, 700));        // deixa a lista de quem já está na sala chegar
@@ -2548,7 +2565,7 @@ async function sairSala() {
     $('pausaJogo').classList.add('escondido');
     const ch = MP.ch, sala = MP.sala, restam = MP.membros.filter(m => m.pid !== MP.pid).length;
     MP.ch = null; MP.ativo = false; MP.emJogo = false; MP.papel = null; MP.naEspera = false;
-    MP.membros = []; MP.falando.clear(); MP.sala = null; MP.ultimo = ''; MP.tDif = null;
+    MP.membros = []; MP.falando.clear(); MP.sala = null; MP.ultimo = ''; MP.tDif = null; MP.espectador = false;
     $('btnChave').classList.add('escondido');
     if (ch) { try { await ch.untrack(); } catch (e) {} try { getSB().removeChannel(ch); } catch (e) {} }
     if (sala && getSB()) rpc('ping_sala', { p_canal: sala.canal, p_n: restam }).catch(() => {});
@@ -2564,6 +2581,7 @@ function sairParaMenu(destino) {
     maquinasEliminadas = []; filaMaquinas = [];
     ultimoCliqueCarta = { id: null, tempo: 0 };
     $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); $('modalSenha').classList.add('escondido');
+    $('btnFrases').classList.add('escondido'); fecharPainelFrases();
     $('pausaJogo').classList.add('escondido');
     mostrarTela(destino || 'telaModo');
     if (destino === 'telaInicial') pararIntro();
@@ -2798,6 +2816,8 @@ function aoSnap(payload) {
     const { s, maos } = payload;
     if (MP.papel === 'host' || !MP.ch) return;
     if (s.g && s.g === MP.gidMorto) return;           // sobra de uma partida já encerrada
+    // Spectator: não está sentado, mas pode ver o estado completo
+    if (MP.espectador) { aoSnapEspectador(payload); return; }
     const eu = s.do.indexOf(MP.pid);
     if (eu < 0) return;                      // não está sentado nesta partida
     MP.eu = eu;
@@ -3637,3 +3657,346 @@ $('btnAdmCadastrar').onclick = abrirCadastro;
 $('btnAdmSalvar').onclick = salvarCadastro;
 $('btnAdmCancelar').onclick = () => { admMsg(''); $('admVistaCadastro').classList.add('escondido'); $('admVistaLista').classList.remove('escondido'); };
 $('btnAdmVoltar').onclick = () => { admMsg(''); mostrarTela('telaModo'); };
+
+// =====================================================================
+// =================== V91 · TELESPECTADOR =============================
+// Entre em modo Misto ou Sala apenas para assistir, sem escolher personagem.
+// Clique no avatar de um jogador para ver suas cartas.
+// =====================================================================
+
+async function entrarMistoEspectador() {
+    if (!getSB()) { alert(MSG_CONFIG); return; }
+    try {
+        const r = await rpc('entrar_misto');
+        MP.sala = { id: r.id, canal: r.canal, nome: 'Misto', tipo: 'misto', senha: '' };
+        MP.offset = Date.parse(r.agora) - Date.now();
+        MP.inicio = Date.parse(r.inicio_em);
+        MP.modo = 'misto';
+        MP.espectador = true;
+        await conectarCanal(r.canal);
+        iniciarPing();
+        await entrarNaEsperaEspectador();
+    } catch (e) { alert('Não foi possível entrar como telespectador: ' + (e.message || e)); MP.espectador = false; sairSala(); }
+}
+
+async function abrirSalasEspectador() {
+    if (!getSB()) { alert(MSG_CONFIG); return; }
+    mostrarTela('telaSalas');
+    await carregarSalasEspectador();
+    clearInterval(MP.tLista); MP.tLista = setInterval(carregarSalasEspectador, 4000);
+}
+
+async function carregarSalasEspectador() {
+    const box = $('listaSalas');
+    try {
+        const lista = await rpc('listar_salas');
+        if (!lista || !lista.length) { box.innerHTML = '<div class="vazio">Nenhum bar aberto agora.</div>'; return; }
+        box.innerHTML = '';
+        lista.forEach(s => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sala-item' + (s.status === 'jogando' ? ' jogando' : '');
+            const n = document.createElement('b'); n.textContent = s.nome;
+            const i = document.createElement('span'); i.textContent = `👁 Assistir · ${s.contagem}/4${s.status === 'jogando' ? ' · jogando' : ''}`;
+            b.append(n, i);
+            b.onclick = () => entrarNaSalaEspectador(s);
+            box.appendChild(b);
+        });
+    } catch (e) { box.innerHTML = '<div class="vazio">Erro ao carregar as salas.</div>'; }
+}
+
+async function entrarNaSalaEspectador(s) {
+    try {
+        const r = await rpc('entrar_sala_aberta', { p_id: s.id });
+        if (!r || r.erro) { alert('Esse bar não existe mais.'); return carregarSalasEspectador(); }
+        clearInterval(MP.tLista);
+        MP.sala = { id: s.id, canal: r.canal, nome: r.nome, tipo: 'sala', senha: '' };
+        MP.offset = Date.parse(r.agora) - Date.now(); MP.modo = 'sala';
+        MP.espectador = true;
+        await conectarCanal(r.canal);
+        iniciarPing();
+        await entrarNaEsperaEspectador();
+    } catch (e) { alert('Erro ao entrar na sala: ' + (e.message || e)); MP.espectador = false; sairSala(); }
+}
+
+async function entrarNaEsperaEspectador() {
+    if (!MP.ch) return;
+    await new Promise(r => setTimeout(r, 700));
+    MP.naEspera = true; MP.char = 0; MP.ordem = Date.now() + MP.offset + 999999; // fica por último na lista
+    await MP.ch.track({ pid: MP.pid, char: 0, ordem: MP.ordem, espectador: true });
+    mostrarTela('telaEspera');
+    atualizarEspera(); atualizarFaixa();
+}
+
+// Espectador recebe o snap completo e renderiza a mesa sem controles de jogo
+function aoSnapEspectador(payload) {
+    const { s, bk } = payload;
+    if (!s || !s.pe) return;
+    const rot = a => a; // espectador usa perspectiva do assento 0 (sem rotação)
+    const v = i => i;
+    const acha = id => PERSONAGENS.find(p => p.id === id);
+    const ant = G;
+    const g = {
+        nomes: s.no, personagens: s.pe.map(acha), totais: s.to, pts: s.pt,
+        turno: s.t, ocupado: s.oc, distribuindo: s.di, distMsg: s.dm, recebidas: s.rc, rodadaEncerrada: s.re,
+        mesa: s.me.map(([j, c]) => ({ jogador: j, carta: cartaDeId(c) })), lider: s.li, quebrada: s.qb, vazas: s.vz,
+        maos: bk ? bk.H.map(a => a.map(cartaDeId)) : [[], [], [], []],
+        pegas: s.pg.map(a => a.map(cartaDeId)), aviso: s.av || '',
+        carteador: s.ca, rodada: s.r, venc: s.vc,
+        humanos: s.ho, donos: s.do, hostPid: s.do[0], virarMao: false, gid: s.g || null,
+        luaConquistada: ant ? ant.luaConquistada : false, renunciaConquistada: ant ? ant.renunciaConquistada : false,
+        avisoAte: 0, vago: s.vg || [false, false, false, false]
+    };
+    if (g.personagens.some(p => !p)) return; // aguarda personagens carregarem
+    g.personagens.forEach((p, i) => { if (p) p.total = g.totais[i]; });
+    const primeira = !MP.emJogo;
+    if (primeira) {
+        MP.emJogo = true; MP.papel = 'espectador'; MP.naEspera = false; MP.volta = false; MP.mesaMeta = '';
+        jogadorHumano = g.personagens[0]; // usa o primeiro como referência para htmlFim etc.
+        mostrarTela('jogo'); pararIntro();
+        $('btnChave').classList.add('escondido');
+        $('maoJogador').innerHTML = '<div style="text-align:center;color:#aaa;padding:8px;font-size:13px">👁 Telespectador · Clique numa foto para ver as cartas</div>';
+    }
+    MP.ultimoSnap = payload;
+    G = g;
+    renderEspectador();
+    sincronizarMesaCliente();
+    if (ant && ant.rodadaEncerrada && !g.rodadaEncerrada) $('modal').classList.add('escondido');
+}
+
+function renderEspectador() {
+    if (!G) return;
+    // Mão do espectador: mantém o aviso fixo
+    $('maoJogador').innerHTML = '<div style="text-align:center;color:#aaa;padding:8px;font-size:13px">👁 Telespectador · Clique numa foto para ver as cartas</div>';
+    $('maoJogador').classList.remove('mao-pontos-finais');
+
+    for (let i = 0; i < 4; i++) {
+        const box = $(`j${i}`);
+        box.classList.toggle('turno-ativo', i === G.turno && !G.ocupado && !G.distribuindo);
+        const ranking = posicoes(G.personagens, p => p.total, 'partida').get(G.personagens[i]);
+        const p = G.personagens[i];
+        if (!p) continue;
+        box.innerHTML = `<img class="avatar-jogador" src="${p.foto}" alt="${G.nomes[i]}" onclick="verCartasEspectador(${i})" style="cursor:pointer" title="Ver cartas de ${G.nomes[i]}" onerror="this.src='fotos/${p.id}.png'; this.onerror=null">
+            <div class="info-jogador">
+                <span class="nome nome-ajusta" title="${G.nomes[i]}"><span class="nome-txt">${nomeCurto(G.nomes[i])}</span> <small class="ranking">${ranking}º</small></span>
+                <span class="tot">Total: ${G.totais[i]}</span>
+                <span class="rod">Rodada: ${G.pts[i]}</span>
+            </div>`;
+        ajustarNomes(box);
+        if (G.rodadaEncerrada && i !== 0) {
+            const faixa = document.createElement('div'); faixa.className = 'pontos-mao-final';
+            G.pegas[i].forEach(c => faixa.appendChild(criarElementoCarta(c, 'carta-ponto-final')));
+            box.appendChild(faixa);
+        }
+    }
+    atualizarIndicadoresSala();
+    atualizarStatus();
+    marcarFalando();
+}
+
+function verCartasEspectador(jogador) {
+    if (!G || !G.maos || !G.maos[jogador]) return;
+    const overlay = $('espectadorOverlay');
+    const nome = G.nomes[jogador] || `Jogador ${jogador + 1}`;
+    $('espectadorNome').textContent = `🃏 Cartas de ${nome}`;
+    const container = $('espectadorCartas');
+    container.innerHTML = '';
+    const cartas = G.maos[jogador];
+    if (!cartas.length) {
+        container.innerHTML = '<p style="color:#aaa;padding:8px">Sem cartas (fim de rodada)</p>';
+    } else {
+        cartas.slice().sort((a, b) => ORDEM_MAO.indexOf(a.naipe) - ORDEM_MAO.indexOf(b.naipe) || a.valor - b.valor)
+            .forEach(c => container.appendChild(criarElementoCarta(c)));
+    }
+    overlay.classList.remove('escondido');
+}
+$('espectadorFechar').onclick = () => $('espectadorOverlay').classList.add('escondido');
+$('espectadorOverlay').addEventListener('click', e => { if (e.target === $('espectadorOverlay')) $('espectadorOverlay').classList.add('escondido'); });
+
+// =====================================================================
+// ===== V91 · ESTAMPA DE CADA JOGADOR NAS CARTAS DO EMBARALHAR ========
+// Cartas que voam para a mão de cada jogador usam a estampa daquele
+// jogador (armazenada em G.estampasJogadores[i], preenchida ao iniciar).
+// =====================================================================
+
+// Cria verso de carta usando a estampa de um jogador específico
+function criarVersoCartaParaJogador(jogador) {
+    if (!G || !G.estampasJogadores) return criarVersoCarta();
+    const pid = G.donos && G.donos[jogador];
+    // Para o próprio jogador (posição 0 no modo solo/host): usa estampa ativa do usuário
+    if (jogador === 0 || !pid) {
+        // Usa a estampa do usuário local
+        return criarVersoCarta();
+    }
+    // Para outros: usa a estampa divulgada via presença (G.estampasJogadores[jogador])
+    const estampaId = G.estampasJogadores[jogador];
+    if (!estampaId || estampaId === 'padrao') return criarVersoCarta();
+    const d = document.createElement('div');
+    d.className = 'carta verso';
+    d.setAttribute('aria-label', 'Carta virada para baixo');
+    const img = document.createElement('img');
+    img.className = 'imagem-estampa-carta';
+    img.alt = ''; img.draggable = false; img.decoding = 'async';
+    d.classList.add('com-estampa');
+    d.appendChild(img);
+    carregarImagemEstampa(img, estampaId, () => { d.classList.remove('com-estampa'); img.remove(); });
+    return d;
+}
+
+// Ao entrar na espera, publica a estampa ativa junto com a presença
+const _entrarNaEsperaOrig = entrarNaEspera;
+// Sobrescreve track para incluir estampa
+const _trackComEstampa = async () => {
+    const estampa = estampaSelecionada();
+    if (MP.ch) {
+        await MP.ch.track(Object.assign(
+            { pid: MP.pid, char: MP.char, ordem: MP.ordem },
+            MP.volta ? { volta: true } : {},
+            { estampa: estampa !== 'padrao' ? String(estampa) : '' }
+        )).catch(() => {});
+    }
+};
+
+// Ao receber presença, preenche G.estampasJogadores
+const _aoPresencaOrig = aoPresenca;
+// Monkey-patch aoPresenca to also fill estampas
+
+// Patch aoPresenca to also update estampasJogadores
+function aoPresenca() {
+    if (!MP.ch) return;
+    const lista = [];
+    Object.values(MP.ch.presenceState()).forEach(arr => { const m = arr[arr.length - 1]; if (m && m.pid) lista.push(m); });
+    lista.sort((a, b) => a.ordem - b.ordem || a.pid.localeCompare(b.pid));
+    MP.membros = lista;
+    const vivos = new Set(lista.map(m => m.pid));
+    [...MP.falando].forEach(p => { if (!vivos.has(p) && p !== MP.pid) MP.falando.delete(p); });
+    // Atualiza estampas dos jogadores
+    if (G) {
+        if (!G.estampasJogadores) G.estampasJogadores = ['', '', '', ''];
+        lista.forEach(m => {
+            const idx = G.donos ? G.donos.indexOf(m.pid) : -1;
+            if (idx >= 0) G.estampasJogadores[idx] = m.estampa || '';
+        });
+    }
+    atualizarCharsOcupados(); atualizarEspera(); atualizarFaixa(); atualizarIndicadoresSala(); sincronizarVoz(); verificarSaidas(); marcarFalando();
+}
+
+// Initialize estampasJogadores when game starts
+const _iniciarPartidaOrig = iniciarPartida;
+// Patch G init to add estampasJogadores
+
+// Also track estampa when joining espera
+
+// =====================================================================
+// ===== V91 · FRASES RÁPIDAS ==========================================
+// Até 3 frases por partida; aparecem como balão de fala do jogador.
+// Só visíveis quando há 2+ jogadores humanos.
+// =====================================================================
+
+const FRASES = [
+    'Sentou para o bonde!',
+    'Olha a inquilina aí!',
+    'Ihhhhhhhh!',
+    'Chora!!!',
+    'Pediu pra sair!',
+    'Hoje tem passeio?',
+    'Passei o pau na tua cara.',
+    'Vai pagar a coca!',
+    'Hoje é valendo a bunda hein.',
+    'Tá valendo o quê?',
+    'Isso não é bicho pra ficar cercando não.'
+];
+const MAX_FRASES = 3;
+let frasesUsadas = 0;
+let frasesBalaoTimer = null;
+
+function atualizarBtnFrases() {
+    const btn = $('btnFrases');
+    if (!btn) return;
+    // Só mostra se estiver em jogo com 2+ humanos e não for espectador e não estar em modo solo
+    const mostra = G && MP.modo !== 'solo' && !MP.espectador && MP.ativo && MP.membros.length > 1;
+    btn.classList.toggle('escondido', !mostra);
+    if (mostra) {
+        const restam = MAX_FRASES - frasesUsadas;
+        btn.title = restam > 0 ? `Frases rápidas (${restam} restantes)` : 'Frases esgotadas';
+        btn.style.opacity = restam > 0 ? '1' : '0.4';
+    }
+}
+
+function fecharPainelFrases() {
+    const p = $('painelFrases'); if (p) p.classList.add('escondido');
+}
+
+function abrirPainelFrases() {
+    const restam = MAX_FRASES - frasesUsadas;
+    if (restam <= 0) { avisoTemp('Você já usou suas 3 frases nesta partida! 🤐', 2500); return; }
+    const p = $('painelFrases');
+    $('frasesRestantes').textContent = `(${restam} restante${restam === 1 ? '' : 's'})`;
+    const lista = $('frasesList');
+    lista.innerHTML = '';
+    FRASES.forEach(fr => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'frase-item';
+        btn.textContent = fr;
+        btn.onclick = () => { fecharPainelFrases(); usarFrase(fr); };
+        lista.appendChild(btn);
+    });
+    p.classList.remove('escondido');
+}
+
+function usarFrase(texto) {
+    if (frasesUsadas >= MAX_FRASES || !MP.ativo) return;
+    frasesUsadas++;
+    atualizarBtnFrases();
+    // Envia para todos via evt
+    if (MP.emJogo && (MP.papel === 'host' || MP.papel === 'cliente')) {
+        enviar('evt', { t: 'frase', pid: MP.pid, char: jogadorHumano ? jogadorHumano.id : 0, texto });
+    }
+    // Mostra localmente também
+    mostrarBalaoFrase(0, texto, true);
+}
+
+function mostrarBalaoFrase(assento, texto, meu) {
+    // assento = posição na mesa (0-3)
+    const box = $(`j${assento}`);
+    if (!box) return;
+    // Remove balão anterior do mesmo assento
+    const anterior = box.querySelector('.balao-frase');
+    if (anterior) anterior.remove();
+    const balao = document.createElement('div');
+    balao.className = 'balao-frase' + (meu ? ' balao-meu' : '');
+    balao.textContent = texto;
+    box.appendChild(balao);
+    clearTimeout(frasesBalaoTimer);
+    frasesBalaoTimer = setTimeout(() => { if (balao.parentNode) balao.remove(); }, 4500);
+}
+
+// Recebe frase de outro jogador via evento
+const _aoEventoOrig = aoEvento;
+aoEvento = function(p) {
+    if (p.t === 'frase') {
+        // Encontra o assento pelo pid ou char
+        let assento = -1;
+        if (G) {
+            assento = G.donos ? G.donos.indexOf(p.pid) : -1;
+            if (assento < 0 && G.personagens) assento = G.personagens.findIndex(px => px && px.id === p.char);
+        }
+        if (assento < 0) assento = 1; // fallback
+        mostrarBalaoFrase(assento, p.texto, false);
+        return;
+    }
+    _aoEventoOrig(p);
+};
+
+$('btnFrases').onclick = () => {
+    const p = $('painelFrases');
+    if (p.classList.contains('escondido')) abrirPainelFrases(); else fecharPainelFrases();
+};
+$('frasesFechar').onclick = fecharPainelFrases;
+// Fecha ao clicar fora
+document.addEventListener('click', e => {
+    if (!$('painelFrases').classList.contains('escondido') &&
+        !e.target.closest('#painelFrases') && !e.target.closest('#btnFrases')) {
+        fecharPainelFrases();
+    }
+});
