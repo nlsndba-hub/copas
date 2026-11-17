@@ -4,5 +4,6 @@
 window.PERSONAGENS_MISSAO = [
     { id: 100, nome: 'Caneta Azul', foto: 'fotos/100.png', somenteBot: true, chanceSolo: 0.15, missaoId: 'missao_azul', audioEntrada: 'audio/100.mp3' },
     { id: 101, nome: 'Patixa Teló', foto: 'fotos/101.png', somenteBot: true, chanceSolo: 0.15, missaoId: 'missao_patixa', audioEntrada: 'audio/101.mp3' },
-    { id: 102, nome: 'Robô Maicon', foto: 'fotos/102.png', somenteBot: true, chanceSolo: 0.15, missaoId: 'missao_102', audioEntrada: 'audio/102.mp3' }
+    { id: 102, nome: 'Robô Maicon', foto: 'fotos/102.png', somenteBot: true, chanceSolo: 0.15, missaoId: 'missao_102', audioEntrada: 'audio/102.mp3' },
+    { id: 103, nome: 'P. Molhado', foto: 'fotos/103.png', somenteBot: true, chanceSolo: 0.15, missaoId: 'missao_103', audioEntrada: 'audio/103.mp3' }
 ];
