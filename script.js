@@ -2000,6 +2000,16 @@ preencherLista();
 // ================= MULTIJOGADOR (V20) · SUPABASE + VOZ ================
 // =====================================================================
 const MSG_CONFIG = 'O Supabase ainda não foi configurado.\nPreencha o arquivo config.js (veja o LEIA-ME).';
+const MSG_OFFLINE = 'Servidor indisponível. Verifique sua internet e tente de novo.';
+function msgSB() {
+    const c = window.MIQ_SUPABASE || {};
+    return (!c.url || !c.anonKey || /COLE_AQUI/.test(c.url + c.anonKey)) ? MSG_CONFIG : MSG_OFFLINE;
+}
+function msgErro(e) {
+    const m = String((e && (e.message || e.details || e.hint)) || e || '');
+    if (/failed to fetch|networkerror|network request|load failed|timeout|timed out|cannot read prop|is not a function|is not defined|null|undefined|abort/i.test(m)) return MSG_OFFLINE;
+    return m.length > 140 ? m.slice(0, 140) + '…' : (m || MSG_OFFLINE);
+}
 function getSB() {
     if (MP.sb) return MP.sb;
     const c = window.MIQ_SUPABASE || {};
@@ -2008,7 +2018,9 @@ function getSB() {
     return MP.sb;
 }
 async function rpc(nome, args) {
-    const { data, error } = await getSB().rpc(nome, args || {});
+    const sb = getSB();
+    if (!sb) throw new Error(MSG_OFFLINE);
+    const { data, error } = await sb.rpc(nome, args || {});
     if (error) throw error;
     return data;
 }
@@ -2501,7 +2513,7 @@ $('btnFecharSenha').onclick = () => $('modalSenha').classList.add('escondido');
 $('modalSenha').addEventListener('click', e => { if (e.target === $('modalSenha')) $('modalSenha').classList.add('escondido'); });
 
 async function entrarMisto() {
-    if (!getSB()) { alert(MSG_CONFIG); return; }
+    if (!getSB()) { alert(msgSB()); return; }
     try {
         const r = await rpc('entrar_misto');
         MP.sala = { id: r.id, canal: r.canal, nome: 'Misto', tipo: 'misto', senha: '' };
@@ -2510,12 +2522,12 @@ async function entrarMisto() {
         MP.modo = 'misto';
         await conectarCanal(r.canal);
         iniciarPing(); await entrarNaEspera();
-    } catch (e) { alert('Não foi possível entrar no modo Misto: ' + (e.message || e)); await sairSala(); MP.modo = 'solo'; abrirSalas('misto'); }
+    } catch (e) { alert('Não foi possível entrar no modo Misto: ' + msgErro(e)); await sairSala(); MP.modo = 'solo'; abrirSalas('misto'); }
 }
 
 let listaModo = 'sala';
 async function abrirSalas(modo) {
-    if (!getSB()) { alert(MSG_CONFIG); return; }
+    if (!getSB()) { alert(msgSB()); return; }
     listaModo = modo === 'misto' ? 'misto' : 'sala';
     const m = listaModo === 'misto';
     $('tituloSalas').textContent = m ? '👥 Salas Misto' : '🍺 Bares abertos';
@@ -2561,7 +2573,7 @@ async function entrarNaSala(s) {
         MP.offset = Date.parse(r.agora) - Date.now(); MP.modo = 'sala';
         await conectarCanal(r.canal);
         iniciarPing(); await entrarNaEspera();
-    } catch (e) { alert('Erro ao entrar na sala: ' + (e.message || e)); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
+    } catch (e) { alert('Erro ao entrar na sala: ' + msgErro(e)); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
 }
 $('btnCriarSala').onclick = async () => {
     const nome = nomeBarAleatorio(), senha = '';
@@ -2574,7 +2586,7 @@ $('btnCriarSala').onclick = async () => {
         MP.offset = Date.parse(r.agora) - Date.now(); MP.modo = 'sala';
         await conectarCanal(r.canal);
         iniciarPing(); await entrarNaEspera();
-    } catch (e) { alert('Erro ao criar a sala: ' + (e.message || e)); if (canalCriado && getSB()) rpc('ping_sala', { p_canal: canalCriado, p_n: 0 }).catch(() => {}); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
+    } catch (e) { alert('Erro ao criar a sala: ' + msgErro(e)); if (canalCriado && getSB()) rpc('ping_sala', { p_canal: canalCriado, p_n: 0 }).catch(() => {}); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
 };
 
 async function entrarNaEspera() {
@@ -3172,7 +3184,7 @@ function irParaModo() {
 }
 async function fazerLogin() {
     const erro = $('acessoErro');
-    if (!getSB()) { erro.textContent = MSG_CONFIG.split('\n')[0]; return; }
+    if (!getSB()) { erro.textContent = msgSB().split('\n')[0]; return; }
     const u = USUARIOS.normalizarLogin($('inpUsuario').value), s = $('inpSenha').value;
     if (!u || !s) { erro.textContent = 'Digite o usuário e a senha.'; return; }
     $('btnEntrar').disabled = true; erro.textContent = 'Entrando…';
@@ -3348,7 +3360,7 @@ $('btnModoManutencao').onclick = async () => {
         const r = await rpc('manutencao_definir', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_ligado: novo });
         if (r && r.erro) { alert('Não foi possível alterar: ' + r.erro); return; }
         aplicarManutencao(novo);
-    } catch (e) { alert('Erro (rode o SQL v94 no Supabase): ' + (e.message || e)); }
+    } catch (e) { alert('Erro (rode o SQL v94 no Supabase): ' + msgErro(e)); }
 };
 const avisoChat = m => { $('chatAviso').textContent = m || ''; };
 const doisD = n => String(n).padStart(2, '0');
@@ -3555,10 +3567,7 @@ async function enviarChat() {
         else $('chatAviso').textContent = 'Não foi possível enviar.';
     } catch (e) {
         console.error('Erro ao enviar mensagem no chat:', e);
-        const detalhe = e && (e.message || e.details || e.hint);
-        $('chatAviso').textContent = detalhe
-            ? `Falha ao enviar: ${detalhe}`
-            : 'Não foi possível enviar. Verifique a internet.';
+        $('chatAviso').textContent = 'Não foi possível enviar. ' + (navigator.onLine === false ? 'Verifique a internet.' : msgErro(e));
     }
     finally { SES.enviando = false; $('chatEnviar').disabled = false; }
 }
@@ -3751,7 +3760,7 @@ $('btnAdmVoltar').onclick = () => { admMsg(''); mostrarTela('telaModo'); };
 // =====================================================================
 
 async function assistirSala(s, tipo) {
-    if (!getSB()) { alert(MSG_CONFIG); return; }
+    if (!getSB()) { alert(msgSB()); return; }
     try {
         const r = await rpc('assistir_sala', { p_id: s.id });
         if (!r || r.erro) { alert('Essa sala não existe mais.'); return carregarSalas(); }
@@ -3764,7 +3773,7 @@ async function assistirSala(s, tipo) {
         await conectarCanal(r.canal);
         iniciarPing();
         await entrarNaEsperaEspectador();
-    } catch (e) { alert('Não foi possível assistir (rode o SQL v92 no Supabase): ' + (e.message || e)); MP.espectador = false; sairSala(); }
+    } catch (e) { alert('Não foi possível assistir (rode o SQL v92 no Supabase): ' + msgErro(e)); MP.espectador = false; sairSala(); }
 }
 
 async function entrarNaEsperaEspectador() {
