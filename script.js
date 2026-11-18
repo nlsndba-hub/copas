@@ -2454,13 +2454,42 @@ function abrirMissoes() {
         const status = document.createElement('p'); status.className = 'missao-status' + (concluida ? ' concluida' : '');
         status.textContent = concluida ? 'Missão concluída — recompensa liberada' : 'Ainda não concluída';
         card.append(titulo, desc, premio, status);
+        // Só missões que ESTE usuário concluiu têm o botão de ouvir o áudio.
+        if (concluida) {
+            const r = m.recompensa || {};
+            const src = r.audioEntrada || (r.personagemId ? `audio/${r.personagemId}.mp3` : '');
+            if (src) {
+                const play = document.createElement('button');
+                play.type = 'button'; play.className = 'btn-play-missao';
+                play.title = 'Ouvir áudio'; play.setAttribute('aria-label', `Ouvir áudio de ${r.nomePersonagem || m.nome}`);
+                play.textContent = '▶';
+                play.onclick = e => { e.stopPropagation(); tocarAudioMissao(src, play); };
+                card.appendChild(play);
+            }
+        }
         lista.appendChild(card);
     });
     $('telaMissoes').classList.remove('escondido');
 }
+let audioMissaoAtual = null, btnMissaoAtual = null;
+function pararAudioMissao() {
+    if (audioMissaoAtual) { try { audioMissaoAtual.pause(); audioMissaoAtual.currentTime = 0; } catch (e) {} }
+    if (btnMissaoAtual) btnMissaoAtual.textContent = '▶';
+    audioMissaoAtual = null; btnMissaoAtual = null;
+}
+function tocarAudioMissao(src, btn) {
+    const mesmo = btnMissaoAtual === btn;
+    pararAudioMissao();
+    if (mesmo) return; // clicar de novo no mesmo botão para o áudio
+    pararAudiosEntrada();
+    const a = new Audio(src);
+    audioMissaoAtual = a; btnMissaoAtual = btn; btn.textContent = '⏸';
+    a.onended = () => { if (audioMissaoAtual === a) pararAudioMissao(); };
+    a.play().catch(() => pararAudioMissao());
+}
 $('btnModoMissoes').onclick = abrirMissoes;
-$('btnFecharMissoes').onclick = () => $('telaMissoes').classList.add('escondido');
-$('telaMissoes').addEventListener('click', e => { if (e.target === $('telaMissoes')) $('telaMissoes').classList.add('escondido'); });
+$('btnFecharMissoes').onclick = () => { pararAudioMissao(); $('telaMissoes').classList.add('escondido'); };
+$('telaMissoes').addEventListener('click', e => { if (e.target === $('telaMissoes')) { pararAudioMissao(); $('telaMissoes').classList.add('escondido'); } });
 
 function abrirColecaoEstampas() {
     const grade = $('gradeEstampas'); grade.textContent = '';

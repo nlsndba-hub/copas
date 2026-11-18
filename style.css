@@ -991,6 +991,9 @@ html[data-tela="jogo"] > #btnChat {
 .missao-card p { margin:5px 0; }
 .missao-status { font-weight:700; margin-top:9px !important; }
 .missao-status.concluida { color:#65d98b; }
+.missao-card { position:relative; }
+.btn-play-missao { position:absolute; top:10px; right:10px; width:36px; height:36px; border-radius:50%; border:1px solid rgba(255,255,255,.35); background:rgba(101,217,139,.2); color:#65d98b; font-size:15px; cursor:pointer; }
+.btn-play-missao:hover { background:rgba(101,217,139,.35); }
 
 
 /* V81 — alerta discreto de mesa com missão, sem revelar o objetivo. */
