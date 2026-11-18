@@ -226,22 +226,21 @@ let jogadorHumano = null;
 let filaMaquinas = [];
 let maquinasEliminadas = [];
 
-// V98 — missões no formato "condicoes": nenhum bot pode ser exigido em 1º lugar.
-const requisitosDaMissao = m => (m.presentes || m.personagensNecessarios || []).map(Number);
-function missaoValidaPara(m, humanoId) {
-    if (!Array.isArray(m.condicoes)) return true;
-    return m.condicoes.every(c => {
-        if (c.quem === 'eu') return true;
-        if (Number(c.quem) === Number(humanoId) || c.antesDe) return false;   // só bots, e nunca "à frente de"
-        const ps = [].concat(c.pos == null ? [] : c.pos);
-        return !ps.includes(1);
-    });
+// V99 — missões: dois personagens (terceiro/ultimo). O usuário, se for um deles, termina em 1º e o outro fica em último.
+const requisitosDaMissao = m => (m.terceiro && m.ultimo ? [m.terceiro, m.ultimo] : (m.presentes || m.personagensNecessarios || [])).map(Number);
+function missaoValidaPara(m, humanoId) { return true; }
+function condicoesDaMissao(m, humanoId) {
+    if (!(m.terceiro && m.ultimo)) return m.condicoes;
+    const t = Number(m.terceiro), u = Number(m.ultimo), h = Number(humanoId);
+    if (h === t) return [{ quem: 'eu', pos: 1 }, { quem: u, pos: 'ultimo' }];
+    if (h === u) return [{ quem: 'eu', pos: 1 }, { quem: t, pos: 'ultimo' }];
+    return [{ quem: t, pos: 3 }, { quem: u, pos: 'ultimo' }];
 }
 function condicoesCumpridas(m, pers, totais, humanoId) {
     const max = Math.max(...totais);
     const idx = q => pers.indexOf(Number(q === 'eu' ? humanoId : q));
     const posDe = q => { const i = idx(q); return i < 0 ? -1 : 1 + totais.filter(t => t < totais[i]).length; };
-    return m.condicoes.every(c => {
+    return condicoesDaMissao(m, humanoId).every(c => {
         const i = idx(c.quem); if (i < 0) return false;
         const pos = posDe(c.quem), ultimo = totais[i] === max && totais.some(t => t !== max);
         if (c.pos === 'ultimo' && !ultimo) return false;
@@ -2432,8 +2431,11 @@ function salvarMissoesLocais() {
     try { localStorage.setItem(`${MISSION_LOCAL_KEY}:${usuarioAtual?.usuario || 'anon'}`, JSON.stringify([...MISSION_UNLOCKS])); } catch (e) {}
 }
 async function concluirMissoesDaPartida(d) {
-    if (!usuarioAtual || !jogadorHumano || !Array.isArray(window.MISSOES) || !G?.missaoAtivaId) return;
-    const missao = window.MISSOES.find(m => m.id === G.missaoAtivaId);
+    if (!usuarioAtual || !jogadorHumano || !Array.isArray(window.MISSOES)) return;
+    // V99 — confere TODAS as missões ainda não liberadas (duas podem liberar na mesma partida).
+    for (const m of window.MISSOES) { if (!MISSION_UNLOCKS.has(m.id)) await concluirUmaMissao(m, d); }
+}
+async function concluirUmaMissao(missao, d) {
     if (!missao || MISSION_UNLOCKS.has(missao.id)) return;
     const participantes = new Set((d.pers || []).map(Number));
     const requisitos = requisitosDaMissao(missao);
@@ -2445,7 +2447,7 @@ async function concluirMissoesDaPartida(d) {
     const pers = (d.pers || []).map(Number);
     const totais = (d.totais || []).map(Number);
     const posDe = id => { const i = pers.indexOf(Number(id)); return i < 0 ? -1 : 1 + totais.filter(t => t < totais[i]).length; };
-    if (Array.isArray(missao.condicoes)) {
+    if (missao.terceiro || Array.isArray(missao.condicoes)) {
         if (!condicoesCumpridas(missao, pers, totais, jogadorHumano.id)) return;
     } else if (Array.isArray(missao.posicoes) && missao.posicoes.length === requisitos.length) {
         if (!requisitos.every((id, k) => posDe(id) === Number(missao.posicoes[k]))) return;
