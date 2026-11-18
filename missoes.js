@@ -130,6 +130,22 @@ window.MISSOES = [
             audioEntrada: 'audio/107.mp3'
         }
     },
+    
+    {
+        id: 'missao_108',
+        nome: 'Faz o L',
+        descricao: 'Em uma partida com Alcy e Big Z, termine com Alcy em 1º lugar e Big Z em 3º lugar.',
+        personagensNecessarios: [1, 8],
+        posicoes: [1, 3],
+        recompensa: {
+            personagemId: 108,
+            estampaId: 108,
+            nomePersonagem: 'Lula 13',
+            foto: 'fotos/108.png',
+            estampa: 'estampa/108.png',
+            audioEntrada: 'audio/108.mp3'
+        }
+    },
 ];
 
 /*
@@ -142,21 +158,6 @@ window.MISSOES = [
  */
 /*
 
-    {
-        id: 'missao_108',
-        nome: 'Definir nome da missão 108',
-        descricao: 'Em uma partida com Alcy e Big Z, termine com Alcy em 1º lugar e Big Z em 3º lugar.',
-        personagensNecessarios: [1, 8],
-        posicoes: [1, 3],
-        recompensa: {
-            personagemId: 108,
-            estampaId: 108,
-            nomePersonagem: 'DEFINIR_NOME_108',
-            foto: 'fotos/108.png',
-            estampa: 'estampa/108.png',
-            audioEntrada: 'audio/108.mp3'
-        }
-    },
     {
         id: 'missao_109',
         nome: 'Definir nome da missão 109',
