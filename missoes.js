@@ -1,11 +1,13 @@
 // Missões ativas. Uma missão é sorteada a cada 3 partidas completas no modo Sozinho.
-// Para concluir, o jogador precisa NÃO terminar em último lugar.
+// Para concluir, os dois personagens da missão precisam terminar nas posições de "posicoes"
+// (na mesma ordem de personagensNecessarios; 1º = menos pontos). Vale também se o usuário é um deles.
 window.MISSOES = [
     {
         id: 'missao_azul',
         nome: 'Missão Azul',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Marcio.',
+        descricao: 'Em uma partida com Alcy e Marcio, termine com Alcy em 1º lugar e Marcio em 2º lugar.',
         personagensNecessarios: [1, 4],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 100,
             estampaId: 100,
@@ -18,8 +20,9 @@ window.MISSOES = [
     {
         id: 'missao_patixa',
         nome: 'Missão Patixa',
-        descricao: 'Não fique em último lugar em uma partida que contenha Xandão e Caio.',
+        descricao: 'Em uma partida com Xandão e Caio, termine com Xandão em 2º lugar e Caio em 1º lugar.',
         personagensNecessarios: [13, 3],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 101,
             estampaId: 101,
@@ -33,8 +36,9 @@ window.MISSOES = [
     {
         id: 'missao_102',
         nome: 'Robô Maicon',
-        descricao: 'Não fique em último lugar em uma partida que contenha Motoboy e Nelson.',
+        descricao: 'Em uma partida com Motoboy e Nelson, termine com Motoboy em 1º lugar e Nelson em 3º lugar.',
         personagensNecessarios: [6, 2],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 102,
             estampaId: 102,
@@ -47,8 +51,9 @@ window.MISSOES = [
         {
         id: 'missao_103',
         nome: 'Reciclagem de papelão molhado',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Ronaldo.',
+        descricao: 'Em uma partida com Alcy e Ronaldo, termine com Alcy em 3º lugar e Ronaldo em 1º lugar.',
         personagensNecessarios: [1, 15],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 103,
             estampaId: 103,
@@ -61,8 +66,9 @@ window.MISSOES = [
     {
         id: 'missao_104',
         nome: 'Pesque e pague, tá ok?',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Motoboy.',
+        descricao: 'Em uma partida com Alcy e Motoboy, termine com Alcy em 2º lugar e Motoboy em 3º lugar.',
         personagensNecessarios: [1, 6],
+        posicoes: [2, 3],
         recompensa: {
             personagemId: 104,
             estampaId: 104,
@@ -75,8 +81,9 @@ window.MISSOES = [
         {
         id: 'missao_105',
         nome: 'Pneu furou?',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Julio.',
+        descricao: 'Em uma partida com Alcy e Julio, termine com Alcy em 3º lugar e Julio em 2º lugar.',
         personagensNecessarios: [1, 5],
+        posicoes: [3, 2],
         recompensa: {
             personagemId: 105,
             estampaId: 105,
@@ -89,8 +96,9 @@ window.MISSOES = [
         {
         id: 'missao_106',
         nome: 'X9 papa anjo',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Caio.',
+        descricao: 'Em uma partida com Alcy e Caio, termine com Alcy em 1º lugar e Caio em 2º lugar.',
         personagensNecessarios: [1, 3],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 106,
             estampaId: 106,
@@ -104,8 +112,9 @@ window.MISSOES = [
         {
         id: 'missao_107',
         nome: 'Abravanel',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Nelson.',
+        descricao: 'Em uma partida com Alcy e Nelson, termine com Alcy em 2º lugar e Nelson em 1º lugar.',
         personagensNecessarios: [1, 2],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 107,
             estampaId: 107,
@@ -123,15 +132,16 @@ window.MISSOES = [
  * preencha nomePersonagem/nome/descricao e retire os comentários do objeto desejado,
  * copiando-o para dentro de window.MISSOES.
  * Arquivos previstos: fotos/ID.png, estampa/ID.png e audio/ID.mp3.
- * Os objetivos usam a regra: não terminar em último lugar.
+ * Os objetivos usam "posicoes": [posição do 1º personagem, posição do 2º] (1 a 3).
  */
 /*
 
     {
         id: 'missao_108',
         nome: 'Definir nome da missão 108',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Big Z.',
+        descricao: 'Em uma partida com Alcy e Big Z, termine com Alcy em 1º lugar e Big Z em 3º lugar.',
         personagensNecessarios: [1, 8],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 108,
             estampaId: 108,
@@ -144,8 +154,9 @@ window.MISSOES = [
     {
         id: 'missao_109',
         nome: 'Definir nome da missão 109',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Samuel.',
+        descricao: 'Em uma partida com Alcy e Samuel, termine com Alcy em 3º lugar e Samuel em 1º lugar.',
         personagensNecessarios: [1, 9],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 109,
             estampaId: 109,
@@ -158,8 +169,9 @@ window.MISSOES = [
     {
         id: 'missao_110',
         nome: 'Definir nome da missão 110',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Raphael.',
+        descricao: 'Em uma partida com Alcy e Raphael, termine com Alcy em 2º lugar e Raphael em 3º lugar.',
         personagensNecessarios: [1, 10],
+        posicoes: [2, 3],
         recompensa: {
             personagemId: 110,
             estampaId: 110,
@@ -172,8 +184,9 @@ window.MISSOES = [
     {
         id: 'missao_111',
         nome: 'Definir nome da missão 111',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Metello.',
+        descricao: 'Em uma partida com Alcy e Metello, termine com Alcy em 3º lugar e Metello em 2º lugar.',
         personagensNecessarios: [1, 11],
+        posicoes: [3, 2],
         recompensa: {
             personagemId: 111,
             estampaId: 111,
@@ -186,8 +199,9 @@ window.MISSOES = [
     {
         id: 'missao_112',
         nome: 'Definir nome da missão 112',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Dezinho.',
+        descricao: 'Em uma partida com Alcy e Dezinho, termine com Alcy em 1º lugar e Dezinho em 2º lugar.',
         personagensNecessarios: [1, 12],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 112,
             estampaId: 112,
@@ -200,8 +214,9 @@ window.MISSOES = [
     {
         id: 'missao_113',
         nome: 'Definir nome da missão 113',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Xandão.',
+        descricao: 'Em uma partida com Alcy e Xandão, termine com Alcy em 2º lugar e Xandão em 1º lugar.',
         personagensNecessarios: [1, 13],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 113,
             estampaId: 113,
@@ -214,8 +229,9 @@ window.MISSOES = [
     {
         id: 'missao_114',
         nome: 'Definir nome da missão 114',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Gordo.',
+        descricao: 'Em uma partida com Alcy e Gordo, termine com Alcy em 1º lugar e Gordo em 3º lugar.',
         personagensNecessarios: [1, 14],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 114,
             estampaId: 114,
@@ -228,8 +244,9 @@ window.MISSOES = [
     {
         id: 'missao_115',
         nome: 'Definir nome da missão 115',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Ronaldo.',
+        descricao: 'Em uma partida com Alcy e Ronaldo, termine com Alcy em 3º lugar e Ronaldo em 1º lugar.',
         personagensNecessarios: [1, 15],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 115,
             estampaId: 115,
@@ -242,8 +259,9 @@ window.MISSOES = [
     {
         id: 'missao_116',
         nome: 'Definir nome da missão 116',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Caio.',
+        descricao: 'Em uma partida com Nelson e Caio, termine com Nelson em 2º lugar e Caio em 3º lugar.',
         personagensNecessarios: [2, 3],
+        posicoes: [2, 3],
         recompensa: {
             personagemId: 116,
             estampaId: 116,
@@ -256,8 +274,9 @@ window.MISSOES = [
     {
         id: 'missao_117',
         nome: 'Definir nome da missão 117',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Marcio.',
+        descricao: 'Em uma partida com Nelson e Marcio, termine com Nelson em 3º lugar e Marcio em 2º lugar.',
         personagensNecessarios: [2, 4],
+        posicoes: [3, 2],
         recompensa: {
             personagemId: 117,
             estampaId: 117,
@@ -270,8 +289,9 @@ window.MISSOES = [
     {
         id: 'missao_118',
         nome: 'Definir nome da missão 118',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Julio.',
+        descricao: 'Em uma partida com Nelson e Julio, termine com Nelson em 1º lugar e Julio em 2º lugar.',
         personagensNecessarios: [2, 5],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 118,
             estampaId: 118,
@@ -284,8 +304,9 @@ window.MISSOES = [
     {
         id: 'missao_119',
         nome: 'Definir nome da missão 119',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Motoboy.',
+        descricao: 'Em uma partida com Nelson e Motoboy, termine com Nelson em 2º lugar e Motoboy em 1º lugar.',
         personagensNecessarios: [2, 6],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 119,
             estampaId: 119,
@@ -298,8 +319,9 @@ window.MISSOES = [
     {
         id: 'missao_120',
         nome: 'Definir nome da missão 120',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Alex.',
+        descricao: 'Em uma partida com Nelson e Alex, termine com Nelson em 1º lugar e Alex em 3º lugar.',
         personagensNecessarios: [2, 7],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 120,
             estampaId: 120,
@@ -312,8 +334,9 @@ window.MISSOES = [
     {
         id: 'missao_121',
         nome: 'Definir nome da missão 121',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Big Z.',
+        descricao: 'Em uma partida com Nelson e Big Z, termine com Nelson em 3º lugar e Big Z em 1º lugar.',
         personagensNecessarios: [2, 8],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 121,
             estampaId: 121,
@@ -326,8 +349,9 @@ window.MISSOES = [
     {
         id: 'missao_122',
         nome: 'Definir nome da missão 122',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Samuel.',
+        descricao: 'Em uma partida com Nelson e Samuel, termine com Nelson em 2º lugar e Samuel em 3º lugar.',
         personagensNecessarios: [2, 9],
+        posicoes: [2, 3],
         recompensa: {
             personagemId: 122,
             estampaId: 122,
@@ -340,8 +364,9 @@ window.MISSOES = [
     {
         id: 'missao_123',
         nome: 'Definir nome da missão 123',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Raphael.',
+        descricao: 'Em uma partida com Nelson e Raphael, termine com Nelson em 3º lugar e Raphael em 2º lugar.',
         personagensNecessarios: [2, 10],
+        posicoes: [3, 2],
         recompensa: {
             personagemId: 123,
             estampaId: 123,
@@ -354,8 +379,9 @@ window.MISSOES = [
     {
         id: 'missao_124',
         nome: 'Definir nome da missão 124',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Metello.',
+        descricao: 'Em uma partida com Nelson e Metello, termine com Nelson em 1º lugar e Metello em 2º lugar.',
         personagensNecessarios: [2, 11],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 124,
             estampaId: 124,
@@ -368,8 +394,9 @@ window.MISSOES = [
     {
         id: 'missao_125',
         nome: 'Definir nome da missão 125',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Dezinho.',
+        descricao: 'Em uma partida com Nelson e Dezinho, termine com Nelson em 2º lugar e Dezinho em 1º lugar.',
         personagensNecessarios: [2, 12],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 125,
             estampaId: 125,
@@ -382,8 +409,9 @@ window.MISSOES = [
     {
         id: 'missao_126',
         nome: 'Definir nome da missão 126',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Xandão.',
+        descricao: 'Em uma partida com Nelson e Xandão, termine com Nelson em 1º lugar e Xandão em 3º lugar.',
         personagensNecessarios: [2, 13],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 126,
             estampaId: 126,
@@ -396,8 +424,9 @@ window.MISSOES = [
     {
         id: 'missao_127',
         nome: 'Definir nome da missão 127',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Gordo.',
+        descricao: 'Em uma partida com Nelson e Gordo, termine com Nelson em 3º lugar e Gordo em 1º lugar.',
         personagensNecessarios: [2, 14],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 127,
             estampaId: 127,
@@ -410,8 +439,9 @@ window.MISSOES = [
     {
         id: 'missao_128',
         nome: 'Definir nome da missão 128',
-        descricao: 'Não fique em último lugar em uma partida que contenha Nelson e Ronaldo.',
+        descricao: 'Em uma partida com Nelson e Ronaldo, termine com Nelson em 2º lugar e Ronaldo em 3º lugar.',
         personagensNecessarios: [2, 15],
+        posicoes: [2, 3],
         recompensa: {
             personagemId: 128,
             estampaId: 128,
@@ -424,8 +454,9 @@ window.MISSOES = [
     {
         id: 'missao_129',
         nome: 'Definir nome da missão 129',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Marcio.',
+        descricao: 'Em uma partida com Caio e Marcio, termine com Caio em 3º lugar e Marcio em 2º lugar.',
         personagensNecessarios: [3, 4],
+        posicoes: [3, 2],
         recompensa: {
             personagemId: 129,
             estampaId: 129,
@@ -438,8 +469,9 @@ window.MISSOES = [
     {
         id: 'missao_130',
         nome: 'Definir nome da missão 130',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Julio.',
+        descricao: 'Em uma partida com Caio e Julio, termine com Caio em 1º lugar e Julio em 2º lugar.',
         personagensNecessarios: [3, 5],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 130,
             estampaId: 130,
@@ -452,8 +484,9 @@ window.MISSOES = [
     {
         id: 'missao_131',
         nome: 'Definir nome da missão 131',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Motoboy.',
+        descricao: 'Em uma partida com Caio e Motoboy, termine com Caio em 2º lugar e Motoboy em 1º lugar.',
         personagensNecessarios: [3, 6],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 131,
             estampaId: 131,
@@ -466,8 +499,9 @@ window.MISSOES = [
     {
         id: 'missao_132',
         nome: 'Definir nome da missão 132',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Alex.',
+        descricao: 'Em uma partida com Caio e Alex, termine com Caio em 1º lugar e Alex em 3º lugar.',
         personagensNecessarios: [3, 7],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 132,
             estampaId: 132,
@@ -480,8 +514,9 @@ window.MISSOES = [
     {
         id: 'missao_133',
         nome: 'Definir nome da missão 133',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Big Z.',
+        descricao: 'Em uma partida com Caio e Big Z, termine com Caio em 3º lugar e Big Z em 1º lugar.',
         personagensNecessarios: [3, 8],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 133,
             estampaId: 133,
@@ -494,8 +529,9 @@ window.MISSOES = [
     {
         id: 'missao_134',
         nome: 'Definir nome da missão 134',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Samuel.',
+        descricao: 'Em uma partida com Caio e Samuel, termine com Caio em 2º lugar e Samuel em 3º lugar.',
         personagensNecessarios: [3, 9],
+        posicoes: [2, 3],
         recompensa: {
             personagemId: 134,
             estampaId: 134,
@@ -508,8 +544,9 @@ window.MISSOES = [
     {
         id: 'missao_135',
         nome: 'Definir nome da missão 135',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Raphael.',
+        descricao: 'Em uma partida com Caio e Raphael, termine com Caio em 3º lugar e Raphael em 2º lugar.',
         personagensNecessarios: [3, 10],
+        posicoes: [3, 2],
         recompensa: {
             personagemId: 135,
             estampaId: 135,
@@ -522,8 +559,9 @@ window.MISSOES = [
     {
         id: 'missao_136',
         nome: 'Definir nome da missão 136',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Metello.',
+        descricao: 'Em uma partida com Caio e Metello, termine com Caio em 1º lugar e Metello em 2º lugar.',
         personagensNecessarios: [3, 11],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 136,
             estampaId: 136,
@@ -536,8 +574,9 @@ window.MISSOES = [
     {
         id: 'missao_137',
         nome: 'Definir nome da missão 137',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Dezinho.',
+        descricao: 'Em uma partida com Caio e Dezinho, termine com Caio em 2º lugar e Dezinho em 1º lugar.',
         personagensNecessarios: [3, 12],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 137,
             estampaId: 137,
@@ -550,8 +589,9 @@ window.MISSOES = [
     {
         id: 'missao_138',
         nome: 'Definir nome da missão 138',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Xandão.',
+        descricao: 'Em uma partida com Caio e Xandão, termine com Caio em 1º lugar e Xandão em 3º lugar.',
         personagensNecessarios: [3, 13],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 138,
             estampaId: 138,
@@ -564,8 +604,9 @@ window.MISSOES = [
     {
         id: 'missao_139',
         nome: 'Definir nome da missão 139',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Gordo.',
+        descricao: 'Em uma partida com Caio e Gordo, termine com Caio em 3º lugar e Gordo em 1º lugar.',
         personagensNecessarios: [3, 14],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 139,
             estampaId: 139,
@@ -578,8 +619,9 @@ window.MISSOES = [
     {
         id: 'missao_140',
         nome: 'Definir nome da missão 140',
-        descricao: 'Não fique em último lugar em uma partida que contenha Caio e Ronaldo.',
+        descricao: 'Em uma partida com Caio e Ronaldo, termine com Caio em 2º lugar e Ronaldo em 3º lugar.',
         personagensNecessarios: [3, 15],
+        posicoes: [2, 3],
         recompensa: {
             personagemId: 140,
             estampaId: 140,
@@ -592,8 +634,9 @@ window.MISSOES = [
     {
         id: 'missao_141',
         nome: 'Definir nome da missão 141',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Julio.',
+        descricao: 'Em uma partida com Marcio e Julio, termine com Marcio em 3º lugar e Julio em 2º lugar.',
         personagensNecessarios: [4, 5],
+        posicoes: [3, 2],
         recompensa: {
             personagemId: 141,
             estampaId: 141,
@@ -606,8 +649,9 @@ window.MISSOES = [
     {
         id: 'missao_142',
         nome: 'Definir nome da missão 142',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Motoboy.',
+        descricao: 'Em uma partida com Marcio e Motoboy, termine com Marcio em 1º lugar e Motoboy em 2º lugar.',
         personagensNecessarios: [4, 6],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 142,
             estampaId: 142,
@@ -620,8 +664,9 @@ window.MISSOES = [
     {
         id: 'missao_143',
         nome: 'Definir nome da missão 143',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Alex.',
+        descricao: 'Em uma partida com Marcio e Alex, termine com Marcio em 2º lugar e Alex em 1º lugar.',
         personagensNecessarios: [4, 7],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 143,
             estampaId: 143,
@@ -634,8 +679,9 @@ window.MISSOES = [
     {
         id: 'missao_144',
         nome: 'Definir nome da missão 144',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Big Z.',
+        descricao: 'Em uma partida com Marcio e Big Z, termine com Marcio em 1º lugar e Big Z em 3º lugar.',
         personagensNecessarios: [4, 8],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 144,
             estampaId: 144,
@@ -648,8 +694,9 @@ window.MISSOES = [
     {
         id: 'missao_145',
         nome: 'Definir nome da missão 145',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Samuel.',
+        descricao: 'Em uma partida com Marcio e Samuel, termine com Marcio em 3º lugar e Samuel em 1º lugar.',
         personagensNecessarios: [4, 9],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 145,
             estampaId: 145,
@@ -662,8 +709,9 @@ window.MISSOES = [
     {
         id: 'missao_146',
         nome: 'Definir nome da missão 146',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Raphael.',
+        descricao: 'Em uma partida com Marcio e Raphael, termine com Marcio em 2º lugar e Raphael em 3º lugar.',
         personagensNecessarios: [4, 10],
+        posicoes: [2, 3],
         recompensa: {
             personagemId: 146,
             estampaId: 146,
@@ -676,8 +724,9 @@ window.MISSOES = [
     {
         id: 'missao_147',
         nome: 'Definir nome da missão 147',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Metello.',
+        descricao: 'Em uma partida com Marcio e Metello, termine com Marcio em 3º lugar e Metello em 2º lugar.',
         personagensNecessarios: [4, 11],
+        posicoes: [3, 2],
         recompensa: {
             personagemId: 147,
             estampaId: 147,
@@ -690,8 +739,9 @@ window.MISSOES = [
     {
         id: 'missao_148',
         nome: 'Definir nome da missão 148',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Dezinho.',
+        descricao: 'Em uma partida com Marcio e Dezinho, termine com Marcio em 1º lugar e Dezinho em 2º lugar.',
         personagensNecessarios: [4, 12],
+        posicoes: [1, 2],
         recompensa: {
             personagemId: 148,
             estampaId: 148,
@@ -704,8 +754,9 @@ window.MISSOES = [
     {
         id: 'missao_149',
         nome: 'Definir nome da missão 149',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Xandão.',
+        descricao: 'Em uma partida com Marcio e Xandão, termine com Marcio em 2º lugar e Xandão em 1º lugar.',
         personagensNecessarios: [4, 13],
+        posicoes: [2, 1],
         recompensa: {
             personagemId: 149,
             estampaId: 149,
@@ -718,8 +769,9 @@ window.MISSOES = [
     {
         id: 'missao_150',
         nome: 'Definir nome da missão 150',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Gordo.',
+        descricao: 'Em uma partida com Marcio e Gordo, termine com Marcio em 1º lugar e Gordo em 3º lugar.',
         personagensNecessarios: [4, 14],
+        posicoes: [1, 3],
         recompensa: {
             personagemId: 150,
             estampaId: 150,
@@ -732,8 +784,9 @@ window.MISSOES = [
     {
         id: 'missao_151',
         nome: 'Definir nome da missão 151',
-        descricao: 'Não fique em último lugar em uma partida que contenha Marcio e Ronaldo.',
+        descricao: 'Em uma partida com Marcio e Ronaldo, termine com Marcio em 3º lugar e Ronaldo em 1º lugar.',
         personagensNecessarios: [4, 15],
+        posicoes: [3, 1],
         recompensa: {
             personagemId: 151,
             estampaId: 151,

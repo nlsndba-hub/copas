@@ -2410,12 +2410,19 @@ async function concluirMissoesDaPartida(d) {
     const requisitos = missao.personagensNecessarios || [];
     if (!requisitos.every(id => participantes.has(Number(id)))) return;
 
-    // Objetivo atual: não terminar em último lugar. Empate na última posição
-    // também conta como último lugar.
-    const indice = (d.pers || []).map(Number).indexOf(Number(jogadorHumano.id));
-    if (indice < 0) return;
-    const maiorPontuacao = Math.max(...(d.totais || []));
-    if (!(Number(d.totais[indice]) < maiorPontuacao)) return;
+    // Objetivo: cada personagem da missão deve terminar na posição indicada em
+    // missao.posicoes (1º = menos pontos; empate divide a melhor posição).
+    // Missões antigas sem "posicoes" mantêm a regra: não terminar em último.
+    const pers = (d.pers || []).map(Number);
+    const totais = (d.totais || []).map(Number);
+    const posDe = id => { const i = pers.indexOf(Number(id)); return i < 0 ? -1 : 1 + totais.filter(t => t < totais[i]).length; };
+    if (Array.isArray(missao.posicoes) && missao.posicoes.length === requisitos.length) {
+        if (!requisitos.every((id, k) => posDe(id) === Number(missao.posicoes[k]))) return;
+    } else {
+        const indice = pers.indexOf(Number(jogadorHumano.id));
+        if (indice < 0) return;
+        if (!(totais[indice] < Math.max(...totais))) return;
+    }
 
     MISSION_UNLOCKS.add(missao.id);
     const recompensa = missao.recompensa || {};
@@ -2463,7 +2470,7 @@ function abrirMissoes() {
                 play.type = 'button'; play.className = 'btn-play-missao';
                 play.title = 'Ouvir áudio'; play.setAttribute('aria-label', `Ouvir áudio de ${r.nomePersonagem || m.nome}`);
                 play.textContent = '▶';
-                play.onclick = e => { e.stopPropagation(); tocarAudioMissao(src, play); };
+                play.onclick = e => { e.stopPropagation(); abrirEstampaMissao(r, m, src); };
                 card.appendChild(play);
             }
         }
@@ -2471,25 +2478,37 @@ function abrirMissoes() {
     });
     $('telaMissoes').classList.remove('escondido');
 }
-let audioMissaoAtual = null, btnMissaoAtual = null;
+let audioMissaoAtual = null;
 function pararAudioMissao() {
     if (audioMissaoAtual) { try { audioMissaoAtual.pause(); audioMissaoAtual.currentTime = 0; } catch (e) {} }
-    if (btnMissaoAtual) btnMissaoAtual.textContent = '▶';
-    audioMissaoAtual = null; btnMissaoAtual = null;
+    audioMissaoAtual = null;
 }
-function tocarAudioMissao(src, btn) {
-    const mesmo = btnMissaoAtual === btn;
+function fecharEstampaMissao() {
     pararAudioMissao();
-    if (mesmo) return; // clicar de novo no mesmo botão para o áudio
+    const v = document.getElementById('visorEstampaMissao');
+    if (v) v.remove();
+}
+// Abre a estampa da missão e toca o áudio; o X fecha a estampa e para o áudio.
+function abrirEstampaMissao(r, m, src) {
+    fecharEstampaMissao();
     pararAudiosEntrada();
+    const v = document.createElement('div'); v.id = 'visorEstampaMissao';
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'visor-estampa-x';
+    x.setAttribute('aria-label', 'Fechar'); x.textContent = '✕'; x.onclick = fecharEstampaMissao;
+    const img = document.createElement('img'); img.alt = r.nomePersonagem || m.nome; img.draggable = false;
+    const cap = document.createElement('strong'); cap.textContent = r.nomePersonagem || m.nome;
+    v.append(x, img, cap);
+    document.body.appendChild(v);
+    const id = r.estampaId != null ? r.estampaId : r.personagemId;
+    carregarImagemEstampa(img, id, () => { img.onerror = null; img.src = r.foto || r.estampa || ''; });
     const a = new Audio(src);
-    audioMissaoAtual = a; btnMissaoAtual = btn; btn.textContent = '⏸';
-    a.onended = () => { if (audioMissaoAtual === a) pararAudioMissao(); };
-    a.play().catch(() => pararAudioMissao());
+    audioMissaoAtual = a;
+    a.onended = () => { if (audioMissaoAtual === a) audioMissaoAtual = null; };
+    a.play().catch(() => {});
 }
 $('btnModoMissoes').onclick = abrirMissoes;
-$('btnFecharMissoes').onclick = () => { pararAudioMissao(); $('telaMissoes').classList.add('escondido'); };
-$('telaMissoes').addEventListener('click', e => { if (e.target === $('telaMissoes')) { pararAudioMissao(); $('telaMissoes').classList.add('escondido'); } });
+$('btnFecharMissoes').onclick = () => { fecharEstampaMissao(); $('telaMissoes').classList.add('escondido'); };
+$('telaMissoes').addEventListener('click', e => { if (e.target === $('telaMissoes')) { fecharEstampaMissao(); $('telaMissoes').classList.add('escondido'); } });
 
 function abrirColecaoEstampas() {
     const grade = $('gradeEstampas'); grade.textContent = '';
