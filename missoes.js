@@ -86,6 +86,20 @@ window.MISSOES = [
             audioEntrada: 'audio/105.mp3'
         }
     },
+        {
+        id: 'missao_106',
+        nome: 'X9 papa anjo',
+        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Caio.',
+        personagensNecessarios: [1, 3],
+        recompensa: {
+            personagemId: 106,
+            estampaId: 106,
+            nomePersonagem: 'Pirulitão',
+            foto: 'fotos/106.png',
+            estampa: 'estampa/106.png',
+            audioEntrada: 'audio/106.mp3'
+        }
+    },
 ];
 
 /*
@@ -97,23 +111,6 @@ window.MISSOES = [
  * Os objetivos usam a regra: não terminar em último lugar.
  */
 /*
-
-
-
-    {
-        id: 'missao_106',
-        nome: 'Definir nome da missão 106',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Motoboy.',
-        personagensNecessarios: [1, 6],
-        recompensa: {
-            personagemId: 106,
-            estampaId: 106,
-            nomePersonagem: 'DEFINIR_NOME_106',
-            foto: 'fotos/106.png',
-            estampa: 'estampa/106.png',
-            audioEntrada: 'audio/106.mp3'
-        }
-    },
     {
         id: 'missao_107',
         nome: 'Definir nome da missão 107',
