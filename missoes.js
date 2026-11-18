@@ -100,6 +100,21 @@ window.MISSOES = [
             audioEntrada: 'audio/106.mp3'
         }
     },
+
+        {
+        id: 'missao_107',
+        nome: 'Abravanel',
+        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Nelson.',
+        personagensNecessarios: [1, 2],
+        recompensa: {
+            personagemId: 107,
+            estampaId: 107,
+            nomePersonagem: 'Silvio Santos',
+            foto: 'fotos/107.png',
+            estampa: 'estampa/107.png',
+            audioEntrada: 'audio/107.mp3'
+        }
+    },
 ];
 
 /*
@@ -111,20 +126,7 @@ window.MISSOES = [
  * Os objetivos usam a regra: não terminar em último lugar.
  */
 /*
-    {
-        id: 'missao_107',
-        nome: 'Definir nome da missão 107',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Alex.',
-        personagensNecessarios: [1, 7],
-        recompensa: {
-            personagemId: 107,
-            estampaId: 107,
-            nomePersonagem: 'DEFINIR_NOME_107',
-            foto: 'fotos/107.png',
-            estampa: 'estampa/107.png',
-            audioEntrada: 'audio/107.mp3'
-        }
-    },
+
     {
         id: 'missao_108',
         nome: 'Definir nome da missão 108',
