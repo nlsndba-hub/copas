@@ -226,11 +226,40 @@ let jogadorHumano = null;
 let filaMaquinas = [];
 let maquinasEliminadas = [];
 
+// V98 — missões no formato "condicoes": nenhum bot pode ser exigido em 1º lugar.
+const requisitosDaMissao = m => (m.presentes || m.personagensNecessarios || []).map(Number);
+function missaoValidaPara(m, humanoId) {
+    if (!Array.isArray(m.condicoes)) return true;
+    return m.condicoes.every(c => {
+        if (c.quem === 'eu') return true;
+        if (Number(c.quem) === Number(humanoId) || c.antesDe) return false;   // só bots, e nunca "à frente de"
+        const ps = [].concat(c.pos == null ? [] : c.pos);
+        return !ps.includes(1);
+    });
+}
+function condicoesCumpridas(m, pers, totais, humanoId) {
+    const max = Math.max(...totais);
+    const idx = q => pers.indexOf(Number(q === 'eu' ? humanoId : q));
+    const posDe = q => { const i = idx(q); return i < 0 ? -1 : 1 + totais.filter(t => t < totais[i]).length; };
+    return m.condicoes.every(c => {
+        const i = idx(c.quem); if (i < 0) return false;
+        const pos = posDe(c.quem), ultimo = totais[i] === max && totais.some(t => t !== max);
+        if (c.pos === 'ultimo' && !ultimo) return false;
+        if (c.pos === 'naoUltimo' && ultimo) return false;
+        if (typeof c.pos === 'number' && pos !== c.pos) return false;
+        if (Array.isArray(c.pos) && !c.pos.includes(pos)) return false;
+        if (c.antesDe != null) { const j = idx(c.antesDe); if (j < 0 || !(totais[i] < totais[j])) return false; }
+        if (c.pontosMax != null && totais[i] > c.pontosMax) return false;
+        if (c.pontosMin != null && totais[i] < c.pontosMin) return false;
+        return true;
+    });
+}
+
 function sortearBotsSozinho(personagemHumano, quantidade, missaoAtiva = null) {
     // Quando a mesa recebe uma missão, os adversários exigidos são garantidos.
     const escolhidos = [];
     if (missaoAtiva) {
-        (missaoAtiva.personagensNecessarios || []).forEach(id => {
+        requisitosDaMissao(missaoAtiva).forEach(id => {
             const p = PERSONAGENS.find(x => x.id === Number(id) && !x.somenteBot);
             if (p && p.id !== personagemHumano.id && !escolhidos.some(x => x.id === p.id) && escolhidos.length < quantidade) escolhidos.push(p);
         });
@@ -262,8 +291,8 @@ function prepararMissaoDaMesa(personagemHumano) {
     // V90 — se o personagem do usuário é um dos objetivos, a missão só precisa dos outros.
     const candidatas = (window.MISSOES || []).filter(m => {
         if (MISSION_UNLOCKS.has(m.id)) return false;
-        const req = (m.personagensNecessarios || []).map(Number);
-        if (!req.length) return false;
+        const req = requisitosDaMissao(m);
+        if (!req.length || !missaoValidaPara(m, personagemHumano.id)) return false;
         if (!req.every(id => PERSONAGENS.some(p => p.id === id && !p.somenteBot))) return false;
         const outros = req.filter(id => id !== Number(personagemHumano.id));
         return outros.length > 0 && outros.length <= 3;
@@ -2407,7 +2436,7 @@ async function concluirMissoesDaPartida(d) {
     const missao = window.MISSOES.find(m => m.id === G.missaoAtivaId);
     if (!missao || MISSION_UNLOCKS.has(missao.id)) return;
     const participantes = new Set((d.pers || []).map(Number));
-    const requisitos = missao.personagensNecessarios || [];
+    const requisitos = requisitosDaMissao(missao);
     if (!requisitos.every(id => participantes.has(Number(id)))) return;
 
     // Objetivo: cada personagem da missão deve terminar na posição indicada em
@@ -2416,7 +2445,9 @@ async function concluirMissoesDaPartida(d) {
     const pers = (d.pers || []).map(Number);
     const totais = (d.totais || []).map(Number);
     const posDe = id => { const i = pers.indexOf(Number(id)); return i < 0 ? -1 : 1 + totais.filter(t => t < totais[i]).length; };
-    if (Array.isArray(missao.posicoes) && missao.posicoes.length === requisitos.length) {
+    if (Array.isArray(missao.condicoes)) {
+        if (!condicoesCumpridas(missao, pers, totais, jogadorHumano.id)) return;
+    } else if (Array.isArray(missao.posicoes) && missao.posicoes.length === requisitos.length) {
         if (!requisitos.every((id, k) => posDe(id) === Number(missao.posicoes[k]))) return;
     } else {
         const indice = pers.indexOf(Number(jogadorHumano.id));

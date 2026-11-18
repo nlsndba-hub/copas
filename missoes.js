@@ -1,13 +1,19 @@
 // Missões ativas. Uma missão é sorteada a cada 3 partidas completas no modo Sozinho.
-// Para concluir, os dois personagens da missão precisam terminar nas posições de "posicoes"
-// (na mesma ordem de personagensNecessarios; 1º = menos pontos). Vale também se o usuário é um deles.
+// V98 — NOVO FORMATO (condicoes). Nenhum bot é exigido em 1º lugar: só o usuário ("eu") pode ter pos 1.
+//   presentes: [ids] que precisam estar na mesa (além do usuário).
+//   condicoes: lista; TODAS precisam ser cumpridas. Cada item:
+//     quem: 'eu' (usuário) ou id do personagem
+//     pos: 3 | [1,2,3] | 'ultimo' | 'naoUltimo'      (1º = menos pontos; empate divide a melhor posição)
+//     antesDe: id   -> 'eu' precisa terminar à frente desse personagem (só vale para quem: 'eu')
+//     pontosMax / pontosMin: limite do total de pontos final de quem
+// Formato antigo (personagensNecessarios + posicoes) continua funcionando.
 window.MISSOES = [
     {
         id: 'missao_azul',
         nome: 'Missão Azul',
-        descricao: 'Em uma partida com Alcy e Marcio, termine com Alcy em 1º lugar e Marcio em 2º lugar.',
-        personagensNecessarios: [1, 4],
-        posicoes: [1, 2],
+        descricao: 'Em uma partida com Alcy e Marcio na mesa, termine em 1º lugar.',
+        presentes: [1, 4],
+        condicoes: [{ quem: 'eu', pos: 1 }],
         recompensa: {
             personagemId: 100,
             estampaId: 100,
@@ -20,9 +26,9 @@ window.MISSOES = [
     {
         id: 'missao_patixa',
         nome: 'Missão Patixa',
-        descricao: 'Em uma partida com Xandão e Caio, termine com Xandão em 2º lugar e Caio em 1º lugar.',
-        personagensNecessarios: [13, 3],
-        posicoes: [2, 1],
+        descricao: 'Em uma partida com Xandão e Caio na mesa, termine em 2º lugar, à frente de Xandão.',
+        presentes: [13, 3],
+        condicoes: [{ quem: 'eu', pos: 2, antesDe: 13 }],
         recompensa: {
             personagemId: 101,
             estampaId: 101,
@@ -36,9 +42,9 @@ window.MISSOES = [
     {
         id: 'missao_102',
         nome: 'Robô Maicon',
-        descricao: 'Em uma partida com Motoboy e Nelson, termine com Motoboy em 1º lugar e Nelson em 3º lugar.',
-        personagensNecessarios: [6, 2],
-        posicoes: [1, 3],
+        descricao: 'Em uma partida com Motoboy e Nelson na mesa, termine em 1º lugar com Motoboy em último.',
+        presentes: [6, 2],
+        condicoes: [{ quem: 'eu', pos: 1 }, { quem: 6, pos: 'ultimo' }],
         recompensa: {
             personagemId: 102,
             estampaId: 102,
@@ -51,9 +57,9 @@ window.MISSOES = [
         {
         id: 'missao_103',
         nome: 'Reciclagem de papelão molhado',
-        descricao: 'Em uma partida com Alcy e Ronaldo, termine com Alcy em 3º lugar e Ronaldo em 1º lugar.',
-        personagensNecessarios: [1, 15],
-        posicoes: [3, 1],
+        descricao: 'Em uma partida com Alcy e Ronaldo na mesa, deixe Alcy em 3º lugar e Ronaldo em último.',
+        presentes: [1, 15],
+        condicoes: [{ quem: 1, pos: 3 }, { quem: 15, pos: 'ultimo' }],
         recompensa: {
             personagemId: 103,
             estampaId: 103,
@@ -66,9 +72,9 @@ window.MISSOES = [
     {
         id: 'missao_104',
         nome: 'Pesque e pague, tá ok?',
-        descricao: 'Em uma partida com Alcy e Motoboy, termine com Alcy em 2º lugar e Motoboy em 3º lugar.',
-        personagensNecessarios: [1, 6],
-        posicoes: [2, 3],
+        descricao: 'Em uma partida com Alcy e Motoboy na mesa, deixe Alcy em último e termine no pódio (1º ao 3º).',
+        presentes: [1, 6],
+        condicoes: [{ quem: 1, pos: 'ultimo' }, { quem: 'eu', pos: [1, 2, 3] }],
         recompensa: {
             personagemId: 104,
             estampaId: 104,
@@ -81,9 +87,9 @@ window.MISSOES = [
         {
         id: 'missao_105',
         nome: 'Pneu furou?',
-        descricao: 'Em uma partida com Alcy e Julio, termine com Alcy em 3º lugar e Julio em 2º lugar.',
-        personagensNecessarios: [1, 5],
-        posicoes: [3, 2],
+        descricao: 'Em uma partida com Alcy e Julio na mesa, termine em 1º lugar com no máximo 70 pontos e Julio em último.',
+        presentes: [1, 5],
+        condicoes: [{ quem: 'eu', pos: 1, pontosMax: 70 }, { quem: 5, pos: 'ultimo' }],
         recompensa: {
             personagemId: 105,
             estampaId: 105,
@@ -96,9 +102,9 @@ window.MISSOES = [
         {
         id: 'missao_106',
         nome: 'X9 papa anjo',
-        descricao: 'Em uma partida com Alcy e Caio, termine com Alcy em 1º lugar e Caio em 2º lugar.',
-        personagensNecessarios: [1, 3],
-        posicoes: [1, 2],
+        descricao: 'Em uma partida com Alcy e Caio na mesa, deixe Alcy em último e Caio em 3º lugar.',
+        presentes: [1, 3],
+        condicoes: [{ quem: 1, pos: 'ultimo' }, { quem: 3, pos: 3 }],
         recompensa: {
             personagemId: 106,
             estampaId: 106,
@@ -112,9 +118,9 @@ window.MISSOES = [
         {
         id: 'missao_107',
         nome: 'Abravanel',
-        descricao: 'Em uma partida com Alcy e Nelson, termine com Alcy em 2º lugar e Nelson em 1º lugar.',
-        personagensNecessarios: [1, 2],
-        posicoes: [2, 1],
+        descricao: 'Em uma partida com Alcy e Nelson na mesa, termine em 1º lugar.',
+        presentes: [1, 2],
+        condicoes: [{ quem: 'eu', pos: 1 }],
         recompensa: {
             personagemId: 107,
             estampaId: 107,
