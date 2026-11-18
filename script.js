@@ -2142,7 +2142,7 @@ function atualizarEspera() {
     $('listaEspera').innerHTML = MP.membros.map((m, i) => {
         const p = PERSONAGENS.find(x => x.id === m.char);
         const nome = (p ? p.nome : '?') + (i === 0 ? ' 👑' : '') + (m.pid === MP.pid ? ' (você)' : '');
-        return `<div class="membro"><img data-pid="${m.pid}" src="fotos/${m.char}.png" alt=""><span>${nome}</span></div>`;
+        return `<div class="membro"><img data-pid="${m.pid}" src="${p ? p.foto : `fotos/${m.char}.png`}" alt="" onerror="this.onerror=null;this.src='fotos/${m.char}.png'"><span>${nome}</span></div>`;
     }).join('');
     const jogando = MP.membros.some(m => m.jogando);
     const n = MP.membros.length;
@@ -2560,7 +2560,7 @@ $('btnChave').onclick = () => {
 $('btnFecharSenha').onclick = () => $('modalSenha').classList.add('escondido');
 $('modalSenha').addEventListener('click', e => { if (e.target === $('modalSenha')) $('modalSenha').classList.add('escondido'); });
 
-async function entrarMisto() {
+async function _entrarMisto() {
     if (!getSB()) { alert(msgSB()); return; }
     try {
         const r = await rpc('entrar_misto');
@@ -2611,7 +2611,7 @@ async function carregarSalas() {
         });
     } catch (e) { box.innerHTML = '<div class="vazio">Erro ao carregar as salas. Verifique a configuração do Supabase.</div>'; }
 }
-async function entrarNaSala(s) {
+async function _entrarNaSala(s) {
     if (s.contagem >= 4) { alert('Esse bar está lotado (4/4).'); return; }
     try {
         const r = await rpc('entrar_sala_aberta', { p_id: s.id });
@@ -2623,7 +2623,7 @@ async function entrarNaSala(s) {
         iniciarPing(); await entrarNaEspera();
     } catch (e) { alert('Erro ao entrar na sala: ' + msgErro(e)); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
 }
-$('btnCriarSala').onclick = async () => {
+async function _criarSala() {
     const nome = nomeBarAleatorio(), senha = '';
     let canalCriado = null;
     try {
@@ -2635,7 +2635,23 @@ $('btnCriarSala').onclick = async () => {
         await conectarCanal(r.canal);
         iniciarPing(); await entrarNaEspera();
     } catch (e) { alert('Erro ao criar a sala: ' + msgErro(e)); if (canalCriado && getSB()) rpc('ping_sala', { p_canal: canalCriado, p_n: 0 }).catch(() => {}); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
-};
+}
+
+// V98 — trava anti clique repetido: só uma entrada/criação de sala por vez (e nunca com sala já aberta).
+let entrandoSala = false;
+function comTrava(fn) {
+    return async function (...a) {
+        if (entrandoSala || (MP.ch && MP.sala)) return;
+        entrandoSala = true;
+        const bts = Array.from(document.querySelectorAll('#telaSalas button'));
+        const antes = bts.map(b => b.disabled); bts.forEach(b => { b.disabled = true; });
+        try { return await fn.apply(this, a); }
+        finally { entrandoSala = false; bts.forEach((b, i) => { b.disabled = antes[i]; }); }
+    };
+}
+const entrarMisto = comTrava(_entrarMisto), entrarNaSala = comTrava(_entrarNaSala);
+const assistirSala = comTrava(_assistirSala), criarSala = comTrava(_criarSala);
+$('btnCriarSala').onclick = () => criarSala();
 
 async function entrarNaEspera() {
     if (MP.espectador) { return entrarNaEsperaEspectador(); }
@@ -3807,7 +3823,7 @@ $('btnAdmVoltar').onclick = () => { admMsg(''); mostrarTela('telaModo'); };
 // Clique no avatar de um jogador para ver suas cartas.
 // =====================================================================
 
-async function assistirSala(s, tipo) {
+async function _assistirSala(s, tipo) {
     if (!getSB()) { alert(msgSB()); return; }
     try {
         const r = await rpc('assistir_sala', { p_id: s.id });
@@ -3837,6 +3853,7 @@ async function entrarNaEsperaEspectador() {
 function aoSnapEspectador(payload) {
     const { s, bk } = payload;
     if (!s || !s.pe) return;
+    MP.ultimoSnapEsp = payload;
     const rot = a => a; // espectador usa perspectiva do assento 0 (sem rotação)
     const v = i => i;
     const acha = id => PERSONAGENS.find(p => p.id === id);
@@ -3852,7 +3869,10 @@ function aoSnapEspectador(payload) {
         luaConquistada: ant ? ant.luaConquistada : false, renunciaConquistada: ant ? ant.renunciaConquistada : false,
         avisoAte: 0, vago: s.vg || [false, false, false, false]
     };
-    if (g.personagens.some(p => !p)) return; // aguarda personagens carregarem
+    if (g.personagens.some(p => !p)) {   // personagem extra ainda não carregado: busca e tenta de novo
+        if (!MP.carregandoExtras) { MP.carregandoExtras = true; carregarExtras().catch(() => {}).finally(() => { MP.carregandoExtras = false; if (MP.espectador && MP.ultimoSnapEsp) aoSnapEspectador(MP.ultimoSnapEsp); }); }
+        return;
+    }
     g.personagens.forEach((p, i) => { if (p) p.total = g.totais[i]; });
     g.distMsg = legendaCliente(g, false);
     const primeira = !MP.emJogo;
@@ -3883,7 +3903,7 @@ function renderEspectador() {
         const ranking = posicoes(G.personagens, p => p.total, 'partida').get(G.personagens[i]);
         const p = G.personagens[i];
         if (!p) continue;
-        box.innerHTML = `<img class="avatar-jogador" src="${p.foto}" alt="${G.nomes[i]}" onclick="verCartasEspectador(${i})" style="cursor:pointer" title="Ver cartas de ${G.nomes[i]}" onerror="this.src='fotos/${p.id}.png'; this.onerror=null">
+        box.innerHTML = `<img class="avatar-jogador" data-pid="${(G.donos && G.donos[i]) || ''}" src="${p.foto}" alt="${G.nomes[i]}" onclick="verCartasEspectador(${i})" style="cursor:pointer" title="Ver cartas de ${G.nomes[i]}" onerror="this.src='fotos/${p.id}.png'; this.onerror=null">
             <div class="info-jogador">
                 <span class="nome nome-ajusta" title="${G.nomes[i]}"><span class="nome-txt">${nomeCurto(G.nomes[i])}</span> <small class="ranking">${ranking}º</small></span>
                 <span class="tot">Total: ${G.totais[i]}</span>
