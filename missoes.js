@@ -58,7 +58,20 @@ window.MISSOES = [
             audioEntrada: 'audio/103.mp3'
         }
     },
-    
+    {
+        id: 'missao_104',
+        nome: 'Pesque e pague, tá ok?',
+        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Motoboy.',
+        personagensNecessarios: [1, 6],
+        recompensa: {
+            personagemId: 104,
+            estampaId: 104,
+            nomePersonagem: 'Tá ok?',
+            foto: 'fotos/104.png',
+            estampa: 'estampa/104.png',
+            audioEntrada: 'audio/104.mp3'
+        }
+    },    
 ];
 
 /*
@@ -71,20 +84,7 @@ window.MISSOES = [
  */
 /*
 
-    {
-        id: 'missao_104',
-        nome: 'Definir nome da missão 104',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Marcio.',
-        personagensNecessarios: [1, 4],
-        recompensa: {
-            personagemId: 104,
-            estampaId: 104,
-            nomePersonagem: 'DEFINIR_NOME_104',
-            foto: 'fotos/104.png',
-            estampa: 'estampa/104.png',
-            audioEntrada: 'audio/104.mp3'
-        }
-    },
+
     {
         id: 'missao_105',
         nome: 'Definir nome da missão 105',
