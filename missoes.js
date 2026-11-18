@@ -72,6 +72,20 @@ window.MISSOES = [
             audioEntrada: 'audio/104.mp3'
         }
     },    
+        {
+        id: 'missao_105',
+        nome: 'Pneu furou?',
+        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Julio.',
+        personagensNecessarios: [1, 5],
+        recompensa: {
+            personagemId: 105,
+            estampaId: 105,
+            nomePersonagem: 'Alvinho',
+            foto: 'fotos/105.png',
+            estampa: 'estampa/105.png',
+            audioEntrada: 'audio/105.mp3'
+        }
+    },
 ];
 
 /*
@@ -85,20 +99,7 @@ window.MISSOES = [
 /*
 
 
-    {
-        id: 'missao_105',
-        nome: 'Definir nome da missão 105',
-        descricao: 'Não fique em último lugar em uma partida que contenha Alcy e Julio.',
-        personagensNecessarios: [1, 5],
-        recompensa: {
-            personagemId: 105,
-            estampaId: 105,
-            nomePersonagem: 'DEFINIR_NOME_105',
-            foto: 'fotos/105.png',
-            estampa: 'estampa/105.png',
-            audioEntrada: 'audio/105.mp3'
-        }
-    },
+
     {
         id: 'missao_106',
         nome: 'Definir nome da missão 106',
