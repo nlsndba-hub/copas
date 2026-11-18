@@ -138,6 +138,21 @@ window.MISSOES = [
             audioEntrada: 'audio/108.mp3'
         }
     },
+        {
+        id: 'missao_109',
+        nome: 'Missão Pirulitão',
+        descricao: 'Em uma partida com Alcy e Samuel, termine com Alcy em 3º lugar e Samuel em 1º lugar.',
+        personagensNecessarios: [1, 9],
+        posicoes: [3, 1],
+        recompensa: {
+            personagemId: 109,
+            estampaId: 109,
+            nomePersonagem: 'Cap. Nascimento',
+            foto: 'fotos/109.png',
+            estampa: 'estampa/109.png',
+            audioEntrada: 'audio/109.mp3'
+        }
+    },
 ];
 
 /*
@@ -149,22 +164,6 @@ window.MISSOES = [
  * Os objetivos usam "posicoes": [posição do 1º personagem, posição do 2º] (1 a 3).
  */
 /*
-
-    {
-        id: 'missao_109',
-        nome: 'Definir nome da missão 109',
-        descricao: 'Em uma partida com Alcy e Samuel, termine com Alcy em 3º lugar e Samuel em 1º lugar.',
-        personagensNecessarios: [1, 9],
-        posicoes: [3, 1],
-        recompensa: {
-            personagemId: 109,
-            estampaId: 109,
-            nomePersonagem: 'DEFINIR_NOME_109',
-            foto: 'fotos/109.png',
-            estampa: 'estampa/109.png',
-            audioEntrada: 'audio/109.mp3'
-        }
-    },
     {
         id: 'missao_110',
         nome: 'Definir nome da missão 110',
