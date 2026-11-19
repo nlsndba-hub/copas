@@ -3854,7 +3854,7 @@ async function salvarCadastro() {
     if (!nome) { admMsg(ERROS_ADMIN.nome); return; }
     if (!/^[a-z0-9_.-]{2,20}$/.test(usu)) { admMsg(ERROS_ADMIN.usuario); return; }
     if (senha.length < 4 || senha.length > 40) { admMsg(ERROS_ADMIN.senha); return; }
-    if (!/^\d{1,4}\.png$/.test(fnome)) { admMsg(ERROS_ADMIN.foto_nome); return; }
+    if (!/^\d{1,4}\.png$/.test(fnome)) { admMsg(ERROS_ADMIN.foto_nome + ' [app, nome: ' + fnome + ']'); return; }
     $('btnAdmSalvar').disabled = true; admMsg('Cadastrando…');
     try {
         const r = await rpc('admin_cadastrar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_nome: nome,
@@ -3866,7 +3866,7 @@ async function salvarCadastro() {
             $('admVistaCadastro').classList.add('escondido'); $('admVistaLista').classList.remove('escondido');
             admMsg(`${nome} cadastrado (usuário ${usu}). ${aviso}`, true);
             carregarAdmin();
-        } else admMsg(ERROS_ADMIN[r && r.erro] || 'Não foi possível cadastrar.');
+        } else admMsg((ERROS_ADMIN[r && r.erro] || 'Não foi possível cadastrar.') + (r && r.erro === 'foto_nome' ? ' [recusado pelo servidor, nome enviado: ' + fnome + ']' : ''));
     } catch (e) { admMsg('Não foi possível cadastrar. Verifique a internet.'); }
     finally { $('btnAdmSalvar').disabled = false; }
 }
