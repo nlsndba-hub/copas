@@ -3134,8 +3134,33 @@ function marcarFalando() {
     document.querySelectorAll('img[data-pid]').forEach(el => el.classList.toggle('falando', !!el.dataset.pid && MP.falando.has(el.dataset.pid)));
 }
 
+// Bip estilo rádio Nextel (trinado curto e agudo) ao abrir o áudio, só para sinalizar o início.
+let _ctxBip = null;
+// O navegador só libera som depois de um toque/clique: cria e destrava o contexto no primeiro gesto.
+['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(ev => window.addEventListener(ev, () => {
+    try {
+        if (!_ctxBip) _ctxBip = new (window.AudioContext || window.webkitAudioContext)();
+        if (_ctxBip.state === 'suspended') _ctxBip.resume().catch(() => {});
+    } catch (e) {}
+}, { capture: true, passive: true }));
+function bipNextel() {
+    try {
+        if (!_ctxBip) _ctxBip = new (window.AudioContext || window.webkitAudioContext)();
+        const c = _ctxBip; if (c.state === 'suspended') c.resume().catch(() => {});
+        const t0 = c.currentTime + 0.02;
+        // dois "chirps" rápidos subindo de tom (estilo rádio Nextel)
+        [[0, 1300, 2700], [0.13, 1500, 3000]].forEach(([d, f1, f2]) => {
+            const o = c.createOscillator(), g = c.createGain();
+            o.type = 'square'; o.frequency.setValueAtTime(f1, t0 + d); o.frequency.exponentialRampToValueAtTime(f2, t0 + d + 0.08);
+            g.gain.setValueAtTime(0.0001, t0 + d); g.gain.linearRampToValueAtTime(0.22, t0 + d + 0.008);
+            g.gain.setValueAtTime(0.22, t0 + d + 0.07); g.gain.linearRampToValueAtTime(0.0001, t0 + d + 0.09);
+            o.connect(g); g.connect(c.destination); o.start(t0 + d); o.stop(t0 + d + 0.1);
+        });
+    } catch (e) {}
+}
 async function falarIniciar() {
     if (!MP.ativo || VOZ.ativo) return;
+    bipNextel();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert('Seu navegador não permite usar o microfone aqui (é preciso HTTPS).'); return; }
     VOZ.ativo = true;
     const tk = ++VOZ.token;
@@ -4323,3 +4348,43 @@ document.addEventListener('click', e => {
         fecharPainelFrases();
     }
 });
+
+// =====================================================================
+// ===== V96 · ATUALIZAÇÃO DO CÓDIGO DERRUBA OS USUÁRIOS ================
+// Quando o código muda no git, quem não está em partida é deslogado e a página recarrega
+// (precisa fazer login de novo). Quem está em partida só cai depois de sair dela.
+// =====================================================================
+(() => {
+    const ARQS = ['index.html', 'script.js', 'style.css', 'missoes.js', 'personagens.js'];
+    let base = null, pendente = false, aplicando = false;
+    async function assinatura() {
+        const partes = [];
+        for (const a of ARQS) {
+            const r = await fetch(`${a}?_=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
+            if (!r.ok) throw new Error('http');
+            partes.push([r.headers.get('etag'), r.headers.get('last-modified'), r.headers.get('content-length')].join('|'));
+        }
+        const s = partes.join('#');
+        return /[^|#]/.test(s) ? s : null;   // sem cabeçalhos (ex.: arquivo local): não dá para comparar
+    }
+    async function verificar() {
+        if (pendente) return;
+        try {
+            const s = await assinatura();
+            if (!s) return;
+            if (base === null) base = s; else if (s !== base) pendente = true;
+        } catch (e) {}
+    }
+    function aplicar() {
+        if (!pendente || aplicando || !usuarioAtual) return;
+        if (document.body.dataset.tela === 'jogo') return;   // em partida: espera terminar
+        aplicando = true;
+        try { deslogar('', true, 'atualizacao'); } catch (e) {}
+        alert('O jogo foi atualizado. A página vai recarregar e você precisa fazer login novamente.');
+        location.reload();
+    }
+    verificar();
+    setInterval(verificar, 60000);
+    setInterval(aplicar, 3000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) verificar(); });
+})();

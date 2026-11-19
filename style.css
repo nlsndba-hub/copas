@@ -1288,11 +1288,11 @@ body.modo-espectador { background: radial-gradient(circle, #2a6fc0 0%, #0f3566 1
 }
 #btnMic.ligado { background: #d32f2f; border-color: #ff8a80; color: #fff; box-shadow: 0 0 12px rgba(255,80,80,.7); }
 #btnCores { font-size: 17px; font-weight: 700; background: #fff; border-color: #fff; }
-#btnCores .c1 { color: #111; } #btnCores .c2 { color: #e53935; } #btnCores .c3 { color: #f5a300; } #btnCores .c4 { color: #2e9e3e; }
+#btnCores .c1 { color: #111; } #btnCores .c2 { color: #e53935; } #btnCores .c3 { color: #b8820a; } #btnCores .c4 { color: #3a9a2c; }
 #btnCores.preto-vermelho { background: #111; border-color: #777; }
 #btnCores .nv { color: #111; text-shadow: 0 0 2px #fff, 0 0 2px #fff; } #btnCores .nr { color: #e53935; }
 @media (max-width: 768px) { #btnMic, #btnCores { min-width: 40px; min-height: 40px; padding: 0 6px; } }
-body.cartas-coloridas .carta.n-ouros { color: #ffc400; }
-body.cartas-coloridas .carta.n-paus { color: #8be04e; }
-body.cartas-coloridas .carta.n-ouros .valor, body.cartas-coloridas .carta.n-ouros .np, body.cartas-coloridas .carta.n-ouros .centro { -webkit-text-stroke: .045em #b34700; paint-order: stroke fill; text-shadow: 0 0 1px #b34700; }
-body.cartas-coloridas .carta.n-paus .valor, body.cartas-coloridas .carta.n-paus .np, body.cartas-coloridas .carta.n-paus .centro { -webkit-text-stroke: .045em #14591f; paint-order: stroke fill; text-shadow: 0 0 1px #14591f; }
+body.cartas-coloridas .carta.n-ouros { color: #b8820a; }
+body.cartas-coloridas .carta.n-paus { color: #3a9a2c; }
+body.cartas-coloridas .carta.n-ouros .valor, body.cartas-coloridas .carta.n-ouros .np, body.cartas-coloridas .carta.n-ouros .centro { -webkit-text-stroke: .045em #5e2c00; paint-order: stroke fill; text-shadow: 0 0 1px #5e2c00; }
+body.cartas-coloridas .carta.n-paus .valor, body.cartas-coloridas .carta.n-paus .np, body.cartas-coloridas .carta.n-paus .centro { -webkit-text-stroke: .045em #0b3512; paint-order: stroke fill; text-shadow: 0 0 1px #0b3512; }
