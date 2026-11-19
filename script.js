@@ -3789,9 +3789,9 @@ function linhaAdmin(u) {
     return d;
 }
 
-let admFotoData = null;
+let admFotoData = null, admFotoPng = null;
 function abrirCadastro() {
-    admMsg(''); admFotoData = null;
+    admMsg(''); admFotoData = null; admFotoPng = null;
     ['admNome', 'admUsuario', 'admSenha'].forEach(id => { $(id).value = ''; });
     $('admFotoArq').value = ''; $('admFotoPrev').classList.add('escondido'); $('admFotoPrev').removeAttribute('src');
     const maior = maiorFotoUsada();
@@ -3810,6 +3810,7 @@ function lerFotoRedimensionada(file) {
             const lado = Math.min(img.width, img.height);
             const sx = (img.width - lado) / 2, sy = Math.max(0, img.height - lado) * 0.3;   // corta quadrado, favorecendo o rosto
             ctx.drawImage(img, sx, sy, lado, lado, 0, 0, S, S);
+            admFotoPng = c.toDataURL('image/png');
             res(c.toDataURL('image/jpeg', 0.85));
         };
         img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagem')); };
@@ -3817,28 +3818,53 @@ function lerFotoRedimensionada(file) {
     });
 }
 $('admFotoArq').addEventListener('change', async e => {
-    const f = e.target.files && e.target.files[0]; admFotoData = null;
+    const f = e.target.files && e.target.files[0]; admFotoData = null; admFotoPng = null;
     if (!f) { $('admFotoPrev').classList.add('escondido'); return; }
     try {
         admFotoData = await lerFotoRedimensionada(f);
         $('admFotoPrev').src = admFotoData; $('admFotoPrev').classList.remove('escondido'); admMsg('');
     } catch (err) { admMsg('Não foi possível ler essa imagem.'); $('admFotoPrev').classList.add('escondido'); }
 });
+// Salva fotos/<nome>.png no repositório do GitHub (precisa de um token com permissão de escrita em Contents).
+// O token é pedido uma vez e guardado só neste aparelho. Sem token/erro: baixa o arquivo para você colocar em fotos/.
+async function enviarFotoRepo(fnome, dataUrl) {
+    const baixar = () => { const a = document.createElement('a'); a.href = dataUrl; a.download = fnome; document.body.appendChild(a); a.click(); a.remove(); };
+    try {
+        const dono = location.hostname.split('.')[0], repo = location.pathname.split('/')[1];
+        if (!/github\.io$/.test(location.hostname) || !repo) { baixar(); return `Foto baixada como ${fnome}: coloque na pasta fotos.`; }
+        let tk = ''; try { tk = localStorage.getItem('copasGhToken') || ''; } catch (e) {}
+        if (!tk) { tk = (prompt('Token do GitHub (permissão Contents: leitura e escrita) para salvar a foto na pasta fotos. Cancelar = baixar o arquivo.') || '').trim();
+            if (tk) try { localStorage.setItem('copasGhToken', tk); } catch (e) {} }
+        if (!tk) { baixar(); return `Foto baixada como ${fnome}: coloque na pasta fotos.`; }
+        const url = `https://api.github.com/repos/${dono}/${repo}/contents/fotos/${fnome}`;
+        const h = { Authorization: 'Bearer ' + tk, Accept: 'application/vnd.github+json' };
+        const corpo = { message: `Foto ${fnome}`, content: dataUrl.split(',')[1] };
+        const ex = await fetch(url, { headers: h });
+        if (ex.ok) corpo.sha = (await ex.json()).sha;
+        const r = await fetch(url, { method: 'PUT', headers: h, body: JSON.stringify(corpo) });
+        if (r.ok) return `Foto salva em fotos/${fnome}.`;
+        if (r.status === 401 || r.status === 403) { try { localStorage.removeItem('copasGhToken'); } catch (e) {} }
+        baixar(); return `Não deu para salvar no GitHub (erro ${r.status}); a foto foi baixada como ${fnome}.`;
+    } catch (e) { baixar(); return `Sem acesso ao GitHub; a foto foi baixada como ${fnome}.`; }
+}
 async function salvarCadastro() {
     const nome = $('admNome').value.trim(), usu = $('admUsuario').value.trim().toLowerCase();
-    const senha = $('admSenha').value, fnome = $('admFotoNome').value.trim().toLowerCase();
+    const senha = $('admSenha').value;
+    const fnome = $('admFotoNome').value.trim().toLowerCase().replace(/\.[a-z0-9]+$/, '').replace(/\s+/g, '') + '.png';   // sempre .png, com o nome do campo
     if (!nome) { admMsg(ERROS_ADMIN.nome); return; }
     if (!/^[a-z0-9_.-]{2,20}$/.test(usu)) { admMsg(ERROS_ADMIN.usuario); return; }
     if (senha.length < 4 || senha.length > 40) { admMsg(ERROS_ADMIN.senha); return; }
-    if (!/^\d{1,2}\.(png|jpe?g|webp)$/.test(fnome)) { admMsg(ERROS_ADMIN.foto_nome); return; }
+    if (!/^\d{1,4}\.png$/.test(fnome)) { admMsg(ERROS_ADMIN.foto_nome); return; }
     $('btnAdmSalvar').disabled = true; admMsg('Cadastrando…');
     try {
         const r = await rpc('admin_cadastrar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_nome: nome,
             p_novo_usuario: usu, p_senha: senha, p_foto_nome: fnome, p_foto_data: admFotoData });
         if (r && r.ok) {
             try { await carregarExtras(); } catch (e) {}
+            let aviso = '';
+            if (admFotoPng) aviso = await enviarFotoRepo(fnome, admFotoPng);
             $('admVistaCadastro').classList.add('escondido'); $('admVistaLista').classList.remove('escondido');
-            admMsg(`${nome} cadastrado (usuário ${usu}).`, true);
+            admMsg(`${nome} cadastrado (usuário ${usu}). ${aviso}`, true);
             carregarAdmin();
         } else admMsg(ERROS_ADMIN[r && r.erro] || 'Não foi possível cadastrar.');
     } catch (e) { admMsg('Não foi possível cadastrar. Verifique a internet.'); }
