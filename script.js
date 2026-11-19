@@ -3142,34 +3142,20 @@ let _ctxBip = null;
         if (!_ctxBip) _ctxBip = new (window.AudioContext || window.webkitAudioContext)();
         if (_ctxBip.state === 'suspended') _ctxBip.resume().catch(() => {});
     } catch (e) {}
+    if (!window._bipsLiberados) {   // destrava os dois bips no primeiro toque (o navegador só deixa tocar depois de um gesto)
+        window._bipsLiberados = true;
+        [_audioBipIni, _audioBipFim].forEach(a => { try { a.muted = true; const p = a.play(); const f = () => { a.pause(); a.currentTime = 0; a.muted = false; }; if (p && p.then) p.then(f).catch(() => { a.muted = false; window._bipsLiberados = false; }); else f(); } catch (e) { a.muted = false; } });
+    }
 }, { capture: true, passive: true }));
-// Arquivos dos bips (pasta "audio"): nextel1.mp3 ao iniciar o áudio, nextel2.mp3 ao terminar.
-// Se nextel1.mp3 faltar, tenta audio/Nextel-Bip.mp3 e depois o bip sintetizado abaixo.
-const BIP_INICIO_ARQUIVO = 'audio/nextel1.mp3';
-const BIP_FIM_ARQUIVO = 'audio/nextel2.mp3';
-const BIP_RESERVA_ARQUIVO = 'audio/Nextel-Bip.mp3';
-const _audioBipIni = new Audio(BIP_INICIO_ARQUIVO), _audioBipFim = new Audio(BIP_FIM_ARQUIVO), _audioBipRes = new Audio(BIP_RESERVA_ARQUIVO);
-[_audioBipIni, _audioBipFim, _audioBipRes].forEach(a => { a.preload = 'auto'; });
-function tocarBip(a, falha) {
-    try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(falha); } catch (e) { falha(); }
-}
-function bipNextel() { tocarBip(_audioBipIni, () => tocarBip(_audioBipRes, bipSintetico)); }   // início do áudio
-function bipNextelFim() { tocarBip(_audioBipFim, () => {}); }                                   // fim do áudio
-function bipSintetico() {
-    try {
-        if (!_ctxBip) _ctxBip = new (window.AudioContext || window.webkitAudioContext)();
-        const c = _ctxBip; if (c.state === 'suspended') c.resume().catch(() => {});
-        const t0 = c.currentTime + 0.02;
-        // dois "chirps" rápidos subindo de tom (estilo rádio Nextel)
-        [[0, 1300, 2700], [0.13, 1500, 3000]].forEach(([d, f1, f2]) => {
-            const o = c.createOscillator(), g = c.createGain();
-            o.type = 'square'; o.frequency.setValueAtTime(f1, t0 + d); o.frequency.exponentialRampToValueAtTime(f2, t0 + d + 0.08);
-            g.gain.setValueAtTime(0.0001, t0 + d); g.gain.linearRampToValueAtTime(0.22, t0 + d + 0.008);
-            g.gain.setValueAtTime(0.22, t0 + d + 0.07); g.gain.linearRampToValueAtTime(0.0001, t0 + d + 0.09);
-            o.connect(g); g.connect(c.destination); o.start(t0 + d); o.stop(t0 + d + 0.1);
-        });
-    } catch (e) {}
-}
+// Bips do rádio (pasta "audio"): Nextel1.mp3 ao iniciar o áudio, Nextel2.mp3 ao terminar.
+// Valem para segurar/soltar a tela e para o botão de microfone (iniciar/parar). Atenção às maiúsculas nos nomes.
+const BIP_INICIO_ARQUIVO = 'audio/Nextel1.mp3';
+const BIP_FIM_ARQUIVO = 'audio/Nextel2.mp3';
+const _audioBipIni = new Audio(BIP_INICIO_ARQUIVO), _audioBipFim = new Audio(BIP_FIM_ARQUIVO);
+[_audioBipIni, _audioBipFim].forEach(a => { a.preload = 'auto'; a.volume = 1; });
+function tocarBip(a) { try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+function bipNextel() { tocarBip(_audioBipIni); }       // início do áudio
+function bipNextelFim() { tocarBip(_audioBipFim); }    // fim do áudio
 async function falarIniciar() {
     if (!MP.ativo || VOZ.ativo) return;
     bipNextel();
