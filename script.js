@@ -3143,16 +3143,18 @@ let _ctxBip = null;
         if (_ctxBip.state === 'suspended') _ctxBip.resume().catch(() => {});
     } catch (e) {}
 }, { capture: true, passive: true }));
-// Arquivo do bip: fica na pasta "audio" (audio/Nextel-Bip.mp3). Se não carregar, usa o bip sintetizado abaixo.
-const BIP_NEXTEL_ARQUIVO = 'audio/Nextel-Bip.mp3';
-const _audioBip = new Audio(BIP_NEXTEL_ARQUIVO); _audioBip.preload = 'auto';
-function bipNextel() {
-    try {
-        _audioBip.currentTime = 0;
-        const p = _audioBip.play();
-        if (p && p.catch) p.catch(() => bipSintetico());
-    } catch (e) { bipSintetico(); }
+// Arquivos dos bips (pasta "audio"): nextel1.mp3 ao iniciar o áudio, nextel2.mp3 ao terminar.
+// Se nextel1.mp3 faltar, tenta audio/Nextel-Bip.mp3 e depois o bip sintetizado abaixo.
+const BIP_INICIO_ARQUIVO = 'audio/nextel1.mp3';
+const BIP_FIM_ARQUIVO = 'audio/nextel2.mp3';
+const BIP_RESERVA_ARQUIVO = 'audio/Nextel-Bip.mp3';
+const _audioBipIni = new Audio(BIP_INICIO_ARQUIVO), _audioBipFim = new Audio(BIP_FIM_ARQUIVO), _audioBipRes = new Audio(BIP_RESERVA_ARQUIVO);
+[_audioBipIni, _audioBipFim, _audioBipRes].forEach(a => { a.preload = 'auto'; });
+function tocarBip(a, falha) {
+    try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(falha); } catch (e) { falha(); }
 }
+function bipNextel() { tocarBip(_audioBipIni, () => tocarBip(_audioBipRes, bipSintetico)); }   // início do áudio
+function bipNextelFim() { tocarBip(_audioBipFim, () => {}); }                                   // fim do áudio
 function bipSintetico() {
     try {
         if (!_ctxBip) _ctxBip = new (window.AudioContext || window.webkitAudioContext)();
@@ -3190,6 +3192,7 @@ async function falarIniciar() {
 }
 function falarParar() {
     if (!VOZ.ativo) return;
+    bipNextelFim();
     VOZ.ativo = false; VOZ.token++;
     if (VOZ.mic) { VOZ.mic.getTracks().forEach(t => t.stop()); VOZ.mic = null; }
     Object.values(VOZ.pcs).forEach(o => { if (o.sender) o.sender.replaceTrack(null).catch(() => {}); });
