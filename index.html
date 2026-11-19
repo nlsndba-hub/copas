@@ -106,7 +106,7 @@
                 <label class="adm-rot" for="admSenha">Senha</label>
                 <input id="admSenha" class="campo" type="text" maxlength="40" placeholder="Senha (mínimo 4)" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
                 <label class="adm-rot" for="admFotoNome">Nome foto</label>
-                <input id="admFotoNome" class="campo" type="text" maxlength="20" placeholder="ex.: 16.png" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+                <input id="admFotoNome" class="campo" type="text" maxlength="20" placeholder="ex.: 16.png ou 16.jpg" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
                 <p id="admMaiorFoto" class="adm-dica"></p>
                 <div class="adm-foto-linha">
                     <img id="admFotoPrev" class="escondido" alt="Prévia da foto">
@@ -175,6 +175,8 @@
                     <button type="button" id="volMais" aria-label="Aumentar volume">+</button>
                 </div>
             <div id="status" role="status" aria-live="polite"></div>
+            <button type="button" id="btnCores" title="Cartas coloridas" aria-label="Alternar cartas coloridas" aria-pressed="false"></button>
+            <button type="button" id="btnMic" title="Abrir o microfone (fica aberto até tocar de novo)" aria-label="Microfone" aria-pressed="false"><i class="fas fa-microphone"></i></button>
             <button type="button" id="btnChave" class="escondido" title="Senha da sala" aria-label="Ver a senha da sala"><i class="fas fa-key"></i></button>
             <button type="button" id="btnSom" title="Áudios de personagens" aria-label="Ligar ou desligar áudios de personagens" aria-pressed="false"><i class="fas fa-volume-high"></i></button>
             <button type="button" id="btnRanking" title="Ver Ranking Geral" aria-label="Ver Ranking Geral">

@@ -55,7 +55,7 @@ function nomeCarta(c) { const f = FACES[c.valor]; return `${NOMES_FACE[f] || f} 
 function criarElementoCarta(c, extra = '') {
     const d = document.createElement('div');
     const f = FACES[c.valor], s = NAIPES[c.naipe].s;
-    d.className = `carta ${NAIPES[c.naipe].cor} ${c.valor >= 9 && c.valor <= 11 ? 'figura' : ''} ${extra}`;
+    d.className = `carta ${NAIPES[c.naipe].cor} n-${NAIPES[c.naipe].nome.toLowerCase()} ${c.valor >= 9 && c.valor <= 11 ? 'figura' : ''} ${extra}`;
     const pts = pontosCarta(c);
     const coroa = { 9: '♞', 10: '♛', 11: '♚' }[c.valor];
     const badge = coroa ? `<div class="coroa">${coroa}</div>` : '';
@@ -3160,6 +3160,29 @@ function falarParar() {
     Object.values(VOZ.pcs).forEach(o => { if (o.sender) o.sender.replaceTrack(null).catch(() => {}); });
     setFalando(MP.pid, false); enviar('voz', { pid: MP.pid, on: false });
 }
+// Botão de microfone (topo): um toque abre o áudio e fica aberto; outro toque fecha.
+function marcarMic() { const b = $('btnMic'); if (!b) return; const on = VOZ.ativo && VOZ.fonte === 'botao'; b.classList.toggle('ligado', on); b.setAttribute('aria-pressed', String(on)); b.title = on ? 'Fechar o microfone' : 'Abrir o microfone (fica aberto até tocar de novo)'; }
+$('btnMic').onclick = () => {
+    if (!MP.ativo) { alert('O microfone só funciona em salas multijogador.'); return; }
+    if (VOZ.ativo && VOZ.fonte === 'botao') falarParar();
+    else if (!VOZ.ativo) { VOZ.fonte = 'botao'; falarIniciar(); }
+    marcarMic(); setTimeout(marcarMic, 400);
+};
+setInterval(marcarMic, 700);
+// Modo cartas coloridas (Ouros dourado, Paus verde); preferência guardada neste aparelho.
+function marcarCores() {
+    const on = document.body.classList.contains('cartas-coloridas'), b = $('btnCores');
+    b.classList.toggle('preto-vermelho', on); b.setAttribute('aria-pressed', String(on));
+    b.innerHTML = on ? '<span class="nv">♠</span><span class="nr">♥</span>' : '<span class="c1">♠</span><span class="c2">♥</span><span class="c3">♦</span><span class="c4">♣</span>';
+    b.title = on ? 'Voltar às cores normais (preto/vermelho)' : 'Cartas coloridas';
+}
+$('btnCores').onclick = () => {
+    document.body.classList.toggle('cartas-coloridas');
+    try { localStorage.setItem('copasCartasColoridas', document.body.classList.contains('cartas-coloridas') ? '1' : '0'); } catch (e) {}
+    marcarCores();
+};
+try { if (localStorage.getItem('copasCartasColoridas') === '1') document.body.classList.add('cartas-coloridas'); } catch (e) {}
+marcarCores();
 const suprimirCliques = () => { VOZ.semClique = Date.now() + 500; };
 window.addEventListener('click', e => { if (Date.now() < VOZ.semClique) { e.stopPropagation(); e.preventDefault(); } }, true);
 
@@ -3167,14 +3190,14 @@ window.addEventListener('click', e => { if (Date.now() < VOZ.semClique) { e.stop
 let cliqueVoz = null;
 function cancelarCliqueVoz() { if (cliqueVoz) { clearTimeout(cliqueVoz.tm); cliqueVoz = null; } }
 const mouseDeVerdade = e => !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
-const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat'));
+const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat, #btnMic, #btnCores'));
 window.addEventListener('mousedown', e => {
     if (!MP.ativo || !mouseDeVerdade(e) || dentroDoChat(e)) return;
     if (e.buttons === 3) { cancelarCliqueVoz(); VOZ.fonte = 'mouse'; falarIniciar(); return; }   // esquerdo + direito
-    if (e.button === 0 && e.buttons === 1) {                                                      // esquerdo segurado por 2 s
+    if (e.button === 0 && e.buttons === 1) {                                                      // esquerdo segurado por 1 s
         cancelarCliqueVoz();
         const o = { x: e.clientX, y: e.clientY, ativo: false };
-        o.tm = setTimeout(() => { o.ativo = true; VOZ.fonte = 'clique'; falarIniciar(); }, 2000);
+        o.tm = setTimeout(() => { o.ativo = true; VOZ.fonte = 'clique'; falarIniciar(); }, 1000);
         cliqueVoz = o;
     }
 }, true);
@@ -3192,7 +3215,7 @@ window.addEventListener('mouseup', e => {
 window.addEventListener('blur', () => { cancelarCliqueVoz(); falarParar(); });
 document.addEventListener('contextmenu', e => { if (MP.ativo) e.preventDefault(); }, true);
 
-// Celular: tocar na tela e segurar por mais de 2 segundos (solta = para de falar)
+// Celular: tocar na tela e segurar por 1 segundo (solta = para de falar)
 let toqueVoz = null;
 function cancelarToque() { if (toqueVoz) { clearTimeout(toqueVoz.tm); toqueVoz = null; } }
 window.addEventListener('touchstart', e => {
@@ -3201,7 +3224,7 @@ window.addEventListener('touchstart', e => {
     const t = e.touches[0];
     cancelarToque();
     const o = { x: t.clientX, y: t.clientY, ativo: false };
-    o.tm = setTimeout(() => { o.ativo = true; VOZ.fonte = 'toque'; falarIniciar(); if (navigator.vibrate) navigator.vibrate(30); }, 2000);
+    o.tm = setTimeout(() => { o.ativo = true; VOZ.fonte = 'toque'; falarIniciar(); if (navigator.vibrate) navigator.vibrate(30); }, 1000);
     toqueVoz = o;
 }, { passive: true });
 window.addEventListener('touchmove', e => {
@@ -3737,7 +3760,7 @@ const admMsg = (t, ok) => { const e = $('admMsg'); e.textContent = t || ''; e.st
 const ERROS_ADMIN = {
     permissao: 'Sem permissão.', tabela: 'Tabela de usuários não encontrada (veja config_admin no SQL).',
     nome: 'Nome inválido (1 a 30 letras, sem < > " & \\).', usuario: 'Usuário inválido (2 a 20: letras minúsculas, números, . _ -).',
-    senha: 'Senha inválida (4 a 40 caracteres).', foto_nome: 'Nome da foto inválido. Use número e extensão, ex.: 16.png.',
+    senha: 'Senha inválida (4 a 40 caracteres).', foto_nome: 'Nome da foto inválido. Use número e extensão, ex.: 16.png, 16.jpg ou 16.webp.',
     foto_base: 'Esse número de foto é de um personagem fixo. Use um maior.', foto_existe: 'Esse nome de foto já está em uso.',
     usuario_existe: 'Esse usuário já existe.', foto: 'Foto inválida ou grande demais.', inexistente: 'Usuário não encontrado.'
 };
@@ -3789,11 +3812,11 @@ function linhaAdmin(u) {
     return d;
 }
 
-let admFotoData = null, admFotoPng = null;
+let admFotoData = null, admFotoPng = null, admFotoCanvas = null;
 function abrirCadastro() {
     admMsg(''); admFotoData = null; admFotoPng = null;
     ['admNome', 'admUsuario', 'admSenha'].forEach(id => { $(id).value = ''; });
-    $('admFotoArq').value = ''; $('admFotoPrev').classList.add('escondido'); $('admFotoPrev').removeAttribute('src');
+    admFotoCanvas = null; $('admFotoArq').value = ''; $('admFotoPrev').classList.add('escondido'); $('admFotoPrev').removeAttribute('src');
     const maior = maiorFotoUsada();
     $('admMaiorFoto').textContent = `Maior foto já usada: ${maior}.png`;
     $('admFotoNome').value = `${maior + 1}.png`;           // pode apagar e mudar antes de cadastrar
@@ -3801,6 +3824,7 @@ function abrirCadastro() {
     $('admNome').focus();
 }
 function lerFotoRedimensionada(file) {
+    admFotoCanvas = null;
     return new Promise((res, rej) => {
         const url = URL.createObjectURL(file), img = new Image();
         img.onload = () => {
@@ -3810,7 +3834,7 @@ function lerFotoRedimensionada(file) {
             const lado = Math.min(img.width, img.height);
             const sx = (img.width - lado) / 2, sy = Math.max(0, img.height - lado) * 0.3;   // corta quadrado, favorecendo o rosto
             ctx.drawImage(img, sx, sy, lado, lado, 0, 0, S, S);
-            admFotoPng = c.toDataURL('image/png');
+            admFotoCanvas = c; admFotoPng = 'ok';
             res(c.toDataURL('image/jpeg', 0.85));
         };
         img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagem')); };
@@ -3825,7 +3849,7 @@ $('admFotoArq').addEventListener('change', async e => {
         $('admFotoPrev').src = admFotoData; $('admFotoPrev').classList.remove('escondido'); admMsg('');
     } catch (err) { admMsg('Não foi possível ler essa imagem.'); $('admFotoPrev').classList.add('escondido'); }
 });
-// Salva fotos/<nome>.png no repositório do GitHub (precisa de um token com permissão de escrita em Contents).
+// Salva fotos/<nome> (a extensão do campo) no repositório do GitHub (precisa de um token com permissão de escrita em Contents).
 // O token é pedido uma vez e guardado só neste aparelho. Sem token/erro: baixa o arquivo para você colocar em fotos/.
 async function enviarFotoRepo(fnome, dataUrl) {
     const baixar = () => { const a = document.createElement('a'); a.href = dataUrl; a.download = fnome; document.body.appendChild(a); a.click(); a.remove(); };
@@ -3850,11 +3874,12 @@ async function enviarFotoRepo(fnome, dataUrl) {
 async function salvarCadastro() {
     const nome = $('admNome').value.trim(), usu = $('admUsuario').value.trim().toLowerCase();
     const senha = $('admSenha').value;
-    const fnome = $('admFotoNome').value.trim().toLowerCase().replace(/\.[a-z0-9]+$/, '').replace(/\s+/g, '') + '.png';   // sempre .png, com o nome do campo
+    const fnome = $('admFotoNome').value.trim().toLowerCase().replace(/\s+/g, '').replace(/\.jpeg$/, '.jpg');   // nome e extensão exatamente como estão no campo (.jpeg vira .jpg)
+    const extF = (/\.([a-z0-9]+)$/.exec(fnome) || [])[1] || '';
     if (!nome) { admMsg(ERROS_ADMIN.nome); return; }
     if (!/^[a-z0-9_.-]{2,20}$/.test(usu)) { admMsg(ERROS_ADMIN.usuario); return; }
     if (senha.length < 4 || senha.length > 40) { admMsg(ERROS_ADMIN.senha); return; }
-    if (!/^\d{1,4}\.png$/.test(fnome)) { admMsg(ERROS_ADMIN.foto_nome + ' [app, nome: ' + fnome + ']'); return; }
+    if (!/^\d{1,4}\.(png|jpg|webp)$/.test(fnome)) { admMsg(ERROS_ADMIN.foto_nome + ' [app, nome: ' + fnome + ']'); return; }
     $('btnAdmSalvar').disabled = true; admMsg('Cadastrando…');
     try {
         const r = await rpc('admin_cadastrar', { p_usuario: usuarioAtual.usuario, p_token: SES.token, p_nome: nome,
@@ -3862,7 +3887,7 @@ async function salvarCadastro() {
         if (r && r.ok) {
             try { await carregarExtras(); } catch (e) {}
             let aviso = '';
-            if (admFotoPng) aviso = await enviarFotoRepo(fnome, admFotoPng);
+            if (admFotoCanvas) aviso = await enviarFotoRepo(fnome, admFotoCanvas.toDataURL(extF === 'jpg' ? 'image/jpeg' : extF === 'webp' ? 'image/webp' : 'image/png', 0.92));
             $('admVistaCadastro').classList.add('escondido'); $('admVistaLista').classList.remove('escondido');
             admMsg(`${nome} cadastrado (usuário ${usu}). ${aviso}`, true);
             carregarAdmin();
