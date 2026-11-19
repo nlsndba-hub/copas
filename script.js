@@ -3143,7 +3143,17 @@ let _ctxBip = null;
         if (_ctxBip.state === 'suspended') _ctxBip.resume().catch(() => {});
     } catch (e) {}
 }, { capture: true, passive: true }));
+// Arquivo do bip: fica na pasta "audio" (audio/Nextel-Bip.mp3). Se não carregar, usa o bip sintetizado abaixo.
+const BIP_NEXTEL_ARQUIVO = 'audio/Nextel-Bip.mp3';
+const _audioBip = new Audio(BIP_NEXTEL_ARQUIVO); _audioBip.preload = 'auto';
 function bipNextel() {
+    try {
+        _audioBip.currentTime = 0;
+        const p = _audioBip.play();
+        if (p && p.catch) p.catch(() => bipSintetico());
+    } catch (e) { bipSintetico(); }
+}
+function bipSintetico() {
     try {
         if (!_ctxBip) _ctxBip = new (window.AudioContext || window.webkitAudioContext)();
         const c = _ctxBip; if (c.state === 'suspended') c.resume().catch(() => {});
