@@ -3302,6 +3302,25 @@ function irParaModo() {
     carregarEstampasUsuario().then(() => { if (G) render(); });
     if (!SES.tPing) iniciarSessao();
 }
+// Primeiro login com uma senha nova (ex.: o admin trocou): pede de novo as permissões de áudio e microfone.
+// Guarda neste aparelho só um hash da senha usada por último em cada usuário.
+async function impressaoSenha(u, s) {
+    const t = `copas|${u}|${s}`;
+    try { const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+    catch (e) { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return 'x' + h; }
+}
+async function pedirPermissoesSeSenhaNova(u, s) {
+    try {
+        const chave = `copasSenhaVista:${u}`, fp = await impressaoSenha(u, s);
+        if (localStorage.getItem(chave) === fp) return;
+        localStorage.setItem(chave, fp);
+        try { const ac = new (window.AudioContext || window.webkitAudioContext)(); await ac.resume(); ac.close(); } catch (e) {}   // libera o áudio
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            const st = await navigator.mediaDevices.getUserMedia({ audio: true });   // pede o microfone
+            st.getTracks().forEach(t => t.stop());
+        }
+    } catch (e) { /* negou ou sem suporte: segue o login normalmente */ }
+}
 async function fazerLogin() {
     const erro = $('acessoErro');
     if (!getSB()) { erro.textContent = msgSB().split('\n')[0]; return; }
@@ -3319,6 +3338,7 @@ async function fazerLogin() {
             else { localStorage.removeItem(SESSAO_KEY); localStorage.removeItem(TOKEN_KEY); }
         } catch (e) {}
         erro.textContent = ''; $('inpSenha').value = '';
+        await pedirPermissoesSeSenhaNova(u, s);
         try { await carregarExtras(); } catch (e) {}
         await checarManutencao();
         irParaModo();
