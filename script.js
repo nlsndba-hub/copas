@@ -4244,7 +4244,7 @@ function atualizarBtnFrases() {
     const btn = $('btnFrases');
     if (!btn) return;
     // Só mostra se estiver em jogo com 2+ humanos e não for espectador e não estar em modo solo
-    const mostra = G && MP.modo !== 'solo' && !MP.espectador && MP.ativo && MP.membros.length > 1;
+    const mostra = G && !MP.espectador && ((MP.modo === 'solo' && !MP.ativo) || (MP.ativo && MP.membros.length > 1));
     btn.classList.toggle('escondido', !mostra);
     if (mostra) {
         const restam = MAX_FRASES - frasesUsadas;
@@ -4283,7 +4283,7 @@ function abrirPainelFrases() {
 }
 
 function usarFrase(texto) {
-    if (frasesUsadas >= MAX_FRASES || !MP.ativo) return;
+    if (frasesUsadas >= MAX_FRASES || (!MP.ativo && !(MP.modo === 'solo' && G))) return;
     frasesUsadas++;
     atualizarBtnFrases();
     // Envia para todos via evt
