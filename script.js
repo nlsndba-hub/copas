@@ -3154,9 +3154,9 @@ const BIP_INICIO_ARQUIVO = 'audio/Nextel1.mp3';
 const BIP_FIM_ARQUIVO = 'audio/Nextel2.mp3';
 const _audioBipIni = new Audio(BIP_INICIO_ARQUIVO), _audioBipFim = new Audio(BIP_FIM_ARQUIVO);
 [_audioBipIni, _audioBipFim].forEach(a => { a.preload = 'auto'; a.volume = 1; });
-function tocarBip(a) { try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+function tocarBip(a, tentativa = 0) { try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => { if (tentativa < 2) setTimeout(() => tocarBip(a, tentativa + 1), 250); }); } catch (e) {} }
 function bipNextel() { tocarBip(_audioBipIni); }       // início do áudio
-function bipNextelFim() { tocarBip(_audioBipFim); }    // fim do áudio
+function bipNextelFim() { setTimeout(() => tocarBip(_audioBipFim), 220); }   // espera o celular largar o microfone, senão o som do bip é cortado    // fim do áudio
 const vozPermitida = () => MP.ativo || (MP.modo === 'solo' && !!G);   // Sozinho: abre o mic mesmo sem ninguém ouvir
 async function falarIniciar() {
     if (!vozPermitida() || VOZ.ativo) return;
@@ -3180,10 +3180,10 @@ async function falarIniciar() {
 }
 function falarParar() {
     if (!VOZ.ativo) return;
-    bipNextelFim();
     VOZ.ativo = false; VOZ.token++;
     if (VOZ.mic) { VOZ.mic.getTracks().forEach(t => t.stop()); VOZ.mic = null; }
     Object.values(VOZ.pcs).forEach(o => { if (o.sender) o.sender.replaceTrack(null).catch(() => {}); });
+    bipNextelFim();
     setFalando(MP.pid, false); if (MP.ativo) enviar('voz', { pid: MP.pid, on: false });
 }
 // Botão de microfone (topo): um toque abre o áudio e fica aberto; outro toque fecha.
@@ -4236,6 +4236,7 @@ const FRASES = [
     '😄', '😡', '😭', '😮'
 ];
 const GIFS = ['gifs/g1.gif', 'gifs/g2.gif', 'gifs/g3.gif', 'gifs/g4.gif', 'gifs/g5.gif'];   // aparecem ao lado do quadrado do personagem
+const gifSrc = src => (window.GIFS_DATA && window.GIFS_DATA[src]) || src;
 const MAX_FRASES = 3;
 let frasesUsadas = 0;
 let frasesBalaoTimer = null;
@@ -4268,7 +4269,7 @@ function abrirPainelFrases() {
     GIFS.forEach(src => {
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'gif-item';
-        b.innerHTML = '<img src="' + src + '" alt="GIF" loading="lazy">';
+        b.innerHTML = '<img src="' + gifSrc(src) + '" alt="GIF">';
         b.onclick = () => { fecharPainelFrases(); usarFrase('gif:' + src); };
         gl.appendChild(b);
     });
@@ -4310,7 +4311,7 @@ function mostrarBalaoFrase(assento, texto, meu) {
         const aDir = (rb.left + rb.width / 2) > window.innerWidth * 0.55;
         const tam = Math.max(60, Math.min(120, aDir ? rb.left - 12 : window.innerWidth - rb.right - 12));
         balao.className = 'gif-lado';
-        balao.innerHTML = '<img src="' + src + '" alt="">';
+        balao.innerHTML = '<img src="' + gifSrc(src) + '" alt="">';
         balao.style.top = Math.max(tam / 2 + 4, Math.min(window.innerHeight - tam / 2 - 4, rb.top + rb.height / 2)) + 'px';
         balao.style.width = tam + 'px';
         if (aDir) balao.style.right = (window.innerWidth - rb.left + 6) + 'px'; else balao.style.left = (rb.right + 6) + 'px';
