@@ -3131,6 +3131,7 @@ async function aoSinal({ de, para, tipo, dados }) {
 
 function setFalando(pid, on) { if (on) MP.falando.add(pid); else MP.falando.delete(pid); marcarFalando(); }
 function marcarFalando() {
+    if (MP.modo === 'solo' && !MP.ativo) { const im = document.querySelector('#j0 img'); if (im) im.classList.toggle('falando', !!VOZ.ativo); }
     document.querySelectorAll('img[data-pid]').forEach(el => el.classList.toggle('falando', !!el.dataset.pid && MP.falando.has(el.dataset.pid)));
 }
 
@@ -3156,18 +3157,19 @@ const _audioBipIni = new Audio(BIP_INICIO_ARQUIVO), _audioBipFim = new Audio(BIP
 function tocarBip(a) { try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
 function bipNextel() { tocarBip(_audioBipIni); }       // início do áudio
 function bipNextelFim() { tocarBip(_audioBipFim); }    // fim do áudio
+const vozPermitida = () => MP.ativo || (MP.modo === 'solo' && !!G);   // Sozinho: abre o mic mesmo sem ninguém ouvir
 async function falarIniciar() {
-    if (!MP.ativo || VOZ.ativo) return;
+    if (!vozPermitida() || VOZ.ativo) return;
     bipNextel();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert('Seu navegador não permite usar o microfone aqui (é preciso HTTPS).'); return; }
     VOZ.ativo = true;
     const tk = ++VOZ.token;
-    setFalando(MP.pid, true); enviar('voz', { pid: MP.pid, on: true });
+    setFalando(MP.pid, true); if (MP.ativo) enviar('voz', { pid: MP.pid, on: true });
     let stream;
     try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     } catch (e) {
-        if (VOZ.token === tk) { VOZ.ativo = false; setFalando(MP.pid, false); enviar('voz', { pid: MP.pid, on: false }); }
+        if (VOZ.token === tk) { VOZ.ativo = false; setFalando(MP.pid, false); if (MP.ativo) enviar('voz', { pid: MP.pid, on: false }); }
         if (!VOZ.negado) { VOZ.negado = true; alert('Permita o acesso ao microfone para falar com a sala.'); }
         return;
     }
@@ -3182,12 +3184,12 @@ function falarParar() {
     VOZ.ativo = false; VOZ.token++;
     if (VOZ.mic) { VOZ.mic.getTracks().forEach(t => t.stop()); VOZ.mic = null; }
     Object.values(VOZ.pcs).forEach(o => { if (o.sender) o.sender.replaceTrack(null).catch(() => {}); });
-    setFalando(MP.pid, false); enviar('voz', { pid: MP.pid, on: false });
+    setFalando(MP.pid, false); if (MP.ativo) enviar('voz', { pid: MP.pid, on: false });
 }
 // Botão de microfone (topo): um toque abre o áudio e fica aberto; outro toque fecha.
 function marcarMic() { const b = $('btnMic'); if (!b) return; const on = VOZ.ativo && VOZ.fonte === 'botao'; b.classList.toggle('ligado', on); b.setAttribute('aria-pressed', String(on)); b.title = on ? 'Fechar o microfone' : 'Abrir o microfone (fica aberto até tocar de novo)'; }
 $('btnMic').onclick = () => {
-    if (!MP.ativo) { alert('O microfone só funciona em salas multijogador.'); return; }
+    if (!vozPermitida()) { alert('O microfone só funciona durante uma partida.'); return; }
     if (VOZ.ativo && VOZ.fonte === 'botao') falarParar();
     else if (!VOZ.ativo) { VOZ.fonte = 'botao'; falarIniciar(); }
     marcarMic(); setTimeout(marcarMic, 400);
@@ -3216,7 +3218,7 @@ function cancelarCliqueVoz() { if (cliqueVoz) { clearTimeout(cliqueVoz.tm); cliq
 const mouseDeVerdade = e => !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
 const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat, #btnMic, #btnCores'));
 window.addEventListener('mousedown', e => {
-    if (!MP.ativo || !mouseDeVerdade(e) || dentroDoChat(e)) return;
+    if (!vozPermitida() || !mouseDeVerdade(e) || dentroDoChat(e)) return;
     if (e.buttons === 3) { cancelarCliqueVoz(); VOZ.fonte = 'mouse'; falarIniciar(); return; }   // esquerdo + direito
     if (e.button === 0 && e.buttons === 1) {                                                      // esquerdo segurado por 1 s
         cancelarCliqueVoz();
@@ -3243,7 +3245,7 @@ document.addEventListener('contextmenu', e => { if (MP.ativo) e.preventDefault()
 let toqueVoz = null;
 function cancelarToque() { if (toqueVoz) { clearTimeout(toqueVoz.tm); toqueVoz = null; } }
 window.addEventListener('touchstart', e => {
-    if (!MP.ativo || dentroDoChat(e)) return;
+    if (!vozPermitida() || dentroDoChat(e)) return;
     if (e.touches.length !== 1) { cancelarToque(); return; }
     const t = e.touches[0];
     cancelarToque();
@@ -4233,6 +4235,7 @@ const FRASES = [
     'Isso não é bicho pra ficar cercando não.',
     '😄', '😡', '😭', '😮'
 ];
+const GIFS = ['gifs/g1.gif', 'gifs/g2.gif', 'gifs/g3.gif', 'gifs/g4.gif', 'gifs/g5.gif'];   // aparecem ao lado do quadrado do personagem
 const MAX_FRASES = 3;
 let frasesUsadas = 0;
 let frasesBalaoTimer = null;
@@ -4261,6 +4264,14 @@ function abrirPainelFrases() {
     $('frasesRestantes').textContent = `(${restam} restante${restam === 1 ? '' : 's'})`;
     const lista = $('frasesList');
     lista.innerHTML = '';
+    const gl = $('gifsList'); gl.innerHTML = '';
+    GIFS.forEach(src => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'gif-item';
+        b.innerHTML = '<img src="' + src + '" alt="GIF" loading="lazy">';
+        b.onclick = () => { fecharPainelFrases(); usarFrase('gif:' + src); };
+        gl.appendChild(b);
+    });
     FRASES.forEach(fr => {
         const btn = document.createElement('button');
         btn.type = 'button'; btn.className = 'frase-item';
@@ -4292,6 +4303,21 @@ function mostrarBalaoFrase(assento, texto, meu) {
     const foto = box.querySelector('.avatar-jogador') || box;
     const rb = box.getBoundingClientRect(), rf = foto.getBoundingClientRect();
     const balao = document.createElement('div');
+    const ehGif = typeof texto === 'string' && texto.startsWith('gif:');
+    if (ehGif) {             // GIF: não é balão de fala, fica ao lado do quadrado do personagem
+        const src = texto.slice(4);
+        if (!GIFS.includes(src)) return;
+        const aDir = (rb.left + rb.width / 2) > window.innerWidth * 0.55;
+        const tam = Math.max(60, Math.min(120, aDir ? rb.left - 12 : window.innerWidth - rb.right - 12));
+        balao.className = 'gif-lado';
+        balao.innerHTML = '<img src="' + src + '" alt="">';
+        balao.style.top = Math.max(tam / 2 + 4, Math.min(window.innerHeight - tam / 2 - 4, rb.top + rb.height / 2)) + 'px';
+        balao.style.width = tam + 'px';
+        if (aDir) balao.style.right = (window.innerWidth - rb.left + 6) + 'px'; else balao.style.left = (rb.right + 6) + 'px';
+        document.body.appendChild(balao);
+        _baloes[assento] = { el: balao, t: setTimeout(() => { balao.remove(); delete _baloes[assento]; }, 4000) };
+        return;
+    }
     const meuLugar = Number(assento) === 0;
     if (meuLugar) {          // meu personagem: balão ao lado da foto
         const aDireita = (rb.left + rb.width / 2) > window.innerWidth * 0.55;

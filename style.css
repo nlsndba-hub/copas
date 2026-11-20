@@ -1294,3 +1294,18 @@ body.modo-espectador { background: radial-gradient(circle, #2a6fc0 0%, #0f3566 1
 @media (max-width: 768px) { #btnMic, #btnCores { min-width: 40px; min-height: 40px; padding: 0 6px; } }
 body.cartas-coloridas .carta.n-ouros { color: #8a5d00; -webkit-text-stroke: 0; text-shadow: none; }
 body.cartas-coloridas .carta.n-paus { color: #14612a; -webkit-text-stroke: 0; text-shadow: none; }
+
+/* V98 · painel de frases com rolagem (cabe na tela) + GIFs ao lado do personagem */
+.painel-frases { display: flex; flex-direction: column; overflow: hidden; max-height: calc(100dvh - 84px - var(--safe-b, 0px)); }
+html[data-tela="jogo"] .painel-frases, body[data-tela="jogo"] .painel-frases {
+    max-height: calc(100dvh - (var(--mao-h) + var(--safe-b) + var(--folga) + 60px) - 10px - env(safe-area-inset-top, 0px)) !important;
+    min-height: 120px;
+}
+.frases-topo { flex: 0 0 auto; }
+.frases-corpo { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
+.gifs-grade { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; background: #0f1d13; }
+.gif-item { padding: 0; border: 1px solid #2a3f2a; border-radius: 8px; background: #000; cursor: pointer; overflow: hidden; aspect-ratio: 1; }
+.gif-item:active { border-color: #ffd54f; }
+.gif-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gif-lado { position: fixed; transform: translateY(-50%); z-index: 6500; pointer-events: none; border: 2px solid #d5b65b; border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 4px 14px rgba(0,0,0,.6); animation: balaoEntrar2 .22s ease-out; }
+.gif-lado img { width: 100%; display: block; }
