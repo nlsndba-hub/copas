@@ -9,7 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Miquilino V91</title>
-    <link rel="stylesheet" href="style.css?v=101">
+    <link rel="stylesheet" href="style.css?v=102">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -35,6 +35,18 @@
         </div>
     </div>
 
+    <!-- ESCOLHA DO JOGO -->
+    <div id="telaJogo" class="tela-overlay escondido">
+        <div class="selecao-box caixa-modo">
+            <h1>🎴 Qual jogo?</h1>
+            <p class="sub">Escolha o jogo da mesa.</p>
+            <div class="modo-botoes">
+                <button type="button" id="btnJogoCopas" class="btn-modo-grande"><i class="fas fa-heart"></i><strong>Copas</strong><small>Cada um por si: quem fizer menos pontos vence</small></button>
+                <button type="button" id="btnJogoSueca" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Sueca</strong><small>Em dupla, 40 cartas, trunfo e 120 pontos por mão</small></button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODO DE JOGO -->
     <div id="telaModo" class="tela-overlay escondido">
         <div class="selecao-box caixa-modo">
@@ -45,6 +57,7 @@
             </div>
             <h1>♥ Como quer jogar? ♠</h1>
             <p class="sub">Escolha o modo de jogo.</p>
+            <button type="button" id="btnTrocarJogo" class="btn-mini">🎴 Trocar de jogo</button>
             <div class="modo-botoes">
                 <button type="button" id="btnModoSozinho" class="btn-modo-grande"><i class="fas fa-user"></i><strong>Sozinho</strong><small>Você contra 3 máquinas</small></button>
                 <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 30 segundos. Quem entrar joga junto e as máquinas completam a mesa. Com 4 jogadores começa na hora</small></button>
@@ -139,6 +152,7 @@
             <p id="esperaSenhaLinha" class="escolha-status escondido">Senha da sala: <b id="esperaSenha"></b></p>
             <div id="listaEspera" class="lista-espera"></div>
             <p id="esperaInfo" class="sub"></p>
+            <button type="button" id="btnSuecaComecar" class="btn-modo escondido"><i class="fas fa-play"></i> Começar agora (máquinas completam)</button>
             <button type="button" id="btnSairEspera" class="btn-sec">Sair do bar</button>
             <p class="regra-selecao">🎙 Voz: no PC, clique com o botão esquerdo e segure por 2 s (ou esquerdo + direito juntos). No celular, toque e segure por 2 s.</p>
         </div>
@@ -184,6 +198,7 @@
             </button>
         </div>
 
+        <div id="suecaInfo" class="escondido"></div>
         <div id="mesa">
             <div id="j2" class="oponente"></div>
             <div id="j1" class="oponente"></div>
@@ -263,6 +278,7 @@
     <script src="usuarios.js?v=80"></script>
     <script src="missoes.js?v=99"></script>
     <script src="gifs.js?v=2"></script>
-    <script src="script.js?v=101"></script>
+    <script src="script.js?v=102"></script>
+    <script src="sueca.js?v=1"></script>
 </body>
 </html>

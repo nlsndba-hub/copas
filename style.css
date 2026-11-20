@@ -1318,3 +1318,12 @@ html[data-tela="jogo"] .painel-frases, body[data-tela="jogo"] .painel-frases {
 /* V100 · miniaturas dos GIFs também sem fundo */
 .gif-item, .gif-item:active { background: transparent !important; }
 .gifs-grade { background: #1a2b1e; }
+
+/* V102 · Sueca */
+#suecaInfo { position: absolute; left: 6px; z-index: 20; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding: 4px 8px; background: rgba(0,0,0,.6); border: 1px solid #d5b65b; border-radius: 10px; font-weight: 700; font-size: 12px; line-height: 1.2; color: #ffe9a8; white-space: nowrap; pointer-events: none; }
+#suecaInfo .su-trunfo.vermelho { color: #ff8a80; }
+#suecaInfo .su-trunfo.preto { color: #fff; }
+#suecaInfo .su-jogos { color: #fff; }
+.jogo-sueca #j0, .jogo-sueca #j2 { box-shadow: 0 0 0 2px rgba(120,220,120,.55); }
+.jogo-sueca #j1, .jogo-sueca #j3 { box-shadow: 0 0 0 2px rgba(230,120,100,.45); }
+#modalBox .sueca-jogos { font-size: 1.1em; }
