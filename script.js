@@ -3131,8 +3131,8 @@ async function aoSinal({ de, para, tipo, dados }) {
 
 function setFalando(pid, on) { if (on) MP.falando.add(pid); else MP.falando.delete(pid); marcarFalando(); }
 function marcarFalando() {
-    if (MP.modo === 'solo' && !MP.ativo) { const im = document.querySelector('#j0 img'); if (im) im.classList.toggle('falando', !!VOZ.ativo); }
     document.querySelectorAll('img[data-pid]').forEach(el => el.classList.toggle('falando', !!el.dataset.pid && MP.falando.has(el.dataset.pid)));
+    if (!MP.ativo) { const im = document.querySelector('#j0 img.avatar-jogador'); if (im) im.classList.toggle('falando', !!VOZ.ativo); }   // Sozinho: sem pid, pulsa o seu personagem
 }
 
 // Bip estilo rádio Nextel (trinado curto e agudo) ao abrir o áudio, só para sinalizar o início.
@@ -3174,7 +3174,7 @@ const _audioBipIni = new Audio(BIP_INICIO_ARQUIVO), _audioBipFim = new Audio(BIP
 [_audioBipIni, _audioBipFim].forEach(a => { a.preload = 'auto'; a.volume = 1; });
 function tocarBip(a, tentativa = 0) { try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => { if (tentativa < 2) setTimeout(() => tocarBip(a, tentativa + 1), 250); }); } catch (e) {} }
 function bipNextel() { tocarBip(_audioBipIni); }       // início do áudio
-function bipNextelFim() { setTimeout(() => { if (!tocarFimWebAudio()) tocarBip(_audioBipFim); }, 300); }   // espera o celular largar o microfone, senão o som do bip é cortado    // fim do áudio
+function bipNextelFim() { if (!tocarFimWebAudio()) tocarBip(_audioBipFim); }   // espera o celular largar o microfone, senão o som do bip é cortado    // fim do áudio
 const vozPermitida = () => MP.ativo || (MP.modo === 'solo' && !!G);   // Sozinho: abre o mic mesmo sem ninguém ouvir
 async function falarIniciar() {
     if (!vozPermitida() || VOZ.ativo) return;
@@ -3198,10 +3198,13 @@ async function falarIniciar() {
 }
 function falarParar() {
     if (!VOZ.ativo) return;
-    VOZ.ativo = false; VOZ.token++;
-    if (VOZ.mic) { VOZ.mic.getTracks().forEach(t => t.stop()); VOZ.mic = null; }
-    Object.values(VOZ.pcs).forEach(o => { if (o.sender) o.sender.replaceTrack(null).catch(() => {}); });
+    const mic = VOZ.mic;
+    VOZ.ativo = false; VOZ.token++; VOZ.mic = null;
+    // 1) toca o Nextel2 IMEDIATAMENTE, com o microfone ainda aberto: depois que o mic fecha o Android muda o modo de áudio e o bip some
     bipNextelFim();
+    // 2) silencia para os outros já, mas só solta o microfone depois do bip
+    Object.values(VOZ.pcs).forEach(o => { if (o.sender) o.sender.replaceTrack(null).catch(() => {}); });
+    if (mic) setTimeout(() => { try { mic.getTracks().forEach(t => t.stop()); } catch (e) {} }, 600);
     setFalando(MP.pid, false); if (MP.ativo) enviar('voz', { pid: MP.pid, on: false });
 }
 // Botão de microfone (topo): um toque abre o áudio e fica aberto; outro toque fecha.
@@ -3257,7 +3260,7 @@ window.addEventListener('mouseup', e => {
     }
 }, true);
 window.addEventListener('blur', () => { cancelarCliqueVoz(); falarParar(); });
-document.addEventListener('contextmenu', e => { if (MP.ativo) e.preventDefault(); }, true);
+document.addEventListener('contextmenu', e => { if (vozPermitida()) e.preventDefault(); }, true);
 
 // Celular: tocar na tela e segurar por 1 segundo (solta = para de falar)
 let toqueVoz = null;
