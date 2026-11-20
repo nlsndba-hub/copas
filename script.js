@@ -3148,14 +3148,14 @@ function carregarBufFim() {
 function tocarFimWebAudio() {
     if (!_ctxBip || !_bufFim) return false;
     try {
-        if (_ctxBip.state === 'suspended') _ctxBip.resume().catch(() => {});
+        if (_ctxBip.state !== 'running') { _ctxBip.resume().catch(() => {}); return false; }   // contexto travado: usa o <audio> de reserva
         const src = _ctxBip.createBufferSource(), g = _ctxBip.createGain();
         src.buffer = _bufFim; g.gain.value = 1; src.connect(g); g.connect(_ctxBip.destination); src.start(0);
         return true;
     } catch (e) { return false; }
 }
 // O navegador só libera som depois de um toque/clique: cria e destrava o contexto no primeiro gesto.
-['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(ev => window.addEventListener(ev, () => {
+['pointerdown', 'touchstart', 'touchend', 'mousedown', 'click', 'keydown'].forEach(ev => window.addEventListener(ev, () => {
     try {
         if (!_ctxBip) _ctxBip = new (window.AudioContext || window.webkitAudioContext)();
         if (_ctxBip.state === 'suspended') _ctxBip.resume().catch(() => {});
@@ -3237,7 +3237,7 @@ window.addEventListener('click', e => { if (Date.now() < VOZ.semClique) { e.stop
 let cliqueVoz = null;
 function cancelarCliqueVoz() { if (cliqueVoz) { clearTimeout(cliqueVoz.tm); cliqueVoz = null; } }
 const mouseDeVerdade = e => !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
-const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat, #btnMic, #btnCores'));
+const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat, #btnMic, #btnCores, #btnFrases, #painelFrases'));
 window.addEventListener('mousedown', e => {
     if (!vozPermitida() || !mouseDeVerdade(e) || dentroDoChat(e)) return;
     if (e.buttons === 3) { cancelarCliqueVoz(); VOZ.fonte = 'mouse'; falarIniciar(); return; }   // esquerdo + direito
