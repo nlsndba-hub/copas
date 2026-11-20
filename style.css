@@ -1309,3 +1309,12 @@ html[data-tela="jogo"] .painel-frases, body[data-tela="jogo"] .painel-frases {
 .gif-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gif-lado { position: fixed; transform: translateY(-50%); z-index: 6500; pointer-events: none; border: 2px solid #d5b65b; border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 4px 14px rgba(0,0,0,.6); animation: balaoEntrar2 .22s ease-out; }
 .gif-lado img { width: 100%; display: block; }
+
+/* V99 · GIF com fundo transparente, no máximo do tamanho do quadro da foto */
+.gif-lado { border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; width: auto !important; }
+.gif-lado img { width: auto; height: auto; display: block; image-rendering: auto; }
+.gif-item { background: #16261a; }
+.gif-item img { object-fit: contain; padding: 4px; box-sizing: border-box; }
+/* V100 · miniaturas dos GIFs também sem fundo */
+.gif-item, .gif-item:active { background: transparent !important; }
+.gifs-grade { background: #1a2b1e; }

@@ -3137,11 +3137,29 @@ function marcarFalando() {
 
 // Bip estilo rádio Nextel (trinado curto e agudo) ao abrir o áudio, só para sinalizar o início.
 let _ctxBip = null;
+let _bufFim = null, _bufFimCarregando = false;
+// Nextel2 (fim do áudio) tocado pelo Web Audio: mais confiável que <audio> logo depois de soltar o microfone no celular
+function carregarBufFim() {
+    if (_bufFim || _bufFimCarregando || !_ctxBip) return;
+    _bufFimCarregando = true;
+    fetch('audio/Nextel2.mp3').then(r => r.arrayBuffer()).then(ab => new Promise((ok, no) => _ctxBip.decodeAudioData(ab, ok, no)))
+        .then(b => { _bufFim = b; }).catch(() => { _bufFimCarregando = false; });
+}
+function tocarFimWebAudio() {
+    if (!_ctxBip || !_bufFim) return false;
+    try {
+        if (_ctxBip.state === 'suspended') _ctxBip.resume().catch(() => {});
+        const src = _ctxBip.createBufferSource(), g = _ctxBip.createGain();
+        src.buffer = _bufFim; g.gain.value = 1; src.connect(g); g.connect(_ctxBip.destination); src.start(0);
+        return true;
+    } catch (e) { return false; }
+}
 // O navegador só libera som depois de um toque/clique: cria e destrava o contexto no primeiro gesto.
 ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(ev => window.addEventListener(ev, () => {
     try {
         if (!_ctxBip) _ctxBip = new (window.AudioContext || window.webkitAudioContext)();
         if (_ctxBip.state === 'suspended') _ctxBip.resume().catch(() => {});
+        carregarBufFim();
     } catch (e) {}
     if (!window._bipsLiberados) {   // destrava os dois bips no primeiro toque (o navegador só deixa tocar depois de um gesto)
         window._bipsLiberados = true;
@@ -3156,7 +3174,7 @@ const _audioBipIni = new Audio(BIP_INICIO_ARQUIVO), _audioBipFim = new Audio(BIP
 [_audioBipIni, _audioBipFim].forEach(a => { a.preload = 'auto'; a.volume = 1; });
 function tocarBip(a, tentativa = 0) { try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => { if (tentativa < 2) setTimeout(() => tocarBip(a, tentativa + 1), 250); }); } catch (e) {} }
 function bipNextel() { tocarBip(_audioBipIni); }       // início do áudio
-function bipNextelFim() { setTimeout(() => tocarBip(_audioBipFim), 220); }   // espera o celular largar o microfone, senão o som do bip é cortado    // fim do áudio
+function bipNextelFim() { setTimeout(() => { if (!tocarFimWebAudio()) tocarBip(_audioBipFim); }, 300); }   // espera o celular largar o microfone, senão o som do bip é cortado    // fim do áudio
 const vozPermitida = () => MP.ativo || (MP.modo === 'solo' && !!G);   // Sozinho: abre o mic mesmo sem ninguém ouvir
 async function falarIniciar() {
     if (!vozPermitida() || VOZ.ativo) return;
@@ -4309,11 +4327,11 @@ function mostrarBalaoFrase(assento, texto, meu) {
         const src = texto.slice(4);
         if (!GIFS.includes(src)) return;
         const aDir = (rb.left + rb.width / 2) > window.innerWidth * 0.55;
-        const tam = Math.max(60, Math.min(120, aDir ? rb.left - 12 : window.innerWidth - rb.right - 12));
+        // tamanho máximo = quadro da foto do personagem
+        const maxW = Math.max(24, Math.min(rf.width, aDir ? rb.left - 10 : window.innerWidth - rb.right - 10)), maxH = rf.height;
         balao.className = 'gif-lado';
-        balao.innerHTML = '<img src="' + gifSrc(src) + '" alt="">';
-        balao.style.top = Math.max(tam / 2 + 4, Math.min(window.innerHeight - tam / 2 - 4, rb.top + rb.height / 2)) + 'px';
-        balao.style.width = tam + 'px';
+        balao.innerHTML = '<img src="' + gifSrc(src) + '" alt="" style="max-width:' + maxW + 'px;max-height:' + maxH + 'px">';
+        balao.style.top = (rf.top + rf.height / 2) + 'px';
         if (aDir) balao.style.right = (window.innerWidth - rb.left + 6) + 'px'; else balao.style.left = (rb.right + 6) + 'px';
         document.body.appendChild(balao);
         _baloes[assento] = { el: balao, t: setTimeout(() => { balao.remove(); delete _baloes[assento]; }, 4000) };
