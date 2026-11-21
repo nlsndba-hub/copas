@@ -262,6 +262,15 @@ const Poker = (() => {
         else if (r && r.sc) {
             distribuir(r.sc, ganhos);
             vivos().forEach(i => { rv[i] = G.maos[i].map(c => c.id); mh[i] = descrever(r.sc[i]); });
+            // desempate: se perdeu para alguém com a mesma jogada, explica qual carta decidiu
+            vivos().forEach(i => {
+                if (!(ganhos[i] > 0)) return;
+                let melhorRival = null;
+                vivos().forEach(j => { if (j !== i && r.sc[j][0] === r.sc[i][0] && r.sc[j][1] === r.sc[i][1] && cmp(r.sc[i], r.sc[j]) > 0 && (melhorRival === null || cmp(r.sc[j], r.sc[melhorRival]) > 0)) melhorRival = j; });
+                if (melhorRival === null) return;
+                const a = r.sc[i], b = r.sc[melhorRival]; let k = 2; while (k < a.length && a[k] === b[k]) k++;
+                if (k < a.length) mh[i] += ` (desempate: ${FACE[a[k]]} contra ${FACE[b[k]]} de ${G.nomes[melhorRival]})`;
+            });
         }
         if (r) { G.fichas = G.fichas.map((f, i) => f + ganhos[i]); }
         G.apostas = [0, 0, 0, 0]; G.investido = [0, 0, 0, 0]; G.apostaAtual = 0;
