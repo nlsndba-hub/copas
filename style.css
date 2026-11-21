@@ -1479,3 +1479,5 @@ body.jogo-poker #j3 .pk-ap-lado { right: auto; left: 50%; bottom: auto; top: cal
 .pk-jog { display: block; font-size: 11px; color: #ffd54f; font-weight: 700; }
 .pk-fichas { transform: scale(.8); margin: -2px 0; }
 .pk-rev > span:first-child { text-align: left; }
+
+.pk-det { display: block; font-size: 10.5px; color: #cfd8cf; font-weight: 400; line-height: 1.25; }
