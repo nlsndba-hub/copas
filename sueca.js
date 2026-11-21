@@ -167,7 +167,7 @@ const Sueca = (() => {
         MP.ultimoD = d;
         if (MP.ativo && MP.papel === 'host') enviar('evt', { su: 1, t: 'modal', d });
         mostrarModal(d);
-        if (!fim) G.timer = setTimeout(() => { if (G && G.jogo === 'sueca') novaMao(); }, 5200);
+        // a janela só fecha quando o jogador clica (sem tempo automático)
     }
     function mostrarModal(d) {
         const eu = G.eu || 0, meu = eu % 2, outro = 1 - meu;
@@ -185,11 +185,16 @@ const Sueca = (() => {
             const host = !MP.ativo || MP.papel === 'host';
             h += host ? '<button type="button" class="btn-modo" id="btnSuecaNova">Nova partida</button>' : '<p class="sub">Aguardando o anfitrião iniciar outra partida…</p>';
             h += '<button type="button" class="btn-sec" id="btnSuecaSair">Sair para o menu</button>';
-        } else h += '<p class="sub">A próxima mão começa já…</p>';
+        } else {
+            const hostS = !MP.ativo || MP.papel === 'host';
+            h += hostS ? '<button type="button" class="btn-modo" id="btnSuecaProx">Próxima mão</button>' : '<button type="button" class="btn-sec" id="btnSuecaFechar">Fechar</button>';
+        }
         $('modalBox').innerHTML = h;
         $('modal').classList.remove('escondido');
         const n = $('btnSuecaNova'); if (n) n.onclick = () => { $('modal').classList.add('escondido'); novaPartida(); };
         const s = $('btnSuecaSair'); if (s) s.onclick = () => sairParaMenu('telaModo');
+        const sp = $('btnSuecaProx'); if (sp) sp.onclick = () => { $('modal').classList.add('escondido'); if (G && G.jogo === 'sueca') novaMao(); };
+        const sf = $('btnSuecaFechar'); if (sf) sf.onclick = () => $('modal').classList.add('escondido');
     }
     function abrirPlacar() {
         $('modalRankingBox').innerHTML = `<h2>♣ Placar da Sueca</h2>

@@ -1408,3 +1408,66 @@ body:has(#bjModal:not(.escondido)) :is(#btnChat, #painelChat, #btnFrases, #paine
 #bjControles .bj-aposta { flex: 1 1 100%; text-align: center; }
 #bjModal { position: fixed; inset: 0; z-index: 700; background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center; padding: 10px; }
 #bjModal.escondido { display: none; }
+
+/* ================= JOGOS EXTRAS (Truco, Buraco, Pife, Mau-mau, Bridge, Paciência) + Poker: fichas e marcações fixas ================= */
+body:has(#jgModal:not(.escondido)) :is(#btnChat, #painelChat, #btnFrases, #painelFrases) { display: none !important; }
+#telaJogos { background: radial-gradient(#1b5e20, #0a2a0e); align-items: flex-start; }
+.jg-caixa { width: min(560px, 100%); margin: auto; display: flex; flex-direction: column; gap: 10px; color: #fff; }
+#jgMesa { display: flex; flex-direction: column; gap: 8px; }
+#jgMsg { text-align: center; min-height: 22px; font-weight: bold; margin: 0; }
+#jgControles { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+#jgControles button { flex: 1 1 90px; padding: 12px 8px; font-size: 16px; font-weight: bold; color: #fff; background: #2e7d32; border: none; border-radius: 8px; cursor: pointer; }
+#jgControles button.sec { background: #3a3a3a; border: 1px solid #666; }
+#jgControles button:disabled { opacity: .4; cursor: default; }
+.jg-niv { flex: 1 1 100%; display: flex; gap: 6px; } .jg-niv button { flex: 1 1 0 !important; min-width: 0; padding: 10px 0 !important; }
+#jgModal { position: fixed; inset: 0; z-index: 700; background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center; padding: 10px; overflow-y: auto; }
+#jgModal.escondido { display: none; }
+.jg-lin { --cw: 34px; background: rgba(0,0,0,.28); border: 2px solid transparent; border-radius: 10px; padding: 8px; }
+.jg-lin.vez { border-color: var(--ouro); box-shadow: 0 0 12px rgba(231,196,92,.6); }
+.jg-eu { --cw: 46px; }
+.jg-lin > small { margin-left: 8px; color: #cfe8d2; }
+.jg-nome { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; margin-bottom: 4px; }
+.jg-nome img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
+.jg-nome small { color: #cfe8d2; }
+.jg-mao { display: flex; flex-wrap: wrap; gap: 4px 0; padding-right: calc(var(--cw) * .45); }
+.jg-c { display: inline-block; position: relative; margin-right: calc(var(--cw) * -.45); cursor: pointer; transition: transform .12s; }
+.jg-c .carta { margin: 0; cursor: inherit; touch-action: manipulation; }
+.jg-c.sel { transform: translateY(-10px); } .jg-c.sel .carta { box-shadow: 0 0 0 3px var(--ouro), -3px 5px 10px rgba(0,0,0,.5); }
+.jg-c.off { opacity: .45; }
+.jg-bots { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.jg-centro { --cw: 46px; display: flex; justify-content: center; align-items: flex-start; gap: 14px; flex-wrap: wrap; padding: 8px; background: rgba(0,0,0,.18); border-radius: 10px; }
+.jg-casa { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 56px; font-size: 12px; }
+.jg-casa i { font-style: normal; color: #cfe8d2; } .jg-casa small { color: #cfe8d2; }
+.jg-casa .jg-c { margin: 0; }
+.jg-vazio { display: block; width: var(--cw); height: calc(var(--cw) * 1.4286); border: 1px dashed rgba(255,255,255,.4); border-radius: 6px; }
+.jg-valor { font-size: 30px; color: var(--ouro); line-height: 1.1; }
+.jg-melds { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.jg-meld { background: rgba(255,255,255,.08); border-radius: 6px; padding: 3px 3px 3px 3px; cursor: pointer; --cw: 24px; }
+.jg-meld.can { outline: 2px solid var(--ouro); }
+.jg-meld .jg-mao { --cw: 24px; padding-right: calc(var(--cw) * .45); }
+.jg-we { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .jg-we .jg-lin { --cw: 22px; padding: 6px; }
+.jg-cruz { --cw: 40px; display: grid; grid-template-areas: ". n ." "w c e" ". s ."; grid-template-columns: 1fr 1fr 1fr; justify-items: center; align-items: center; gap: 4px; padding: 8px; background: rgba(0,0,0,.18); border-radius: 10px; }
+.jg-cruz .n { grid-area: n; } .jg-cruz .w { grid-area: w; } .jg-cruz .e { grid-area: e; } .jg-cruz .s { grid-area: s; }
+.jg-cruz .c { grid-area: c; display: flex; flex-direction: column; align-items: center; text-align: center; color: var(--ouro); font-size: 13px; }
+.jg-pac { --cw: clamp(34px, calc((min(100vw, 560px) - 52px) / 7.3), 72px); }
+.jg-topo { display: grid; grid-template-columns: repeat(7, var(--cw)); gap: 6px; justify-content: center; margin-bottom: 10px; }
+.jg-cols { display: grid; grid-template-columns: repeat(7, var(--cw)); gap: 6px; justify-content: center; }
+.jg-col { position: relative; width: var(--cw); } .jg-col[data-a="col"] { border: 1px dashed rgba(255,255,255,.25); border-radius: 6px; }
+.jg-col .jg-c { position: absolute; left: 0; margin: 0; }
+.jg-slot { display: flex; align-items: center; justify-content: center; width: var(--cw); height: calc(var(--cw) * 1.4286); border: 1px dashed rgba(255,255,255,.35); border-radius: 6px; box-sizing: border-box; position: relative; cursor: pointer; }
+.jg-topo .jg-c, .jg-slot .jg-c { margin: 0; }
+.jg-slot .carta { margin: 0; cursor: pointer; }
+.jg-naipe { font-size: calc(var(--cw) * .6); opacity: .6; } .jg-naipe.vermelho { color: #ff8a80; }
+/* Poker: fichas, marcações fixas na mesa e janela de vitória */
+.pk-fichas { display: flex; align-items: flex-end; justify-content: center; gap: 3px; min-height: 26px; }
+.pk-pilha { display: flex; flex-direction: column-reverse; align-items: center; }
+.pk-ficha { display: block; width: 20px; height: 20px; border-radius: 50%; background: var(--c); border: 2px dashed rgba(255,255,255,.8); box-sizing: border-box; box-shadow: 0 1px 0 rgba(0,0,0,.7); }
+.pk-ficha + .pk-ficha { margin-bottom: -15px; }
+.pk-fichas.mini .pk-ficha { width: 14px; height: 14px; border-width: 1.5px; } .pk-fichas.mini .pk-ficha + .pk-ficha { margin-bottom: -10px; }
+.pk-ap { position: absolute; display: flex; flex-direction: column; align-items: center; min-width: 40px; min-height: 30px; border: 1px dashed rgba(255,255,255,.22); border-radius: 12px; padding: 2px 4px; pointer-events: none; }
+.pk-ap small { font-size: 10px; color: #ffe9a8; font-weight: 800; }
+.pk-ap[data-s="0"] { bottom: 2%; left: 50%; transform: translateX(-50%); } .pk-ap[data-s="2"] { top: 2%; left: 50%; transform: translateX(-50%); }
+.pk-ap[data-s="1"] { left: 1%; top: 50%; transform: translateY(-50%); } .pk-ap[data-s="3"] { right: 1%; top: 50%; transform: translateY(-50%); }
+.pk-casa { display: flex; flex-direction: column; align-items: center; gap: 2px; } .pk-casa small { font-size: 10px; color: #cfe8d2; text-transform: uppercase; letter-spacing: .5px; }
+.pk-bd { display: inline-block; background: #d5b65b; color: #000; border-radius: 8px; padding: 0 5px; margin-right: 3px; font-weight: 800; font-size: .85em; }
+.pk-vit { font-size: 18px; margin: 10px 0 0; } .pk-mao-ganha { font-size: 22px; font-weight: 800; color: #ffd54f; margin: 2px 0 6px; }

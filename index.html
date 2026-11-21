@@ -9,7 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Miquilino V91</title>
-    <link rel="stylesheet" href="style.css?v=103">
+    <link rel="stylesheet" href="style.css?v=104">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -45,6 +45,12 @@
                 <button type="button" id="btnJogoSueca" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Sueca</strong><small>Em dupla, 40 cartas, trunfo e 120 pontos por mão</small></button>
                 <button type="button" id="btnJogoBlackjack" class="btn-modo-grande"><i class="fas fa-diamond"></i><strong>Blackjack</strong><small>Chegue mais perto de 21 que a banca, apostando fichas</small></button>
                 <button type="button" id="btnJogoPoker" class="btn-modo-grande"><i class="fas fa-coins"></i><strong>Poker</strong><small>Texas Hold'em: fichas, blinds e all-in contra 3 jogadores</small></button>
+                <button type="button" data-jogo="truco" class="btn-modo-grande"><i class="fas fa-bolt"></i><strong>Truco</strong><small>Truco paulista 1×1: manilhas, truco, seis, nove e doze</small></button>
+                <button type="button" data-jogo="buraco" class="btn-modo-grande"><i class="fas fa-layer-group"></i><strong>Buraco</strong><small>Baixe jogos, faça canastras e bata (2 baralhos)</small></button>
+                <button type="button" data-jogo="pife" class="btn-modo-grande"><i class="fas fa-clone"></i><strong>Pife</strong><small>Forme trincas e sequências com as 9 cartas e bata</small></button>
+                <button type="button" data-jogo="maumau" class="btn-modo-grande"><i class="fas fa-hand-fist"></i><strong>Mau-mau</strong><small>Livre-se das cartas antes das máquinas</small></button>
+                <button type="button" data-jogo="bridge" class="btn-modo-grande"><i class="fas fa-people-arrows"></i><strong>Bridge</strong><small>Leilão e jogo em dupla com o Norte</small></button>
+                <button type="button" data-jogo="paciencia" class="btn-modo-grande"><i class="fas fa-solitaire"></i><strong>Paciência</strong><small>Klondike: monte as 4 fundações do Ás ao Rei</small></button>
             </div>
         </div>
     </div>
@@ -58,6 +64,17 @@
             <div id="bjControles"></div>
         </div>
         <div id="bjModal" class="escondido"><div class="modal-box" id="bjModalBox"></div></div>
+    </div>
+
+    <!-- JOGOS EXTRAS (Truco, Buraco, Pife, Mau-mau, Bridge, Paciência) -->
+    <div id="telaJogos" class="tela-overlay escondido">
+        <div class="jg-caixa">
+            <div class="bj-topo"><b id="jgTitulo"></b><span id="jgInfo"></span><button type="button" id="btnJgPlacar" title="Placar, regras e sair" aria-label="Placar, regras e sair"><i class="fas fa-trophy"></i></button></div>
+            <div id="jgMesa"></div>
+            <p id="jgMsg" role="status"></p>
+            <div id="jgControles"></div>
+        </div>
+        <div id="jgModal" class="escondido"><div class="modal-box" id="jgModalBox"></div></div>
     </div>
 
     <!-- MODO DE JOGO -->
@@ -291,9 +308,11 @@
     <script src="usuarios.js?v=80"></script>
     <script src="missoes.js?v=99"></script>
     <script src="gifs.js?v=2"></script>
-    <script src="script.js?v=103"></script>
-    <script src="sueca.js?v=3"></script>
-    <script src="poker.js?v=3"></script>
+    <script src="script.js?v=104"></script>
+    <script src="sueca.js?v=4"></script>
+    <script src="poker.js?v=4"></script>
     <script src="blackjack.js?v=1"></script>
+    <script src="jogos.js?v=1"></script>
+    <script src="jogos2.js?v=1"></script>
 </body>
 </html>

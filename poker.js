@@ -9,6 +9,12 @@ const Poker = (() => {
     const NOME_MAO = ['Carta alta', 'Par', 'Dois pares', 'Trinca', 'Sequência', 'Flush', 'Full house', 'Quadra', 'Straight flush'];
     const FACE = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'Valete', 'Dama', 'Rei', 'Ás'];
     const PLURAL = ['Dois', 'Três', 'Quatros', 'Cincos', 'Seis', 'Setes', 'Oitos', 'Noves', 'Dez', 'Valetes', 'Damas', 'Reis', 'Ases'];
+    const DEN_F = [[500, '#7b3fa0'], [100, '#222'], [25, '#2e7d32'], [10, '#1565c0'], [5, '#c62828'], [1, '#eee']];
+    function fichasHTML(v) {   // simula pilhas de fichas conforme o valor (até 6 visíveis por valor)
+        let h = '', r = Math.max(0, v | 0);
+        DEN_F.forEach(([d, c]) => { const n = Math.floor(r / d); r -= n * d; if (n) h += `<span class="pk-pilha" title="${n} × ${d}">${`<i class="pk-ficha" style="--c:${c}"></i>`.repeat(Math.min(n, 6))}</span>`; });
+        return h;
+    }
     const ehPoker = () => !!(G && G.jogo === 'poker');
     const F = (n = 4) => Array(n).fill(false);
 
@@ -270,14 +276,14 @@ const Poker = (() => {
         MP.ultimoD = d;
         if (MP.ativo && MP.papel === 'host') enviar('evt', { po: 1, t: 'modal', d });
         mostrarModal(d);
-        if (!fim) G.timer = setTimeout(() => { if (G && G.jogo === 'poker') novaMao(); }, d.sd ? 6500 : 4200);
+        // a janela só fecha quando o jogador clica (sem tempo automático)
     }
 
     // ---------- janelas ----------
     function mostrarModal(d) {
         const eu = G.eu || 0;
         let h = d.fim ? '<h2>🏁 Fim da partida!</h2>' : `<h2>Fim da mão ${d.r}</h2>`;
-        d.gn.forEach((g, i) => { if (g > 0) h += `<p>🏆 <b>${i === eu ? 'Você' : d.no[i]}</b> ficou com <b>${g}</b> fichas${d.mh[i] ? ` · ${d.mh[i]}` : ''}</p>`; });
+        d.gn.forEach((g, i) => { if (g > 0) h += `<p class="pk-vit">🏆 <b>${i === eu ? 'Você' : d.no[i]}</b> ganhou <b>${g}</b> fichas</p>` + (d.mh[i] ? `<p class="pk-mao-ganha">com ${d.mh[i]}</p>` : '<p class="sub">Todos os outros desistiram.</p>') + `<div class="pk-fichas">${fichasHTML(g)}</div>`; });
         const reveladas = Object.keys(d.rv);
         if (reveladas.length) h += '<div class="pk-rev-lista">' + (d.com && d.com.length ? '<div class="pk-rev pk-mesa"><span>Mesa</span><span class="pk-rev-cartas" data-s="mesa"></span></div>' : '') + reveladas.map(i => `<div class="pk-rev"><span>${+i === eu ? 'Você' : d.no[i]}</span><span class="pk-rev-cartas" data-s="${i}"></span></div>`).join('') + '</div>';
         h += '<p class="sub">' + d.fi.map((f, i) => `${i === eu ? 'Você' : d.no[i]}: <b>${f}</b>`).join(' · ') + '</p>';
@@ -287,7 +293,8 @@ const Poker = (() => {
             h += host ? '<button type="button" class="btn-modo" id="btnPokerNova">Nova partida</button>' : '<p class="sub">Aguardando o anfitrião iniciar outra partida…</p>';
             h += '<button type="button" class="btn-sec" id="btnPokerSair">Sair para o menu</button>';
         } else if (d.fi[eu] <= 0) h += '<p class="sub">Você ficou sem fichas e acompanha a mesa até o fim.</p>';
-        else h += '<p class="sub">A próxima mão começa já…</p>';
+        else h += '<p class="sub">Veja as mãos e continue quando quiser.</p>';
+        if (!d.fim) { const hostP = !MP.ativo || MP.papel === 'host'; h += hostP ? '<button type="button" class="btn-modo" id="btnPokerProx">Próxima mão</button>' : '<button type="button" class="btn-sec" id="btnPokerFechar">Fechar</button>'; }
         $('modalBox').innerHTML = h;
         const bm = $('modalBox').querySelector('.pk-rev-cartas[data-s="mesa"]');
         if (bm) d.com.forEach(id => { const e = criarElementoCarta(cartaDeId(id)); e.classList.add('poker-mini'); bm.appendChild(e); });
@@ -298,6 +305,8 @@ const Poker = (() => {
         $('modal').classList.remove('escondido');
         const n = $('btnPokerNova'); if (n) n.onclick = () => { $('modal').classList.add('escondido'); novaPartida(); };
         const s = $('btnPokerSair'); if (s) s.onclick = () => sairParaMenu('telaModo');
+        const px = $('btnPokerProx'); if (px) px.onclick = () => { $('modal').classList.add('escondido'); if (G && G.jogo === 'poker') novaMao(); };
+        const pf = $('btnPokerFechar'); if (pf) pf.onclick = () => $('modal').classList.add('escondido');
     }
     function abrirPlacar() {
         const ordem = [0, 1, 2, 3].sort((a, b) => G.fichas[b] - G.fichas[a]);
@@ -439,7 +448,7 @@ const Poker = (() => {
     function garantirUI() {
         if (!$('pokerMesa')) {
             const m = document.createElement('div'); m.id = 'pokerMesa';
-            m.innerHTML = '<div id="pokerPote"></div><div id="pokerCom"></div><div id="pokerMao"></div>';
+            m.innerHTML = '<div id="pokerPote"></div><div id="pokerFichas" class="pk-fichas"></div><div id="pokerCom"></div><div id="pokerMao"></div>' + [0, 1, 2, 3].map(i => `<div class="pk-ap" data-s="${i}"></div>`).join('');
             $('areaCentral').appendChild(m);
         }
         if (!$('pokerAcoes')) {
@@ -469,13 +478,17 @@ const Poker = (() => {
         document.body.classList.toggle('poker-fora', !!G.dobrou[0]);
         // pote e cartas comunitárias
         $('pokerPote').textContent = `Pote: ${G.pote}`;
+        $('pokerFichas').innerHTML = fichasHTML(G.pote);
+        [0, 1, 2, 3].forEach(i => { const z = $('pokerMesa').querySelector(`.pk-ap[data-s="${i}"]`); if (z) z.innerHTML = G.apostas[i] > 0 ? `<div class="pk-fichas mini">${fichasHTML(G.apostas[i])}</div><small>${G.apostas[i]}</small>` : ''; });
         const chave = G.comun.map(c => c.id).join(',');
         if (chave !== comChave) {
             comChave = chave;
             const box = $('pokerCom'); box.innerHTML = '';
+            const NM5 = ['Flop', 'Flop', 'Flop', 'Turn', 'River'];   // marcações fixas na mesa
             for (let k = 0; k < 5; k++) {
-                if (G.comun[k]) { const e = criarElementoCarta(G.comun[k], 'poker-com'); box.appendChild(e); }
-                else { const s = document.createElement('div'); s.className = 'slot'; box.appendChild(s); }
+                const w = document.createElement('div'); w.className = 'pk-casa'; let e;
+                if (G.comun[k]) e = criarElementoCarta(G.comun[k], 'poker-com'); else { e = document.createElement('div'); e.className = 'slot'; }
+                const l = document.createElement('small'); l.textContent = NM5[k]; w.append(e, l); box.appendChild(w);
             }
         }
         $('pokerMao').textContent = (G.comun.length >= 3 && G.maos[0].length && !G.dobrou[0]) ? `Sua mão: ${descrever(melhor(G.maos[0].concat(G.comun)))}` : '';
@@ -503,7 +516,7 @@ const Poker = (() => {
     }
     // texto de cada lugar (fichas + situação)
     function caixa(i) {
-        const tag = (i === G.botao ? 'D ' : '') + (i === G.sbSeat ? 'SB ' : '') + (i === G.bbSeat ? 'BB ' : '');
+        const tag = (i === G.botao ? '<span class="pk-bd">D</span>' : '') + (i === G.sbSeat ? '<span class="pk-bd">SB</span>' : '') + (i === G.bbSeat ? '<span class="pk-bd">BB</span>' : '');
         const st = G.fora[i] ? 'Eliminado' : G.dobrou[i] ? 'Desistiu' : G.allin[i] ? `ALL-IN ${G.apostas[i]}` : (G.apostas[i] > 0 ? `Aposta ${G.apostas[i]}` : '');
         return `<span class="tot">Fichas: ${G.fichas[i]}</span><span class="rod">${tag}${st}</span>`;
     }

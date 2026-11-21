@@ -35,7 +35,7 @@ const MP = {
 };
 const VOZ = { pcs: {}, mic: null, ativo: false, token: 0, fonte: '', semClique: 0, negado: false };
 const TEMPO_MISTO = 30 * 1000;
-const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'telaMissoes', 'telaManutencao', 'telaJogo', 'telaBlackjack', 'jogo'];
+const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'telaMissoes', 'telaManutencao', 'telaJogo', 'telaBlackjack', 'telaJogos', 'jogo'];
 let ultimaTela = '';
 function mostrarTela(id) {
     TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id));
@@ -2680,12 +2680,12 @@ $('btnModoSozinho').onclick = () => {
     MP.modo = 'solo';
     jogadorHumano = personagemDoUsuario();
     if (!jogadorHumano) { abrirAcesso(); return; }
-    if (JOGO === 'blackjack') Blackjack.iniciar(); else if (JOGO === 'poker') Poker.iniciar(); else if (JOGO === 'sueca') Sueca.iniciar(); else iniciarPartida();
+    if (typeof Jogos !== 'undefined' && Jogos.info[JOGO]) Jogos.iniciar(JOGO); else if (JOGO === 'blackjack') Blackjack.iniciar(); else if (JOGO === 'poker') Poker.iniciar(); else if (JOGO === 'sueca') Sueca.iniciar(); else iniciarPartida();
 };
 function aplicarJogoNaTelaModo() {
-    const su = JOGO === 'sueca', pk = JOGO === 'poker', bj = JOGO === 'blackjack';
-    document.querySelector('#telaModo h1').textContent = bj ? '♦ Blackjack · Como quer jogar? ♣' : pk ? '♠ Poker · Como quer jogar? ♥' : su ? '♣ Sueca · Como quer jogar? ♦' : '♥ Como quer jogar? ♠';
-    $('btnModoSozinho').querySelector('small').textContent = bj ? 'Você e 2 máquinas contra a banca, com fichas' : pk ? 'Você contra 3 máquinas, com fichas' : su ? 'Você e uma máquina contra 2 máquinas' : 'Você contra 3 máquinas';
+    const su = JOGO === 'sueca', pk = JOGO === 'poker', ex = typeof Jogos !== 'undefined' ? Jogos.info[JOGO] : null, bj = JOGO === 'blackjack' || !!ex;
+    document.querySelector('#telaModo h1').textContent = ex ? `${ex[0]} ${ex[1]} · Como quer jogar? ${ex[0]}` : bj ? '♦ Blackjack · Como quer jogar? ♣' : pk ? '♠ Poker · Como quer jogar? ♥' : su ? '♣ Sueca · Como quer jogar? ♦' : '♥ Como quer jogar? ♠';
+    $('btnModoSozinho').querySelector('small').textContent = ex ? ex[2] : bj ? 'Você e 2 máquinas contra a banca, com fichas' : pk ? 'Você contra 3 máquinas, com fichas' : su ? 'Você e uma máquina contra 2 máquinas' : 'Você contra 3 máquinas';
     ['btnModoMisto', 'btnModoSala'].forEach(id => {
         const b = $(id);
         if (bj) { b.classList.add('escondido'); b.dataset.bj = '1'; } else if (b.dataset.bj) { b.classList.remove('escondido'); delete b.dataset.bj; }
@@ -2858,6 +2858,7 @@ function sairParaMenu(destino) {
     ultimoCliqueCarta = { id: null, tempo: 0 };
     $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); $('modalSenha').classList.add('escondido');
     if (typeof Blackjack !== 'undefined') Blackjack.parar();
+    if (typeof Jogos !== 'undefined') Jogos.parar();
     $('btnFrases').classList.add('escondido'); fecharPainelFrases();
     $('pausaJogo').classList.add('escondido');
     mostrarTela(destino || 'telaModo');
@@ -4536,7 +4537,7 @@ document.addEventListener('click', e => {
 // (precisa fazer login de novo). Quem está em partida só cai depois de sair dela.
 // =====================================================================
 (() => {
-    const ARQS = ['index.html', 'script.js', 'style.css', 'missoes.js', 'personagens.js', 'sueca.js', 'poker.js'];
+    const ARQS = ['index.html', 'script.js', 'style.css', 'missoes.js', 'personagens.js', 'sueca.js', 'poker.js', 'jogos.js', 'jogos2.js'];
     let base = null, pendente = false, aplicando = false;
     async function assinatura() {
         const partes = [];
