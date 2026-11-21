@@ -4299,3 +4299,234 @@ const _iniciarPartidaOrig = iniciarPartida;
 // Patch G init to add estampasJogadores
 
 // Also track estampa when joining espera
+
+// =====================================================================
+// ===== V96 · BARALHO PARA QUEM NÃO É ANFITRIÃO =======================
+// O anfitrião roda a animação; os outros recebem só o estado. Aqui cada um
+// vê embaralhar/cortar localmente e as cartas voando conforme os snaps chegam.
+function legendaCliente(g, voce) {
+    const nome = i => (voce && i === 0) ? 'Você' : g.nomes[i];
+    const dm = String(g.distMsg || '');
+    if (/embaralha/.test(dm)) return `${nome(g.carteador)} embaralha as cartas…`;
+    if (/corta/.test(dm)) return `${nome((g.carteador + 3) % 4)} corta o baralho…`;
+    if (/distribui/.test(dm)) return `${nome(g.carteador)} distribui as cartas…`;
+    return dm;
+}
+function voarCartaCli(jogador) {
+    const tk = MP.tkCli; if (!tk || !G) return;
+    const tw = larguraCartaMesa(), w = tw, h = tw * 1.4286, palco = $('palcoBaralho');
+    const de = centroDe($('baralhoMesa'));
+    let para;
+    if (jogador === 0 && MP.papel !== 'espectador') {
+        const r = $('maoJogador').getBoundingClientRect();
+        para = { x: r.left + r.width / 2 + (Math.random() * 30 - 15), y: r.bottom - r.height * 0.3 };
+    } else para = centroDe($(`j${jogador}`));
+    const el = criarVersoCartaParaJogador(jogador);
+    el.classList.add('voando');
+    el.style.left = (de.x - w / 2) + 'px'; el.style.top = (de.y - h / 2) + 'px';
+    palco.appendChild(el);
+    const dx = para.x - de.x, dy = para.y - de.y, esc = jogador === 0 ? 1.25 : 0.6;
+    const rot = (jogador === 1 ? -50 : jogador === 3 ? 50 : jogador === 2 ? 20 : 0) + (Math.random() * 24 - 12);
+    const anim = el.animate([
+        { transform: 'translate(0, 0) rotate(0deg) scale(1)' },
+        { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(${esc})` }
+    ], { duration: 280, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'forwards' });
+    anim.finished.then(() => {
+        el.remove();
+        const box = $(`j${jogador}`);
+        if (box) { box.classList.add('recebeu'); setTimeout(() => box.classList.remove('recebeu'), 140); }
+        SFX.dar();
+    }).catch(() => el.remove());
+    tk.n = (tk.n || 0) + 1;
+    if (tk.n % 3 === 0 && baralhoVisual.length) { const c = baralhoVisual.pop(); if (c) c.remove(); }   // o monte vai diminuindo
+}
+function animBaralhoCliente(ant, g) {
+    if (reduzMovimento() || !g) return;
+    const legenda = $('legendaTexto');
+    if (g.distribuindo) {
+        if (!MP.tkCli) {
+            const tk = { pular: false, cliente: true };
+            MP.tkCli = tk;
+            prepararPalco();
+            if (legenda) legenda.textContent = '';
+            tk.fim = (async () => {
+                try { await animEmbaralhar(tk); if (viva(tk) && !tk.pular) await animCortar(tk); } catch (e) {}
+                tk.acabou = true;
+                if (tk.pular) baralhoVisual.forEach((el, k) => pose(el, 0, -k * 0.7, 0, 0, 0));   // monte arrumado
+            })();
+        }
+        const tk = MP.tkCli;
+        if (legenda) legenda.textContent = g.distMsg || '';
+        if (ant && ant.distribuindo && ant.recebidas) {
+            let n = 0;
+            for (let i = 0; i < 4; i++) {
+                const d = Math.min(13, (g.recebidas[i] || 0) - (ant.recebidas[i] || 0));
+                for (let k = 0; k < d; k++) { setTimeout(() => voarCartaCli(i), n * 58); n++; }
+            }
+            if (n > 0 && !tk.acabou) tk.pular = true;      // já está dando as cartas: encerra o embaralhar
+        }
+    } else if (MP.tkCli) {
+        MP.tkCli.pular = true; MP.tkCli = null;
+        ocultarPalco();
+        if (legenda) legenda.textContent = '';
+    }
+}
+
+// ===== V91 · FRASES RÁPIDAS ==========================================
+// Até 3 frases por partida; aparecem como balão de fala do jogador.
+// Só visíveis quando há 2+ jogadores humanos.
+// =====================================================================
+
+const FRASES = [
+    'Sentou para o bonde!',
+    'Olha a inquilina aí!',
+    'Ihhhhhhhh!',
+    'Chora!!!',
+    'Pediu pra sair!',
+    'Hoje tem passeio?',
+    'Passei o pau na tua cara.',
+    'Vai pagar a coca!',
+    'Hoje é valendo a bunda hein.',
+    'Tá valendo o quê?',
+    'Isso não é bicho pra ficar cercando não.',
+    '😄', '😡', '😭', '😮'
+];
+const GIFS = ['gifs/g1.gif', 'gifs/g2.gif', 'gifs/g3.gif', 'gifs/g4.gif', 'gifs/g5.gif'];   // aparecem ao lado do quadrado do personagem
+const gifSrc = src => (window.GIFS_DATA && window.GIFS_DATA[src]) || src;
+const MAX_FRASES = 3;
+let frasesUsadas = 0;
+let frasesBalaoTimer = null;
+
+function atualizarBtnFrases() {
+    const btn = $('btnFrases');
+    if (!btn) return;
+    // Só mostra se estiver em jogo com 2+ humanos e não for espectador e não estar em modo solo
+    const mostra = G && !MP.espectador && ((MP.modo === 'solo' && !MP.ativo) || (MP.ativo && MP.membros.length > 1));
+    btn.classList.toggle('escondido', !mostra);
+    if (mostra) {
+        const restam = MAX_FRASES - frasesUsadas;
+        btn.title = restam > 0 ? `Frases rápidas (${restam} restantes)` : 'Frases esgotadas';
+        btn.style.opacity = restam > 0 ? '1' : '0.4';
+    }
+}
+
+function fecharPainelFrases() {
+    const p = $('painelFrases'); if (p) p.classList.add('escondido');
+}
+
+function abrirPainelFrases() {
+    const restam = MAX_FRASES - frasesUsadas;
+    if (restam <= 0) { avisoTemp('Você já usou suas 3 frases nesta rodada! 🤐', 2500); return; }
+    const p = $('painelFrases');
+    $('frasesRestantes').textContent = `(${restam} restante${restam === 1 ? '' : 's'})`;
+    const lista = $('frasesList');
+    lista.innerHTML = '';
+    const gl = $('gifsList'); gl.innerHTML = '';
+    GIFS.forEach(src => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'gif-item';
+        b.innerHTML = '<img src="' + gifSrc(src) + '" alt="GIF">';
+        b.onclick = () => { fecharPainelFrases(); usarFrase('gif:' + src); };
+        gl.appendChild(b);
+    });
+    FRASES.forEach(fr => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'frase-item';
+        btn.textContent = fr;
+        btn.onclick = () => { fecharPainelFrases(); usarFrase(fr); };
+        lista.appendChild(btn);
+    });
+    p.classList.remove('escondido');
+}
+
+function usarFrase(texto) {
+    if (frasesUsadas >= MAX_FRASES || (!MP.ativo && !(MP.modo === 'solo' && G))) return;
+    frasesUsadas++;
+    atualizarBtnFrases();
+    // Envia para todos via evt
+    if (MP.emJogo && (MP.papel === 'host' || MP.papel === 'cliente')) {
+        enviar('evt', { t: 'frase', pid: MP.pid, char: jogadorHumano ? jogadorHumano.id : 0, texto });
+    }
+    // Mostra localmente também
+    mostrarBalaoFrase(0, texto, true);
+}
+
+const _baloes = {};
+function mostrarBalaoFrase(assento, texto, meu) {
+    // assento = posição na mesa (0-3); o balão aparece ao lado da foto, como se o jogador falasse
+    const box = $(`j${assento}`);
+    if (!box) return;
+    if (_baloes[assento]) { clearTimeout(_baloes[assento].t); _baloes[assento].el.remove(); }
+    const foto = box.querySelector('.avatar-jogador') || box;
+    const rb = box.getBoundingClientRect(), rf = foto.getBoundingClientRect();
+    const balao = document.createElement('div');
+    const ehGif = typeof texto === 'string' && texto.startsWith('gif:');
+    if (ehGif) {             // GIF: não é balão de fala, fica ao lado do quadrado do personagem
+        const src = texto.slice(4);
+        if (!GIFS.includes(src)) return;
+        const aDir = (rb.left + rb.width / 2) > window.innerWidth * 0.55;
+        // tamanho máximo = quadro da foto do personagem
+        const maxW = Math.max(24, Math.min(rf.width, aDir ? rb.left - 10 : window.innerWidth - rb.right - 10)), maxH = rf.height;
+        balao.className = 'gif-lado';
+        balao.innerHTML = '<img src="' + gifSrc(src) + '" alt="" style="max-width:' + maxW + 'px;max-height:' + maxH + 'px">';
+        balao.style.top = (rf.top + rf.height / 2) + 'px';
+        if (aDir) balao.style.right = (window.innerWidth - rb.left + 6) + 'px'; else balao.style.left = (rb.right + 6) + 'px';
+        document.body.appendChild(balao);
+        _baloes[assento] = { el: balao, t: setTimeout(() => { balao.remove(); delete _baloes[assento]; }, 4000) };
+        return;
+    }
+    const meuLugar = Number(assento) === 0;
+    if (meuLugar) {          // meu personagem: balão ao lado da foto
+        const aDireita = (rb.left + rb.width / 2) > window.innerWidth * 0.55;
+        balao.className = 'balao-frase' + (meu ? ' balao-meu' : '') + (aDireita ? ' balao-esq' : ' balao-dir');
+        balao.textContent = texto;
+        balao.style.top = (rf.top + rf.height / 2) + 'px';
+        if (aDireita) { balao.style.right = (window.innerWidth - rb.left + 8) + 'px'; balao.style.maxWidth = Math.max(80, rb.left - 16) + 'px'; }
+        else { balao.style.left = (rb.right + 8) + 'px'; balao.style.maxWidth = Math.max(80, window.innerWidth - rb.right - 16) + 'px'; }
+    } else {                 // os outros: balão embaixo da caixa, para não cobrir as cartas
+        balao.className = 'balao-frase balao-baixo';
+        balao.textContent = texto;
+        balao.style.top = (rb.bottom + 6) + 'px';
+        balao.style.maxWidth = Math.min(200, window.innerWidth - 16) + 'px';
+        balao.style.visibility = 'hidden';
+    }
+    document.body.appendChild(balao);
+    if (!meuLugar) {         // centraliza na caixa sem sair da tela
+        const w = balao.offsetWidth;
+        balao.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, rb.left + rb.width / 2 - w / 2)) + 'px';
+        balao.style.visibility = '';
+    }
+    _baloes[assento] = { el: balao, t: setTimeout(() => { balao.remove(); delete _baloes[assento]; }, 3000) };
+}
+// botão e painel de frases ficam na raiz (fixos à direita, na altura do botão do chat)
+document.body.appendChild($('btnFrases')); document.body.appendChild($('painelFrases'));
+
+// Recebe frase de outro jogador via evento
+const _aoEventoOrig = aoEvento;
+aoEvento = function(p) {
+    if (p.t === 'frase') {
+        // Encontra o assento pelo pid ou char
+        let assento = -1;
+        if (G) {
+            assento = G.donos ? G.donos.indexOf(p.pid) : -1;
+            if (assento < 0 && G.personagens) assento = G.personagens.findIndex(px => px && px.id === p.char);
+        }
+        if (assento < 0) assento = 1; // fallback
+        mostrarBalaoFrase(assento, p.texto, false);
+        return;
+    }
+    _aoEventoOrig(p);
+};
+
+$('btnFrases').onclick = () => {
+    const p = $('painelFrases');
+    if (p.classList.contains('escondido')) abrirPainelFrases(); else fecharPainelFrases();
+};
+$('frasesFechar').onclick = fecharPainelFrases;
+// Fecha ao clicar fora
+document.addEventListener('click', e => {
+    if (!$('painelFrases').classList.contains('escondido') &&
+        !e.target.closest('#painelFrases') && !e.target.closest('#btnFrases')) {
+        fecharPainelFrases();
+    }
+});
