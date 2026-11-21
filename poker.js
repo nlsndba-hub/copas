@@ -268,8 +268,8 @@ const Poker = (() => {
                 if (![1, 2, 3, 6, 7].includes(r.sc[q][0])) return;
                 const cs = G.maos[q].concat(G.comun); let m = null;
                 combos(cs.length).forEach(ix => { const h5 = ix.map(z => cs[z]); if (!m && cmp(aval5(h5), r.sc[q]) === 0) m = h5; });
-                const gr = {}; m.forEach(c => { (gr[c.valor] = gr[c.valor] || { m: 0, t: 0 })[G.maos[q].some(x => x.id === c.id) ? 'm' : 't']++; });
-                dt[q] = Object.keys(gr).map(Number).filter(v => gr[v].m + gr[v].t >= 2).sort((x, y) => (gr[y].m + gr[y].t) - (gr[x].m + gr[x].t) || y - x).map(v => [PLURAL[v], gr[v].m, gr[v].t]);
+                const gr = {}; m.forEach(c => { (gr[c.valor] = gr[c.valor] || { m: [], t: [] })[G.maos[q].some(x => x.id === c.id) ? 'm' : 't'].push(FACES[c.valor] + NAIPES[c.naipe].s); });
+                dt[q] = Object.keys(gr).map(Number).filter(v => gr[v].m.length + gr[v].t.length >= 2).sort((x, y) => (gr[y].m.length + gr[y].t.length) - (gr[x].m.length + gr[x].t.length) || y - x).map(v => [PLURAL[v], gr[v].m, gr[v].t]);
             });
             // explicação do resultado, em linguagem simples (comparando com o melhor rival)
             vivos().forEach(i => {
@@ -277,7 +277,7 @@ const Poker = (() => {
                 let j = null; vivos().forEach(x => { if (x !== i && (j === null || cmp(r.sc[x], r.sc[j]) > 0)) j = x; });
                 if (j === null) return;
                 const a = r.sc[i], b = r.sc[j], c = cmp(a, b);
-                const e = { j, di: mh[i], dj: mh[j] };
+                const e = { j, di: mh[i], dj: mh[j], ca: a[0], cb: b[0] };
                 let k = 1; while (k < a.length && a[k] === b[k]) k++;
                 if (c === 0) e.t = 'emp';
                 else if (a[0] !== b[0]) e.t = 'cat';
@@ -307,6 +307,8 @@ const Poker = (() => {
     }
 
     // ---------- janelas ----------
+    const DEFJ = ['nenhuma combinação: vale a carta mais alta', '2 cartas do mesmo valor', '2 pares de cartas iguais', '3 cartas do mesmo valor', '5 cartas em sequência', '5 cartas do mesmo naipe', 'uma trinca e um par juntos', '4 cartas do mesmo valor', 'sequência toda do mesmo naipe'];
+    const compTxt = gs => gs.map(g => { const m = g[1], t = g[2]; return `<b>${g[0]}</b>: ` + (m.length && t.length ? `${m.join(' ')} da mão + ${t.join(' ')} da mesa` : m.length ? `${m.join(' ')} da mão` : `${t.join(' ')} da mesa`); }).join(' · ');
     function mostrarModal(d) {
         const eu = G.eu || 0;
         let h = d.fim ? '<h2>🏁 Fim da partida!</h2>' : `<h2>Fim da mão ${d.r}</h2>`;
@@ -319,7 +321,7 @@ const Poker = (() => {
                 const org = (q, o) => o === 'mesa' ? 'da mesa' : (q === eu ? 'da sua mão' : `da mão de ${d.no[q]}`);
                 let t;
                 if (e.t === 'emp') t = `Empate: ${nm} e ${rn} fizeram exatamente a mesma jogada: ${e.di}. O prêmio foi dividido.`;
-                else if (e.t === 'cat') t = `${nm} fez <b>${e.di}</b> e ${rn} fez <b>${e.dj}</b>. ${e.di} é uma jogada mais forte.`;
+                else if (e.t === 'cat') t = `${nm} fez <b>${e.di}</b> (${DEFJ[e.ca]})${d.dt && d.dt[i] ? ': ' + compTxt(d.dt[i]) : ''}.<br>${rn} fez <b>${e.dj}</b> (${DEFJ[e.cb]})${d.dt && d.dt[e.j] ? ': ' + compTxt(d.dt[e.j]) : ''}.<br>${NOME_MAO[e.ca]} vale mais que ${NOME_MAO[e.cb]}, então ${nm} ganha.` + ((d.dt && [d.dt[i], d.dt[e.j]].some(x => x && x.some(g => g[2].length))) ? '<br><i>Lembrete: as 5 cartas da mesa são de todos, por isso dá para fazer a jogada sem ter a carta na mão.</i>' : '');
                 else if (e.t === 'maior') t = e.sec
                     ? `${nm} e ${rn} têm o mesmo primeiro par (<b>${e.p1}</b>), que pode estar na mesa: as cartas da mesa valem para todos. Quem decide é o segundo par: ${nm} tem <b>${e.a}</b> e ${rn} tem <b>${e.b}</b>. ${e.a} é mais alto, então ${nm} ganha.`
                     : `${nm} fez <b>${e.di}</b> e ${rn} fez <b>${e.dj}</b>. As duas jogadas são do mesmo tipo, mas ${e.a} é mais alto que ${e.b}, então ${nm} ganha.`;
@@ -329,7 +331,7 @@ const Poker = (() => {
             if (dv > 0) h += `<p class="sub">↩️ <b>${nm}</b> recebeu de volta <b>${dv}</b> fichas (aposta que ninguém cobriu)</p>`;
         });
         const reveladas = Object.keys(d.rv);
-        if (reveladas.length) h += '<div class="pk-rev-lista">' + (d.com && d.com.length ? '<div class="pk-rev pk-mesa"><span>Mesa</span><span class="pk-rev-cartas" data-s="mesa"></span></div>' : '') + reveladas.map(i => `<div class="pk-rev"><span>${+i === eu ? 'Você' : d.no[i]}<small class="pk-jog">${(d.mh && d.mh[i]) || ''}</small>${d.dt && d.dt[i] ? '<small class="pk-det">' + d.dt[i].map(g => g[0] + ': ' + (g[1] && g[2] ? g[1] + ' da mão + ' + g[2] + ' da mesa' : g[1] ? g[1] + ' da mão' : g[2] + ' da mesa')).join(' · ') + '</small>' : ''}</span><span class="pk-rev-cartas" data-s="${i}"></span></div>`).join('') + '</div>';
+        if (reveladas.length) h += '<div class="pk-rev-lista">' + (d.com && d.com.length ? '<div class="pk-rev pk-mesa"><span>Mesa</span><span class="pk-rev-cartas" data-s="mesa"></span></div>' : '') + reveladas.map(i => `<div class="pk-rev"><span>${+i === eu ? 'Você' : d.no[i]}<small class="pk-jog">${(d.mh && d.mh[i]) || ''}</small>${d.dt && d.dt[i] ? '<small class="pk-det">' + compTxt(d.dt[i]) + '</small>' : ''}</span><span class="pk-rev-cartas" data-s="${i}"></span></div>`).join('') + '</div>';
         h += '<p class="sub">' + d.fi.map((f, i) => `${i === eu ? 'Você' : d.no[i]}: <b>${f}</b>`).join(' · ') + '</p>';
         if (d.fim) {
             h += `<h3>${d.venc === eu ? '🏆 Você ganhou todas as fichas!' : (d.fi[eu] <= 0 ? '😤 Você ficou sem fichas' : `🏆 ${d.no[d.venc]} venceu`)}</h3>`;
