@@ -36,6 +36,11 @@ Jogos.reg('paciencia', J => {
         const c = e.closest('.jg-col'); if (c) return { t: 'c', i: +c.dataset.col };
         return null;
     }
+    function marcar() {
+        const cs = S && S.sel ? pega() : null, m = mesaEl(); if (!cs || !m) return;
+        for (let i = 0; i < 7; i++) { if (S.sel.f === 'c' && S.sel.i === i) continue; if (podeCol(cs[0], i)) { const e = m.querySelector(`.jg-col[data-col="${i}"]`); if (e) e.classList.add('alvo'); } }
+        if (cs.length === 1 && podeFund(cs[0])) { const e = m.querySelector(`[data-a="fun"][data-v="${cs[0].naipe}"]`); if (e) e.classList.add('alvo'); }
+    }
     function pDown(ev) {
         if (!S || (ev.button !== undefined && ev.button !== 0)) return;
         const el = ev.target.closest('[data-a="cc"],[data-a="cw"]'); if (!el) return;
@@ -46,7 +51,7 @@ Jogos.reg('paciencia', J => {
         if (!dr || ev.pointerId !== dr.id) return;
         if (!dr.on) {
             if (Math.hypot(ev.clientX - dr.x, ev.clientY - dr.y) < 8) return;
-            dr.on = true; const g = document.createElement('div'); g.className = 'jg-fantasma';
+            dr.on = true; S.sel = dr.src; marcar(); const g = document.createElement('div'); g.className = 'jg-fantasma';
             const cw = dr.el.getBoundingClientRect().width;
             g.style.width = cw + 'px'; g.style.setProperty('--cw', cw + 'px');
             const els = dr.src.f === 'w' ? [dr.el] : [...dr.el.parentNode.querySelectorAll('[data-a="cc"]')].filter(x => +x.dataset.k >= dr.src.k);
@@ -65,7 +70,7 @@ Jogos.reg('paciencia', J => {
         const t = alvoEm(ev.clientX, ev.clientY);
         S.sel = d.src;
         if (!t || (t.t === 'c' && d.src.f === 'c' && d.src.i === t.i)) { S.sel = null; render(); return; }
-        if (t.t === 'c') { if (!moverCol(t.i)) { S.txt = 'Movimento inválido.'; S.sel = null; render(); } } else moverFund(t.v);
+        if (t.t === 'c') { if (!moverCol(t.i)) { S.txt = 'Movimento inválido: use cor alternada e ordem decrescente (ex.: 6♥ sobre 7♠ ou 7♣).'; S.sel = null; render(); } } else moverFund(t.v);
     }
     function pCancel() { if (dr) { if (dr.g) dr.g.remove(); dr = null; if (S) render(); } }
     function ligar() {
@@ -114,6 +119,7 @@ Jogos.reg('paciencia', J => {
             ${S.stock.length ? J.verso('stock') : '<span class="jg-slot" data-a="stock"><b class="jg-naipe">↻</b></span>'}
             <span class="jg-slot">${top ? J.carta(top, { a: 'cw', sel: sw }) : ''}</span><span class="jg-esp"></span>${fund}</div>
             <div class="jg-cols">${cols}</div></div>`);
+        marcar();
         J.msg(S.txt);
         J.ctrl(J.btn('undo', '↩ Desfazer', { d: !S.hist.length, s: 1 }) + J.btn('novo', conf ? '⚠️ Toque de novo para confirmar' : 'Nova partida', { s: 1 }));
         conf = false;
