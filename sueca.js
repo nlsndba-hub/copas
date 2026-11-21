@@ -206,7 +206,7 @@ const Sueca = (() => {
         const r = $('btnRodarMesaSueca');
         if (r) r.onclick = () => { $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); clearTimeout(G.timer); pararAudiosEntrada(); iniciar(); };   // nova mesa, novos adversários
         $('btnRegrasSueca').onclick = () => abrirRegras('sueca', abrirPlacar);
-        $('btnSairSueca').onclick = () => { if (confirm('Sair do jogo e voltar à escolha do modo?')) sairParaMenu('telaModo'); };
+        $('btnSairSueca').onclick = () => confirmarToque($('btnSairSueca'), () => sairParaMenu('telaModo'));
     }
 
     // ---------- máquina ----------

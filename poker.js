@@ -313,7 +313,7 @@ const Poker = (() => {
         const r = $('btnRodarMesaPoker');
         if (r) r.onclick = () => { $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); clearTimeout(G.timer); pararAudiosEntrada(); iniciar(); };   // nova mesa, novos adversários
         $('btnRegrasPoker').onclick = () => abrirRegras('poker', abrirPlacar);
-        $('btnSairPoker').onclick = () => { if (confirm('Sair do jogo e voltar à escolha do modo?')) sairParaMenu('telaModo'); };
+        $('btnSairPoker').onclick = () => confirmarToque($('btnSairPoker'), () => sairParaMenu('telaModo'));
     }
 
     // ---------- máquina ----------

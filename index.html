@@ -9,7 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Miquilino V91</title>
-    <link rel="stylesheet" href="style.css?v=102">
+    <link rel="stylesheet" href="style.css?v=103">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -43,15 +43,27 @@
             <div class="modo-botoes">
                 <button type="button" id="btnJogoCopas" class="btn-modo-grande"><i class="fas fa-heart"></i><strong>Copas</strong><small>Cada um por si: quem fizer menos pontos vence</small></button>
                 <button type="button" id="btnJogoSueca" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Sueca</strong><small>Em dupla, 40 cartas, trunfo e 120 pontos por mão</small></button>
+                <button type="button" id="btnJogoBlackjack" class="btn-modo-grande"><i class="fas fa-diamond"></i><strong>Blackjack</strong><small>Chegue mais perto de 21 que a banca, apostando fichas</small></button>
                 <button type="button" id="btnJogoPoker" class="btn-modo-grande"><i class="fas fa-coins"></i><strong>Poker</strong><small>Texas Hold'em: fichas, blinds e all-in contra 3 jogadores</small></button>
             </div>
         </div>
     </div>
 
+    <!-- BLACKJACK -->
+    <div id="telaBlackjack" class="tela-overlay escondido">
+        <div class="bj-caixa">
+            <div class="bj-topo"><b>♦ Blackjack</b><span id="bjFichas"></span><button type="button" id="btnBjPlacar" title="Placar, regras e sair" aria-label="Placar, regras e sair"><i class="fas fa-trophy"></i></button></div>
+            <div id="bjMesa"></div>
+            <p id="bjMsg" role="status"></p>
+            <div id="bjControles"></div>
+        </div>
+        <div id="bjModal" class="escondido"><div class="modal-box" id="bjModalBox"></div></div>
+    </div>
+
     <!-- MODO DE JOGO -->
     <div id="telaModo" class="tela-overlay escondido">
         <div class="selecao-box caixa-modo">
-            <button type="button" id="btnTrocarJogo" class="btn-voltar-jogo" title="Voltar ao início (escolher Copas, Sueca ou Poker)"><i class="fas fa-arrow-left"></i> Início</button>
+            <button type="button" id="btnTrocarJogo" class="btn-voltar-jogo" title="Voltar ao início (escolher Copas, Sueca, Poker ou Blackjack)"><i class="fas fa-arrow-left"></i> Início</button>
             <div class="usuario-box">
                 <img id="modoFoto" src="" alt="">
                 <span id="modoNome"></span>
@@ -279,8 +291,9 @@
     <script src="usuarios.js?v=80"></script>
     <script src="missoes.js?v=99"></script>
     <script src="gifs.js?v=2"></script>
-    <script src="script.js?v=102"></script>
-    <script src="sueca.js?v=2"></script>
-    <script src="poker.js?v=2"></script>
+    <script src="script.js?v=103"></script>
+    <script src="sueca.js?v=3"></script>
+    <script src="poker.js?v=3"></script>
+    <script src="blackjack.js?v=1"></script>
 </body>
 </html>

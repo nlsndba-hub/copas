@@ -35,7 +35,7 @@ const MP = {
 };
 const VOZ = { pcs: {}, mic: null, ativo: false, token: 0, fonte: '', semClique: 0, negado: false };
 const TEMPO_MISTO = 30 * 1000;
-const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'telaMissoes', 'telaManutencao', 'telaJogo', 'jogo'];
+const TELAS = ['telaInicial', 'telaAcesso', 'telaModo', 'telaSalas', 'telaLogin', 'telaEspera', 'telaAdmin', 'telaMissoes', 'telaManutencao', 'telaJogo', 'telaBlackjack', 'jogo'];
 let ultimaTela = '';
 function mostrarTela(id) {
     TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id));
@@ -1006,7 +1006,17 @@ function fimRodada() {
 
 // ================= MODAL DO RANKING GERAL =================
 // ============ REGRAS (botão dentro do troféu: Copas, Sueca e Poker) ============
+// Confirmação por segundo toque (confirm() do navegador tira o jogo da tela cheia)
+function confirmarToque(btn, fn) {
+    if (!btn) { fn(); return; }
+    if (btn.dataset.conf) { clearTimeout(+btn.dataset.conf); delete btn.dataset.conf; btn.innerHTML = btn.dataset.txt; fn(); return; }
+    btn.dataset.txt = btn.innerHTML;
+    btn.innerHTML = '⚠️ Toque de novo para confirmar';
+    btn.dataset.conf = setTimeout(() => { btn.innerHTML = btn.dataset.txt; delete btn.dataset.conf; }, 3500);
+}
 function abrirRegras(jogo, voltar) {
+    const bj = jogo === 'blackjack';
+    const MOD = bj ? $('bjModal') : $('modalRanking'), BOX = bj ? $('bjModalBox') : $('modalRankingBox');
     const R = (f, n) => `<span class="mini-carta ${(n === '♥' || n === '♦') ? 'verm' : ''}">${f}<small>${n}</small></span>`;
     let h = '';
     if (jogo === 'sueca') {
@@ -1036,6 +1046,17 @@ function abrirRegras(jogo, voltar) {
         <p><b>Fichas:</b> todos começam com 1000. Blinds 10/20, dobrando a cada 6 mãos. Vence quem ficar com todas as fichas.</p>
         <h3>Combinações (da mais forte para a mais fraca)</h3>
         <div class="tabela-maos">${lin.map((l, i) => `<div class="linha-mao"><div class="mao-info"><b>${i + 1}º ${l[0]}</b><small>${l[1]}</small></div><span class="mao-cartas">${l[2].map(x => R(x[0], x[1])).join('')}</span></div>`).join('')}</div></div>`;
+    } else if (jogo === 'blackjack') {
+        h = `<h2>♦ Regras do Blackjack</h2><div class="regras">
+        <p><b>Objetivo:</b> chegar mais perto de <b>21</b> que a banca, sem passar. Passou de 21 = estourou e perdeu.</p>
+        <p><b>Valor das cartas:</b> 2 a 10 valem o número · Valete, Dama e Rei valem 10 · Ás vale 11 (ou 1, se precisar para não estourar).</p>
+        <p><b>Blackjack:</b> Ás + carta de 10 nas duas primeiras cartas.</p>
+        <div class="tabela-maos"><div class="linha-mao"><div class="mao-info"><b>Blackjack = 21</b><small>paga 3 para 2</small></div><span class="mao-cartas">${R('A','♠')}${R('K','♥')}</span></div></div>
+        <p style="margin-top:8px"><b>Apostas:</b> todos começam com 1000 fichas e apostam antes de receber as cartas (mínimo 10).</p>
+        <p><b>Sua vez:</b> <b>Pedir</b> (mais uma carta), <b>Parar</b> ou <b>Dobrar</b> (dobra a aposta, recebe só mais uma carta; só nas duas primeiras cartas).</p>
+        <p><b>Banca:</b> mostra uma carta e a outra fica virada. Compra até chegar a 17 ou mais e para.</p>
+        <p><b>Resultado:</b> ganhar paga 1 para 1 · Blackjack paga 3 para 2 · empate devolve a aposta · se a banca estourar, quem não estourou ganha.</p>
+        <p><b>Fim:</b> a partida acaba quando suas fichas não bastam para a aposta mínima.</p></div>`;
     } else {
         h = `<h2>♥ Regras de Copas</h2><div class="regras">
         <p><b>Objetivo:</b> fazer o <b>menor número de pontos</b>. Cada ♥ vale 1 ponto e a Dama de Espadas (Q♠) vale 13. Cada rodada distribui 26 pontos.</p>
@@ -1047,9 +1068,9 @@ function abrirRegras(jogo, voltar) {
         <p><b>Ranking geral:</b> 1º −1 · 2º e 3º +1 · último +2 (só vale partida com 4 jogadores).</p></div>`;
     }
     h += '<button type="button" class="btn-modo" id="btnVoltarRegras">⬅ Voltar</button>';
-    $('modalRankingBox').innerHTML = h;
-    $('modalRanking').classList.remove('escondido');
-    $('btnVoltarRegras').onclick = () => { if (voltar) voltar(); else $('modalRanking').classList.add('escondido'); };
+    BOX.innerHTML = h;
+    MOD.classList.remove('escondido');
+    $('btnVoltarRegras').onclick = () => { if (voltar) voltar(); else MOD.classList.add('escondido'); };
 }
 
 function abrirRankingGeral() {
@@ -1129,6 +1150,10 @@ function desenharRanking() {
 }
 
 $('btnRanking').onclick = abrirRankingGeral;
+// Ao abrir o troféu (e as telas que vêm dele, como Regras), chat e mensagens fecham e somem (ver style.css)
+new MutationObserver(() => {
+    if (!$('modalRanking').classList.contains('escondido')) { try { fecharChat(); fecharPainelFrases(); } catch (e) {} }
+}).observe($('modalRanking'), { attributes: true, attributeFilter: ['class'] });
 function marcarSom() {
     const b = $('btnSom');
     b.innerHTML = `<i class="fas fa-volume-${AUDIO_PERS.ligado ? 'high' : 'xmark'}"></i>`;
@@ -2655,17 +2680,22 @@ $('btnModoSozinho').onclick = () => {
     MP.modo = 'solo';
     jogadorHumano = personagemDoUsuario();
     if (!jogadorHumano) { abrirAcesso(); return; }
-    if (JOGO === 'poker') Poker.iniciar(); else if (JOGO === 'sueca') Sueca.iniciar(); else iniciarPartida();
+    if (JOGO === 'blackjack') Blackjack.iniciar(); else if (JOGO === 'poker') Poker.iniciar(); else if (JOGO === 'sueca') Sueca.iniciar(); else iniciarPartida();
 };
 function aplicarJogoNaTelaModo() {
-    const su = JOGO === 'sueca', pk = JOGO === 'poker';
-    document.querySelector('#telaModo h1').textContent = pk ? '♠ Poker · Como quer jogar? ♥' : su ? '♣ Sueca · Como quer jogar? ♦' : '♥ Como quer jogar? ♠';
-    $('btnModoSozinho').querySelector('small').textContent = pk ? 'Você contra 3 máquinas, com fichas' : su ? 'Você e uma máquina contra 2 máquinas' : 'Você contra 3 máquinas';
-    $('btnModoMissoes').classList.toggle('escondido', su || pk);
-    if (su || pk) $('btnModoEstampas').classList.add('escondido'); else $('btnModoEstampas').classList.remove('escondido');
+    const su = JOGO === 'sueca', pk = JOGO === 'poker', bj = JOGO === 'blackjack';
+    document.querySelector('#telaModo h1').textContent = bj ? '♦ Blackjack · Como quer jogar? ♣' : pk ? '♠ Poker · Como quer jogar? ♥' : su ? '♣ Sueca · Como quer jogar? ♦' : '♥ Como quer jogar? ♠';
+    $('btnModoSozinho').querySelector('small').textContent = bj ? 'Você e 2 máquinas contra a banca, com fichas' : pk ? 'Você contra 3 máquinas, com fichas' : su ? 'Você e uma máquina contra 2 máquinas' : 'Você contra 3 máquinas';
+    ['btnModoMisto', 'btnModoSala'].forEach(id => {
+        const b = $(id);
+        if (bj) { b.classList.add('escondido'); b.dataset.bj = '1'; } else if (b.dataset.bj) { b.classList.remove('escondido'); delete b.dataset.bj; }
+    });
+    $('btnModoMissoes').classList.toggle('escondido', su || pk || bj);
+    if (su || pk || bj) $('btnModoEstampas').classList.add('escondido'); else $('btnModoEstampas').classList.remove('escondido');
 }
 $('btnJogoCopas').onclick = () => { JOGO = 'copas'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
 $('btnJogoSueca').onclick = () => { JOGO = 'sueca'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
+$('btnJogoBlackjack').onclick = () => { JOGO = 'blackjack'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
 $('btnJogoPoker').onclick = () => { JOGO = 'poker'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
 $('btnTrocarJogo').onclick = () => { JOGO = null; mostrarTela('telaJogo'); };
 $('btnSuecaComecar').onclick = () => { if (souHost()) iniciarMP(); };
@@ -2827,14 +2857,15 @@ function sairParaMenu(destino) {
     maquinasEliminadas = []; filaMaquinas = [];
     ultimoCliqueCarta = { id: null, tempo: 0 };
     $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); $('modalSenha').classList.add('escondido');
+    if (typeof Blackjack !== 'undefined') Blackjack.parar();
     $('btnFrases').classList.add('escondido'); fecharPainelFrases();
     $('pausaJogo').classList.add('escondido');
     mostrarTela(destino || 'telaModo');
     if (destino === 'telaInicial') pararIntro();
 }
-function sairDoBar() {
-    if (!confirm('Sair do bar e voltar ao início?')) return;
-    sairParaMenu('telaInicial');
+function sairDoBar(e) {
+    // Volta só até a escolha do modo (mesmo jogo) e não usa confirm(), para não sair da tela cheia.
+    confirmarToque(e && e.currentTarget, () => sairParaMenu('telaModo'));
 }
 
 // Sala (sem máquinas): se alguém sai no meio da partida, todos voltam à espera do bar até completar 4.
