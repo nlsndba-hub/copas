@@ -479,7 +479,6 @@ const Poker = (() => {
         // pote e cartas comunitárias
         $('pokerPote').textContent = `Pote: ${G.pote}`;
         $('pokerFichas').innerHTML = fichasHTML(G.pote);
-        [0, 1, 2, 3].forEach(i => { const z = $('pokerMesa').querySelector(`.pk-ap[data-s="${i}"]`); if (z) z.innerHTML = G.apostas[i] > 0 ? `<div class="pk-fichas mini">${fichasHTML(G.apostas[i])}</div><small>${G.apostas[i]}</small>` : ''; });
         const chave = G.comun.map(c => c.id).join(',');
         if (chave !== comChave) {
             comChave = chave;
@@ -518,7 +517,8 @@ const Poker = (() => {
     function caixa(i) {
         const tag = (i === G.botao ? '<span class="pk-bd">D</span>' : '') + (i === G.sbSeat ? '<span class="pk-bd">SB</span>' : '') + (i === G.bbSeat ? '<span class="pk-bd">BB</span>' : '');
         const st = G.fora[i] ? 'Eliminado' : G.dobrou[i] ? 'Desistiu' : G.allin[i] ? `ALL-IN ${G.apostas[i]}` : (G.apostas[i] > 0 ? `Aposta ${G.apostas[i]}` : '');
-        return `<span class="tot">Fichas: ${G.fichas[i]}</span><span class="rod">${tag}${st}</span>`;
+        const ap = G.apostas[i] > 0 ? `<span class="pk-ap-lado"><span class="pk-fichas mini">${fichasHTML(G.apostas[i])}</span><small>${G.apostas[i]}</small></span>` : '';
+        return `<span class="tot">Fichas: ${G.fichas[i]}</span><span class="rod">${tag}${st}</span>${ap}`;
     }
     return { iniciar, iniciarMP, novaPartida, tentarJogar, aoJogar, agendar, difundir, aoSnap, aoEvento, verificarSaidas, abrirPlacar, atualizarInfo, caixa, melhor, descrever };
 })();

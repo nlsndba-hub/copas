@@ -6,7 +6,7 @@ Jogos.reg('paciencia', J => {
     const R = c => c.valor === 12 ? 0 : c.valor + 1, COR = c => (c.naipe === 1 || c.naipe === 2) ? 1 : 0;
     let S = null, conf = false;
     function start() {
-        conf = false; const b = J.sh(J.baralho());
+        conf = false; ligar(); const b = J.sh(J.baralho());
         S = { col: [], stock: [], waste: [], fund: [[], [], [], []], sel: null, mov: 0, hist: [], txt: 'Toque numa carta e depois no destino. Toque 2× para mandar à fundação.' };
         for (let i = 0; i < 7; i++) S.col.push(b.splice(0, i + 1).map((c, k, a) => ({ c, up: k === a.length - 1 })));
         S.stock = b; render();
@@ -27,8 +27,60 @@ Jogos.reg('paciencia', J => {
         if (S.fund.every(f => f.length === 13)) J.fim('🏆 Paciência concluída!', `<p>Você terminou em <b>${S.mov}</b> movimentos.</p>`, [{ t: 'Nova partida', fn: start }, { t: 'Sair para o menu', sec: 1, fn: () => sairParaMenu('telaModo') }]);
         return true;
     }
+    // ---- arrastar e soltar (o toque/clique em duas etapas continua funcionando) ----
+    let dr = null, semClique = 0;
+    const mesaEl = () => document.getElementById('jgMesa');
+    function alvoEm(x, y) {
+        const e = document.elementFromPoint(x, y); if (!e) return null;
+        const f = e.closest('[data-a="fun"]'); if (f) return { t: 'f', v: +f.dataset.v };
+        const c = e.closest('.jg-col'); if (c) return { t: 'c', i: +c.dataset.col };
+        return null;
+    }
+    function pDown(ev) {
+        if (!S || (ev.button !== undefined && ev.button !== 0)) return;
+        const el = ev.target.closest('[data-a="cc"],[data-a="cw"]'); if (!el) return;
+        const src = el.dataset.a === 'cw' ? { f: 'w' } : { f: 'c', i: +el.dataset.i, k: +el.dataset.k };
+        dr = { x: ev.clientX, y: ev.clientY, src, el, on: false, g: null, id: ev.pointerId };
+    }
+    function pMove(ev) {
+        if (!dr || ev.pointerId !== dr.id) return;
+        if (!dr.on) {
+            if (Math.hypot(ev.clientX - dr.x, ev.clientY - dr.y) < 8) return;
+            dr.on = true; const g = document.createElement('div'); g.className = 'jg-fantasma';
+            const cw = dr.el.getBoundingClientRect().width;
+            g.style.width = cw + 'px'; g.style.setProperty('--cw', cw + 'px');
+            const els = dr.src.f === 'w' ? [dr.el] : [...dr.el.parentNode.querySelectorAll('[data-a="cc"]')].filter(x => +x.dataset.k >= dr.src.k);
+            els.forEach((x, n) => { const q = x.cloneNode(true); q.removeAttribute('data-a'); q.style.top = `calc(var(--cw)*${(n * 0.4).toFixed(2)})`; q.classList.remove('sel'); g.appendChild(q); x.classList.add('arr'); });
+            document.body.appendChild(g); dr.g = g; dr.ox = dr.x - dr.el.getBoundingClientRect().left; dr.oy = dr.y - dr.el.getBoundingClientRect().top;
+        }
+        ev.preventDefault();
+        dr.g.style.left = (ev.clientX - dr.ox) + 'px'; dr.g.style.top = (ev.clientY - dr.oy) + 'px';
+    }
+    function pUp(ev) {
+        if (!dr || ev.pointerId !== dr.id) return;
+        const d = dr; dr = null;
+        if (!d.on) return;
+        semClique = Date.now() + 400;
+        if (d.g) d.g.remove();
+        const t = alvoEm(ev.clientX, ev.clientY);
+        S.sel = d.src;
+        if (!t || (t.t === 'c' && d.src.f === 'c' && d.src.i === t.i)) { S.sel = null; render(); return; }
+        if (t.t === 'c') { if (!moverCol(t.i)) { S.txt = 'Movimento inválido.'; S.sel = null; render(); } } else moverFund(t.v);
+    }
+    function pCancel() { if (dr) { if (dr.g) dr.g.remove(); dr = null; if (S) render(); } }
+    function ligar() {
+        const m = mesaEl(); if (!m || m._pac) return; m._pac = true;
+        m.addEventListener('pointerdown', pDown); window.addEventListener('pointermove', pMove, { passive: false });
+        window.addEventListener('pointerup', pUp); window.addEventListener('pointercancel', pCancel);
+    }
+    function desligar() {
+        const m = mesaEl(); if (m) { m.removeEventListener('pointerdown', pDown); m._pac = false; }
+        window.removeEventListener('pointermove', pMove); window.removeEventListener('pointerup', pUp); window.removeEventListener('pointercancel', pCancel);
+        if (dr && dr.g) dr.g.remove(); dr = null;
+    }
     function click(a, d) {
         if (!S) return;
+        if (Date.now() < semClique && a !== 'undo' && a !== 'novo') return;
         if (a === 'stock') { snap(); if (S.stock.length) S.waste.push(S.stock.pop()); else { S.stock = S.waste.reverse(); S.waste = []; } S.sel = null; S.txt = ''; render(); }
         else if (a === 'cw') {
             if (!S.waste.length) return; const c = S.waste[S.waste.length - 1];
@@ -55,7 +107,7 @@ Jogos.reg('paciencia', J => {
                 h += `<span class="jg-c${s ? ' sel' : ''}" ${e.up ? `data-a="cc" data-i="${i}" data-k="${k}"` : ''} style="top:calc(var(--cw)*${off.toFixed(2)})">${e.up ? criarElementoCarta(e.c).outerHTML : '<div class="carta verso"></div>'}</span>`;
                 off += e.up ? 0.4 : 0.16;
             });
-            return `<div class="jg-col" ${col.length ? '' : `data-a="col" data-i="${i}"`} style="min-height:calc(var(--cw)*${(off + 1.45 - (col.length ? (col[col.length - 1].up ? 0.4 : 0.16) : 0)).toFixed(2)})">${h}</div>`;
+            return `<div class="jg-col" data-col="${i}" ${col.length ? '' : `data-a="col" data-i="${i}"`} style="min-height:calc(var(--cw)*${(off + 1.45 - (col.length ? (col[col.length - 1].up ? 0.4 : 0.16) : 0)).toFixed(2)})">${h}</div>`;
         }).join('');
         J.info(`Movimentos ${S.mov}`);
         J.mesa(`<div class="jg-pac"><div class="jg-topo">
@@ -67,12 +119,12 @@ Jogos.reg('paciencia', J => {
         conf = false;
     }
     return {
-        nome: 'Paciência', icone: '♦', start, click,
+        nome: 'Paciência', icone: '♦', start, click, parar: desligar,
         placar: () => `<p><b>Movimentos:</b> ${S ? S.mov : 0}</p><p><b>Fundações:</b> ${S ? S.fund.reduce((a, f) => a + f.length, 0) : 0} / 52 cartas</p>`,
         regras: `<p><b>Objetivo:</b> levar todas as cartas para as 4 <b>fundações</b> (uma por naipe), do Ás ao Rei.</p>
         <p><b>Colunas:</b> monte sequências em ordem <b>decrescente</b> alternando as cores (ex.: 6♥ sobre 7♠). Pode mover uma sequência inteira. Só o <b>Rei</b> (ou sequência iniciada por Rei) vai numa coluna vazia.</p>
         <p><b>Monte:</b> toque no monte para virar uma carta; quando acabar, toque de novo para reciclar o descarte.</p>
-        <p><b>Como jogar:</b> toque na carta (ela fica destacada) e depois na coluna ou fundação de destino. Toque duas vezes na mesma carta para mandá-la à fundação. Há botão de desfazer.</p>`
+        <p><b>Como jogar:</b> arraste a carta (ou sequência) até o destino, ou toque na carta (ela fica destacada) e depois na coluna ou fundação de destino. Toque duas vezes na mesma carta para mandá-la à fundação. Há botão de desfazer.</p>`
     };
 });
 

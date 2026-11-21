@@ -1471,3 +1471,16 @@ body:has(#jgModal:not(.escondido)) :is(#btnChat, #painelChat, #btnFrases, #paine
 .pk-casa { display: flex; flex-direction: column; align-items: center; gap: 2px; } .pk-casa small { font-size: 10px; color: #cfe8d2; text-transform: uppercase; letter-spacing: .5px; }
 .pk-bd { display: inline-block; background: #d5b65b; color: #000; border-radius: 8px; padding: 0 5px; margin-right: 3px; font-weight: 800; font-size: .85em; }
 .pk-vit { font-size: 18px; margin: 10px 0 0; } .pk-mao-ganha { font-size: 22px; font-weight: 800; color: #ffd54f; margin: 2px 0 6px; }
+
+/* Poker: fichas da aposta ao lado ESQUERDO da foto de cada personagem */
+body.jogo-poker .pk-ap { display: none !important; }
+body.jogo-poker .oponente { position: relative; }
+.pk-ap-lado { position: absolute; right: calc(100% + 3px); top: calc(var(--u) * .5); display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 5; }
+.pk-ap-lado small { font-size: 10px; color: #ffe9a8; font-weight: 800; text-shadow: 0 1px 2px #000; }
+body.jogo-poker #j1 { margin-left: calc(var(--u) * 4.2); }
+/* Paciência: arrastar cartas */
+.jg-pac .jg-c, .jg-pac .jg-c .carta { touch-action: none; }
+.jg-pac .jg-c.arr { opacity: .35; }
+.jg-fantasma { position: fixed; z-index: 9999; pointer-events: none; margin: 0; }
+.jg-fantasma .jg-c { position: absolute; left: 0; margin: 0; }
+.jg-slot.alvo, .jg-col.alvo { outline: 2px solid var(--ouro); }
