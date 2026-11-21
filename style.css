@@ -1470,3 +1470,12 @@ body.jogo-poker .oponente { position: relative; }
 .pk-ap-lado small { font-size: 10px; color: #ffe9a8; font-weight: 800; text-shadow: 0 1px 2px #000; }
 body.jogo-poker #j1 .pk-ap-lado { right: auto; left: 50%; top: auto; bottom: calc(100% + 3px); transform: translateX(-50%); flex-direction: row; gap: 4px; align-items: flex-end; }
 body.jogo-poker #j3 .pk-ap-lado { right: auto; left: 50%; bottom: auto; top: calc(100% + 3px); transform: translateX(-50%); flex-direction: row; gap: 4px; align-items: flex-start; }
+
+/* Poker: janela de fim de mão mais compacta e explicativa */
+.pk-vit { font-size: 15px !important; margin: 6px 0 0 !important; } .pk-mao-ganha { font-size: 16px !important; margin: 1px 0 4px !important; }
+.pk-por { font-size: 12.5px; line-height: 1.4; text-align: left; margin: 4px 0 6px; padding: 6px 8px; background: rgba(255,255,255,.07); border-radius: 8px; }
+.pk-rev-cartas { --cw: 40px; }
+.pk-rev > span:first-child { font-size: 13px; }
+.pk-jog { display: block; font-size: 11px; color: #ffd54f; font-weight: 700; }
+.pk-fichas { transform: scale(.8); margin: -2px 0; }
+.pk-rev > span:first-child { text-align: left; }
