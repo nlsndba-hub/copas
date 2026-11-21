@@ -1,7 +1,7 @@
 // ================= JOGOS EXTRAS: núcleo + Truco, Mau-mau e Pife =================
 // Telas próprias (#telaJogos), no mesmo padrão do Blackjack: você contra máquinas, botão do troféu (placar, regras, sair).
 // Janelas de fim de mão/partida NUNCA fecham sozinhas: só quando você clica no botão.
-// Buraco, Bridge e Paciência estão em jogos2.js (registram-se aqui com Jogos.reg).
+// Buraco e Bridge estão em jogos2.js (registram-se aqui com Jogos.reg).
 const Jogos = (() => {
     const MODS = {}, J = {}; let M = null, tm = [], nome = '';
     const $$ = id => document.getElementById(id);
@@ -54,7 +54,7 @@ const Jogos = (() => {
     $$('btnJgPlacar').onclick = placar;
     $$('jgModal').addEventListener('click', e => { if (e.target === $$('jgModal') && !$$('jgModal').dataset.fixo) fechar(); });
     const reg = (id, f) => { MODS[id] = f; };
-    const info = { truco: ['♦', 'Truco', 'Truco paulista 1×1: manilhas, truco, seis, nove e doze'], maumau: ['♣', 'Mau-mau', 'Livre-se de todas as cartas antes das máquinas'], pife: ['♥', 'Pife', 'Forme trincas e sequências com as 9 cartas e bata'], buraco: ['♠', 'Buraco', 'Baixe jogos, faça canastras e bata'], bridge: ['♠', 'Bridge', 'Leilão e jogo em dupla com o parceiro'], paciencia: ['♦', 'Paciência', 'Klondike: monte as 4 fundações do Ás ao Rei'] };
+    const info = { truco: ['♦', 'Truco', 'Truco paulista 1×1: manilhas, truco, seis, nove e doze'], maumau: ['♣', 'Mau-mau', 'Livre-se de todas as cartas antes das máquinas'], pife: ['♥', 'Pife', 'Forme trincas e sequências com as 9 cartas e bata'], buraco: ['♠', 'Buraco', 'Baixe jogos, faça canastras e bata'], bridge: ['♠', 'Bridge', 'Leilão e jogo em dupla com o parceiro'] };
     document.querySelectorAll('[data-jogo]').forEach(b => { b.onclick = () => { JOGO = b.dataset.jogo; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); }; });
     return { reg, iniciar, parar, info, J };
 })();

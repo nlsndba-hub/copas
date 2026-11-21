@@ -1409,7 +1409,7 @@ body:has(#bjModal:not(.escondido)) :is(#btnChat, #painelChat, #btnFrases, #paine
 #bjModal { position: fixed; inset: 0; z-index: 700; background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center; padding: 10px; }
 #bjModal.escondido { display: none; }
 
-/* ================= JOGOS EXTRAS (Truco, Buraco, Pife, Mau-mau, Bridge, Paciência) + Poker: fichas e marcações fixas ================= */
+/* ================= JOGOS EXTRAS (Truco, Buraco, Pife, Mau-mau, Bridge) + Poker: fichas e marcações fixas ================= */
 body:has(#jgModal:not(.escondido)) :is(#btnChat, #painelChat, #btnFrases, #painelFrases) { display: none !important; }
 #telaJogos { background: radial-gradient(#1b5e20, #0a2a0e); align-items: flex-start; }
 .jg-caixa { width: min(560px, 100%); margin: auto; display: flex; flex-direction: column; gap: 10px; color: #fff; }
@@ -1449,15 +1449,6 @@ body:has(#jgModal:not(.escondido)) :is(#btnChat, #painelChat, #btnFrases, #paine
 .jg-cruz { --cw: 40px; display: grid; grid-template-areas: ". n ." "w c e" ". s ."; grid-template-columns: 1fr 1fr 1fr; justify-items: center; align-items: center; gap: 4px; padding: 8px; background: rgba(0,0,0,.18); border-radius: 10px; }
 .jg-cruz .n { grid-area: n; } .jg-cruz .w { grid-area: w; } .jg-cruz .e { grid-area: e; } .jg-cruz .s { grid-area: s; }
 .jg-cruz .c { grid-area: c; display: flex; flex-direction: column; align-items: center; text-align: center; color: var(--ouro); font-size: 13px; }
-.jg-pac { --cw: clamp(34px, calc((min(100vw, 560px) - 52px) / 7.3), 72px); }
-.jg-topo { display: grid; grid-template-columns: repeat(7, var(--cw)); gap: 6px; justify-content: center; margin-bottom: 10px; }
-.jg-cols { display: grid; grid-template-columns: repeat(7, var(--cw)); gap: 6px; justify-content: center; }
-.jg-col { position: relative; width: var(--cw); } .jg-col[data-a="col"] { border: 1px dashed rgba(255,255,255,.25); border-radius: 6px; }
-.jg-col .jg-c { position: absolute; left: 0; margin: 0; }
-.jg-slot { display: flex; align-items: center; justify-content: center; width: var(--cw); height: calc(var(--cw) * 1.4286); border: 1px dashed rgba(255,255,255,.35); border-radius: 6px; box-sizing: border-box; position: relative; cursor: pointer; }
-.jg-topo .jg-c, .jg-slot .jg-c { margin: 0; }
-.jg-slot .carta { margin: 0; cursor: pointer; }
-.jg-naipe { font-size: calc(var(--cw) * .6); opacity: .6; } .jg-naipe.vermelho { color: #ff8a80; }
 /* Poker: fichas, marcações fixas na mesa e janela de vitória */
 .pk-fichas { display: flex; align-items: flex-end; justify-content: center; gap: 3px; min-height: 26px; }
 .pk-pilha { display: flex; flex-direction: column-reverse; align-items: center; }
@@ -1479,9 +1470,3 @@ body.jogo-poker .oponente { position: relative; }
 .pk-ap-lado small { font-size: 10px; color: #ffe9a8; font-weight: 800; text-shadow: 0 1px 2px #000; }
 body.jogo-poker #j1 .pk-ap-lado { right: auto; left: 50%; top: auto; bottom: calc(100% + 3px); transform: translateX(-50%); flex-direction: row; gap: 4px; align-items: flex-end; }
 body.jogo-poker #j3 .pk-ap-lado { right: auto; left: 50%; bottom: auto; top: calc(100% + 3px); transform: translateX(-50%); flex-direction: row; gap: 4px; align-items: flex-start; }
-/* Paciência: arrastar cartas */
-.jg-pac .jg-c, .jg-pac .jg-c .carta { touch-action: none; }
-.jg-pac .jg-c.arr { opacity: .35; }
-.jg-fantasma { position: fixed; z-index: 9999; pointer-events: none; margin: 0; }
-.jg-fantasma .jg-c { position: absolute; left: 0; margin: 0; }
-.jg-slot.alvo, .jg-col.alvo { outline: 2px solid var(--ouro); }
