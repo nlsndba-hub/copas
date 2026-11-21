@@ -2617,12 +2617,6 @@ $('btnJogoCopas').onclick = () => { JOGO = 'copas'; aplicarJogoNaTelaModo(); mos
 $('btnJogoSueca').onclick = () => { JOGO = 'sueca'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
 $('btnJogoPoker').onclick = () => { JOGO = 'poker'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
 $('btnTrocarJogo').onclick = () => { JOGO = null; mostrarTela('telaJogo'); };
-// Botão do topo: sai da partida (se houver) e volta à tela de escolha do jogo (Copas ou Sueca).
-$('btnJogos').onclick = () => {
-    if ((G || MP.ativo || MP.sala) && !confirm('Sair da partida e voltar à escolha do jogo?')) return;
-    JOGO = null;
-    sairParaMenu('telaJogo');
-};
 $('btnSuecaComecar').onclick = () => { if (souHost()) iniciarMP(); };
 $('btnModoMisto').onclick = () => { bloquearOrientacaoRetrato(); abrirSalas('misto'); };
 $('btnModoSala').onclick = () => { bloquearOrientacaoRetrato(); abrirSalas('sala'); };
@@ -3295,7 +3289,7 @@ window.addEventListener('click', e => { if (Date.now() < VOZ.semClique) { e.stop
 let cliqueVoz = null;
 function cancelarCliqueVoz() { if (cliqueVoz) { clearTimeout(cliqueVoz.tm); cliqueVoz = null; } }
 const mouseDeVerdade = e => !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
-const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat, #btnMic, #btnCores, #btnJogos, #pokerAcoes, #btnFrases, #painelFrases'));
+const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat, #btnMic, #btnCores, #pokerAcoes, #btnFrases, #painelFrases'));
 window.addEventListener('mousedown', e => {
     if (!vozPermitida() || !mouseDeVerdade(e) || dentroDoChat(e)) return;
     if (e.buttons === 3) { cancelarCliqueVoz(); VOZ.fonte = 'mouse'; falarIniciar(); return; }   // esquerdo + direito

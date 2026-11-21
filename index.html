@@ -51,6 +51,7 @@
     <!-- MODO DE JOGO -->
     <div id="telaModo" class="tela-overlay escondido">
         <div class="selecao-box caixa-modo">
+            <button type="button" id="btnTrocarJogo" class="btn-voltar-jogo" title="Voltar à escolha do jogo"><i class="fas fa-arrow-left"></i> Voltar · escolher o jogo (Copas, Sueca ou Poker)</button>
             <div class="usuario-box">
                 <img id="modoFoto" src="" alt="">
                 <span id="modoNome"></span>
@@ -58,7 +59,6 @@
             </div>
             <h1>♥ Como quer jogar? ♠</h1>
             <p class="sub">Escolha o modo de jogo.</p>
-            <button type="button" id="btnTrocarJogo" class="btn-mini">🎴 Trocar de jogo</button>
             <div class="modo-botoes">
                 <button type="button" id="btnModoSozinho" class="btn-modo-grande"><i class="fas fa-user"></i><strong>Sozinho</strong><small>Você contra 3 máquinas</small></button>
                 <button type="button" id="btnModoMisto" class="btn-modo-grande"><i class="fas fa-user-group"></i><strong>Misto</strong><small>Sala aberta por 30 segundos. Quem entrar joga junto e as máquinas completam a mesa. Com 4 jogadores começa na hora</small></button>
@@ -190,7 +190,6 @@
                     <button type="button" id="volMais" aria-label="Aumentar volume">+</button>
                 </div>
             <div id="status" role="status" aria-live="polite"></div>
-            <button type="button" id="btnJogos" title="Voltar à escolha do jogo (Copas, Sueca ou Poker)" aria-label="Voltar à escolha do jogo"><i class="fas fa-arrow-left"></i> 🎴</button>
             <button type="button" id="btnCores" title="Cartas coloridas" aria-label="Alternar cartas coloridas" aria-pressed="false"></button>
             <button type="button" id="btnMic" title="Abrir o microfone (fica aberto até tocar de novo)" aria-label="Microfone" aria-pressed="false"><i class="fas fa-microphone"></i></button>
             <button type="button" id="btnChave" class="escondido" title="Senha da sala" aria-label="Ver a senha da sala"><i class="fas fa-key"></i></button>

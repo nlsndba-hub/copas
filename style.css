@@ -1328,14 +1328,12 @@ html[data-tela="jogo"] .painel-frases, body[data-tela="jogo"] .painel-frases {
 .jogo-sueca #j1, .jogo-sueca #j3 { box-shadow: 0 0 0 2px rgba(230,120,100,.45); }
 #modalBox .sueca-jogos { font-size: 1.1em; }
 
-/* Botão "voltar à escolha do jogo" */
-#btnJogos {
-    background: rgba(0,0,0,.78); border: 2px solid #8fd19e; color: #8fd19e; border-radius: 10px;
-    padding: 0 12px; min-width: 46px; min-height: 44px; cursor: pointer; font-size: 16px;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+/* Botão "voltar à escolha do jogo" (tela Sozinho / Misto / Sala) */
+.btn-voltar-jogo {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 0 0 10px; padding: 10px 12px;
+    background: rgba(0,0,0,.55); border: 2px solid #8fd19e; color: #8fd19e; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer;
 }
-#btnJogos:hover { background: rgba(143, 209, 158, .18); box-shadow: 0 0 12px rgba(143, 209, 158, .45); }
-@media (max-width: 768px) { #btnJogos { min-width: 40px; min-height: 40px; padding: 0 8px; font-size: 14px; } }
+.btn-voltar-jogo:hover { background: rgba(143, 209, 158, .18); box-shadow: 0 0 12px rgba(143, 209, 158, .45); }
 
 /* V104 — Poker (Texas Hold'em) */
 body.jogo-poker .posicao-carta { display: none; }
