@@ -11,11 +11,15 @@ const LIMITE = 60;
 const ORDEM_MAO = [PAU, OUR, ESP, COP];
 let JOGO = null;      // 'copas' | 'sueca' (escolhido depois de Iniciar)
 const ehNomeSueca = n => /^♣ Sueca/.test(n || '');
+const ehNomePoker = n => /^♠ Poker/.test(n || '');
+const pokerSala = () => !!(MP.sala && ehNomePoker(MP.sala.nome));
+const pokerMisto = () => pokerSala() && /Misto/.test(MP.sala.nome);
+const emPoker = () => typeof G !== 'undefined' && !!G && G.jogo === 'poker';
 const suecaSala = () => !!(MP.sala && ehNomeSueca(MP.sala.nome));
 const suecaMisto = () => suecaSala() && /Misto/.test(MP.sala.nome);
 const emSueca = () => typeof G !== 'undefined' && !!G && G.jogo === 'sueca';
-const ehDama = c => !emSueca() && c.naipe === ESP && c.valor === 10;
-const pontosCarta = c => emSueca() ? (typeof Sueca !== 'undefined' ? Sueca.pontos(c) : 0) : (c.naipe === COP ? 1 : (ehDama(c) ? 13 : 0));
+const ehDama = c => !emSueca() && !emPoker() && c.naipe === ESP && c.valor === 10;
+const pontosCarta = c => emPoker() ? 0 : emSueca() ? (typeof Sueca !== 'undefined' ? Sueca.pontos(c) : 0) : (c.naipe === COP ? 1 : (ehDama(c) ? 13 : 0));
 const $ = id => document.getElementById(id);
 
 // ================= MULTIJOGADOR (V20) · estado global =================
@@ -36,7 +40,7 @@ let ultimaTela = '';
 function mostrarTela(id) {
     TELAS.forEach(t => $(t).classList.toggle('escondido', t !== id));
     document.body.dataset.tela = id;
-    if (id !== 'jogo') document.body.classList.remove('jogo-sueca');
+    if (id !== 'jogo') document.body.classList.remove('jogo-sueca', 'jogo-poker', 'poker-fora');
     document.documentElement.dataset.tela = id;
     if (id !== ultimaTela) { ultimaTela = id; try { atualizarChatVisivel(); } catch (e) {} }
 }
@@ -1003,6 +1007,7 @@ function fimRodada() {
 // ================= MODAL DO RANKING GERAL =================
 function abrirRankingGeral() {
     if (!G) return;
+    if (G.jogo === 'poker') return Poker.abrirPlacar();
     if (G.jogo === 'sueca') return Sueca.abrirPlacar();
     // No modo Sozinho, o troféu mostra apenas a classificação da partida atual.
     if (MP.modo === 'solo') {
@@ -1087,6 +1092,7 @@ $('modalRanking').addEventListener('click', e => {
 
 // ================= FLUXO DE TURNOS =================
 function agendar() {
+    if (G.jogo === 'poker') return Poker.agendar();
     if (G.jogo === 'sueca') return Sueca.agendar();
     clearTimeout(G.timer);
     render();
@@ -1104,6 +1110,7 @@ function agendar() {
 }
 
 function tentarJogar(c) {
+    if (G.jogo === 'poker') return Poker.tentarJogar(c);
     if (G.jogo === 'sueca') return Sueca.tentarJogar(c);
     if (G.distribuindo || G.turno !== 0 || G.ocupado || G.mesa.length === 4) return;
     const erro = validar(0, c);
@@ -1758,7 +1765,7 @@ function render(piscar) {
         box.innerHTML = `<img class="avatar-jogador" data-pid="${(G.donos && G.donos[i]) || ''}" src="${G.personagens[i].foto}" alt="${G.nomes[i]}" onerror="this.src='fotos/${G.personagens[i].id}.png'; this.onerror=null"${espClick}>
             <div class="info-jogador">
                 <span class="nome nome-ajusta" title="${G.nomes[i]}"><span class="nome-txt">${nomeCurto(G.nomes[i])}</span> <small class="ranking">${ranking}º</small><i class="indicador-sala ${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'sala-online' : 'sala-offline'}" data-pid="${(G.donos && G.donos[i]) || ''}" title="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}" aria-label="${(G.donos && G.donos[i] && (MP.membros.some(m => m.pid === G.donos[i]) || (G.donos[i] === MP.pid && MP.ativo))) ? 'Usuário nesta sala' : 'Máquina ou usuário em outra sala'}"></i></span>
-                ${G.jogo === 'sueca' ? `<span class="tot">Jogos: ${G.totais[i]}</span><span class="rod">Mão: ${G.pts[i]}</span>` : `<span class="tot">Total: ${G.totais[i]}</span><span class="rod">Rodada: ${G.pts[i]}</span>`}
+                ${G.jogo === 'poker' ? Poker.caixa(i) : G.jogo === 'sueca' ? `<span class="tot">Jogos: ${G.totais[i]}</span><span class="rod">Mão: ${G.pts[i]}</span>` : `<span class="tot">Total: ${G.totais[i]}</span><span class="rod">Rodada: ${G.pts[i]}</span>`}
             </div>`;
         ajustarNomes(box);
         if (G.rodadaEncerrada && i !== 0) {
@@ -1776,6 +1783,7 @@ function render(piscar) {
     atualizarPausa();
     publicarMesa();
     if (typeof Sueca !== 'undefined') Sueca.atualizarInfo();
+    if (typeof Poker !== 'undefined') Poker.atualizarInfo();
 }
 
 function mostrarQ() {
@@ -2193,7 +2201,8 @@ function atualizarEspera() {
     if (suecaSala()) {
         info = suecaMisto() ? `Sueca Misto: aguardando jogadores (${n}/4). Quando o relógio de 30 s zerar, as máquinas completam a mesa. Duplas: você + quem senta à sua frente.` : `Sueca em dupla: aguardando jogadores ${n}/4. A partida começa quando a mesa encher (sem máquinas).`;
     }
-    $('btnSuecaComecar').classList.toggle('escondido', !(suecaMisto() && souHost() && !jogando && n < 4));
+    if (pokerSala()) info = pokerMisto() ? `Poker Misto: aguardando jogadores (${n}/4). Quando o relógio de 30 s zerar, as máquinas completam a mesa. Cada um joga por si, com 1000 fichas.` : `Poker: aguardando jogadores ${n}/4. A partida começa quando a mesa encher (aqui não entram máquinas).`;
+    $('btnSuecaComecar').classList.toggle('escondido', !((suecaMisto() || pokerMisto()) && souHost() && !jogando && n < 4));
     $('esperaInfo').textContent = (MP.avisoEspera ? MP.avisoEspera + ' ' : '') + info;
     marcarFalando();
 }
@@ -2221,7 +2230,7 @@ function tick() {
     }
     MP.cheiaDesde = 0;
     if (MP.modo === 'misto' && restante() <= 0) iniciarMP();
-    if (suecaMisto() && Date.now() - (MP.esperaDesde || Date.now()) >= TEMPO_MISTO) iniciarMP();   // Sueca Misto: máquinas completam a mesa   // fim dos 2 min: máquinas completam
+    if ((suecaMisto() || pokerMisto()) && Date.now() - (MP.esperaDesde || Date.now()) >= TEMPO_MISTO) iniciarMP();   // Sueca Misto: máquinas completam a mesa   // fim dos 2 min: máquinas completam
 }
 
 // ================= COLEÇÃO DE ESTAMPAS (persistência por usuário) =================
@@ -2595,17 +2604,18 @@ $('btnModoSozinho').onclick = () => {
     MP.modo = 'solo';
     jogadorHumano = personagemDoUsuario();
     if (!jogadorHumano) { abrirAcesso(); return; }
-    if (JOGO === 'sueca') Sueca.iniciar(); else iniciarPartida();
+    if (JOGO === 'poker') Poker.iniciar(); else if (JOGO === 'sueca') Sueca.iniciar(); else iniciarPartida();
 };
 function aplicarJogoNaTelaModo() {
-    const su = JOGO === 'sueca';
-    document.querySelector('#telaModo h1').textContent = su ? '♣ Sueca · Como quer jogar? ♦' : '♥ Como quer jogar? ♠';
-    $('btnModoSozinho').querySelector('small').textContent = su ? 'Você e uma máquina contra 2 máquinas' : 'Você contra 3 máquinas';
-    $('btnModoMissoes').classList.toggle('escondido', su);
-    if (su) $('btnModoEstampas').classList.add('escondido'); else $('btnModoEstampas').classList.remove('escondido');
+    const su = JOGO === 'sueca', pk = JOGO === 'poker';
+    document.querySelector('#telaModo h1').textContent = pk ? '♠ Poker · Como quer jogar? ♥' : su ? '♣ Sueca · Como quer jogar? ♦' : '♥ Como quer jogar? ♠';
+    $('btnModoSozinho').querySelector('small').textContent = pk ? 'Você contra 3 máquinas, com fichas' : su ? 'Você e uma máquina contra 2 máquinas' : 'Você contra 3 máquinas';
+    $('btnModoMissoes').classList.toggle('escondido', su || pk);
+    if (su || pk) $('btnModoEstampas').classList.add('escondido'); else $('btnModoEstampas').classList.remove('escondido');
 }
 $('btnJogoCopas').onclick = () => { JOGO = 'copas'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
 $('btnJogoSueca').onclick = () => { JOGO = 'sueca'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
+$('btnJogoPoker').onclick = () => { JOGO = 'poker'; aplicarJogoNaTelaModo(); mostrarTela('telaModo'); };
 $('btnTrocarJogo').onclick = () => { JOGO = null; mostrarTela('telaJogo'); };
 // Botão do topo: sai da partida (se houver) e volta à tela de escolha do jogo (Copas ou Sueca).
 $('btnJogos').onclick = () => {
@@ -2643,10 +2653,10 @@ let listaModo = 'sala';
 async function abrirSalas(modo) {
     if (!getSB()) { alert(msgSB()); return; }
     listaModo = modo === 'misto' ? 'misto' : 'sala';
-    const sueca = JOGO === 'sueca';
+    const sueca = JOGO === 'sueca' || JOGO === 'poker', pk = JOGO === 'poker';
     const m = listaModo === 'misto' && !sueca;
-    $('tituloSalas').textContent = sueca ? (listaModo === 'misto' ? '♣ Sueca · Mesas Misto' : '♣ Sueca · Bares abertos') : (m ? '👥 Salas Misto' : '🍺 Bares abertos');
-    $('subSalas').textContent = sueca ? 'Toque numa mesa para entrar, ou crie a sua. Jogo em dupla: você e quem senta à sua frente.' : m ? 'Existe uma única sala Misto. Entre para jogar ou toque em 👁 Assistir.' : 'Toque em um bar para entrar, ou crie o seu. Toque no 👁 para só assistir.';
+    $('tituloSalas').textContent = sueca ? (pk ? (listaModo === 'misto' ? '♠ Poker · Mesas Misto' : '♠ Poker · Bares abertos') : (listaModo === 'misto' ? '♣ Sueca · Mesas Misto' : '♣ Sueca · Bares abertos')) : (m ? '👥 Salas Misto' : '🍺 Bares abertos');
+    $('subSalas').textContent = sueca ? (pk ? 'Toque numa mesa para entrar, ou crie a sua. Cada um joga por si, com as suas fichas.' : 'Toque numa mesa para entrar, ou crie a sua. Jogo em dupla: você e quem senta à sua frente.') : m ? 'Existe uma única sala Misto. Entre para jogar ou toque em 👁 Assistir.' : 'Toque em um bar para entrar, ou crie o seu. Toque no 👁 para só assistir.';
     $('btnJogarMisto').classList.toggle('escondido', !m);
     $('btnCriarSala').classList.toggle('escondido', m);
     $('btnCriarSala').lastChild.textContent = sueca && listaModo === 'misto' ? ' Criar mesa Misto' : ' Criar sala';
@@ -2656,11 +2666,11 @@ async function abrirSalas(modo) {
 }
 $('btnJogarMisto').onclick = () => { clearInterval(MP.tLista); entrarMisto(); };
 async function carregarSalas() {
-    const sueca = JOGO === 'sueca';
+    const sueca = JOGO === 'sueca' || JOGO === 'poker', pk = JOGO === 'poker';
     const box = $('listaSalas'), m = listaModo === 'misto' && !sueca;
     try {
         let lista = await rpc(m ? 'listar_mistos' : 'listar_salas');
-        if (!m && lista) lista = lista.filter(s => sueca ? (ehNomeSueca(s.nome) && (listaModo === 'misto') === /Misto/.test(s.nome)) : !ehNomeSueca(s.nome));
+        if (!m && lista) lista = lista.filter(s => sueca ? ((pk ? ehNomePoker(s.nome) : ehNomeSueca(s.nome)) && (listaModo === 'misto') === /Misto/.test(s.nome)) : (!ehNomeSueca(s.nome) && !ehNomePoker(s.nome)));
         if (!lista || !lista.length) { box.innerHTML = '<div class="vazio">' + (m ? 'Nenhuma partida Misto aberta. Toque em Jogar para abrir a sala (inicia em 30 s e as máquinas completam a mesa).' : 'Nenhum bar aberto agora. Crie o primeiro!') + '</div>'; return; }
         box.innerHTML = '';
         lista.forEach((s, k) => {
@@ -2694,7 +2704,7 @@ async function _entrarNaSala(s) {
     } catch (e) { alert('Erro ao entrar na sala: ' + msgErro(e)); await sairSala(); MP.modo = 'solo'; abrirSalas('sala'); }
 }
 async function _criarSala() {
-    const nome = (JOGO === 'sueca' ? (listaModo === 'misto' ? '♣ Sueca · Misto ' : '♣ Sueca · ') : '') + nomeBarAleatorio(), senha = '';
+    const nome = (JOGO === 'poker' ? (listaModo === 'misto' ? '♠ Poker · Misto ' : '♠ Poker · ') : JOGO === 'sueca' ? (listaModo === 'misto' ? '♣ Sueca · Misto ' : '♣ Sueca · ') : '') + nomeBarAleatorio(), senha = '';
     let canalCriado = null;
     try {
         const r = await rpc('criar_sala', { p_nome: nome, p_senha: senha });
@@ -2914,6 +2924,7 @@ function promoverParaHost() {
 
 function verificarSaidas() {
     if (!MP.emJogo || !G) return;
+    if (G.jogo === 'poker') return Poker.verificarSaidas();
     if (G.jogo === 'sueca') return Sueca.verificarSaidas();
     const vivos = new Set(MP.membros.map(m => m.pid));
     if (MP.modo === 'sala') {
@@ -2973,7 +2984,7 @@ function iniciarMP() {
     }
     MP.mesaMeta = '';
     if (getSB()) rpc('marcar_jogando', { p_canal: MP.sala.canal }).catch(() => {});
-    if (suecaSala()) Sueca.iniciarMP(humanos); else iniciarPartida(humanos);
+    if (pokerSala()) Poker.iniciarMP(humanos); else if (suecaSala()) Sueca.iniciarMP(humanos); else iniciarPartida(humanos);
 }
 
 // ---------- sincronização do estado ----------
@@ -2983,6 +2994,7 @@ function agendarDifusao() {
 }
 function difundir() {
     if (!G || !MP.ch || !MP.emJogo) return;
+    if (G.jogo === 'poker') return Poker.difundir();
     if (G.jogo === 'sueca') return Sueca.difundir();
     const s = {
         r: G.rodada, t: G.turno, oc: G.ocupado, di: G.distribuindo, dm: G.distMsg, rc: G.recebidas, re: G.rodadaEncerrada,
@@ -3006,6 +3018,7 @@ function difundir() {
 }
 
 function aoSnap(payload) {
+    if (payload && payload.po) return Poker.aoSnap(payload);
     if (payload && payload.su) return Sueca.aoSnap(payload);
     const { s, maos } = payload;
     if (MP.papel === 'host' || !MP.ch) return;
@@ -3073,6 +3086,7 @@ function sincronizarMesaCliente() {
 }
 
 function aoEvento(p) {
+    if (p.po) return Poker.aoEvento(p);
     if (p.su) return Sueca.aoEvento(p);
     if (p.t === 'sala') {     // Misto cheio virou Sala
         MP.modo = 'sala';
@@ -3089,6 +3103,7 @@ function aoEvento(p) {
 
 function aoJogar({ pid, c }) {
     if (MP.papel !== 'host' || !G) return;
+    if (G.jogo === 'poker') return Poker.aoJogar({ pid, c });
     if (G.jogo === 'sueca') return Sueca.aoJogar({ pid, c });
     const s = G.donos.indexOf(pid);
     if (s < 1 || !G.humanos[s] || (G.vago && G.vago[s])) return;
@@ -3280,7 +3295,7 @@ window.addEventListener('click', e => { if (Date.now() < VOZ.semClique) { e.stop
 let cliqueVoz = null;
 function cancelarCliqueVoz() { if (cliqueVoz) { clearTimeout(cliqueVoz.tm); cliqueVoz = null; } }
 const mouseDeVerdade = e => !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
-const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat, #btnMic, #btnCores, #btnJogos, #btnFrases, #painelFrases'));
+const dentroDoChat = e => !!(e.target && e.target.closest && e.target.closest('#painelChat, #btnChat, #btnMic, #btnCores, #btnJogos, #pokerAcoes, #btnFrases, #painelFrases'));
 window.addEventListener('mousedown', e => {
     if (!vozPermitida() || !mouseDeVerdade(e) || dentroDoChat(e)) return;
     if (e.buttons === 3) { cancelarCliqueVoz(); VOZ.fonte = 'mouse'; falarIniciar(); return; }   // esquerdo + direito
@@ -4101,7 +4116,7 @@ function renderEspectador() {
         box.innerHTML = `<img class="avatar-jogador" data-pid="${(G.donos && G.donos[i]) || ''}" src="${p.foto}" alt="${G.nomes[i]}" onclick="verCartasEspectador(${i})" style="cursor:pointer" title="Ver cartas de ${G.nomes[i]}" onerror="this.src='fotos/${p.id}.png'; this.onerror=null">
             <div class="info-jogador">
                 <span class="nome nome-ajusta" title="${G.nomes[i]}"><span class="nome-txt">${nomeCurto(G.nomes[i])}</span> <small class="ranking">${ranking}º</small></span>
-                ${G.jogo === 'sueca' ? `<span class="tot">Jogos: ${G.totais[i]}</span><span class="rod">Mão: ${G.pts[i]}</span>` : `<span class="tot">Total: ${G.totais[i]}</span><span class="rod">Rodada: ${G.pts[i]}</span>`}
+                ${G.jogo === 'poker' ? Poker.caixa(i) : G.jogo === 'sueca' ? `<span class="tot">Jogos: ${G.totais[i]}</span><span class="rod">Mão: ${G.pts[i]}</span>` : `<span class="tot">Total: ${G.totais[i]}</span><span class="rod">Rodada: ${G.pts[i]}</span>`}
             </div>`;
         ajustarNomes(box);
         if (G.rodadaEncerrada && i !== 0) {
@@ -4445,7 +4460,7 @@ document.addEventListener('click', e => {
 // (precisa fazer login de novo). Quem está em partida só cai depois de sair dela.
 // =====================================================================
 (() => {
-    const ARQS = ['index.html', 'script.js', 'style.css', 'missoes.js', 'personagens.js'];
+    const ARQS = ['index.html', 'script.js', 'style.css', 'missoes.js', 'personagens.js', 'sueca.js', 'poker.js'];
     let base = null, pendente = false, aplicando = false;
     async function assinatura() {
         const partes = [];

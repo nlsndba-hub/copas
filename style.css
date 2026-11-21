@@ -1336,3 +1336,29 @@ html[data-tela="jogo"] .painel-frases, body[data-tela="jogo"] .painel-frases {
 }
 #btnJogos:hover { background: rgba(143, 209, 158, .18); box-shadow: 0 0 12px rgba(143, 209, 158, .45); }
 @media (max-width: 768px) { #btnJogos { min-width: 40px; min-height: 40px; padding: 0 8px; font-size: 14px; } }
+
+/* V104 — Poker (Texas Hold'em) */
+body.jogo-poker .posicao-carta { display: none; }
+#pokerMesa { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start; gap: calc(var(--u) * .3); pointer-events: none; }
+body.jogo-poker #pokerMesa { display: flex; }
+#pokerPote { font-weight: 800; color: #ffe9a8; background: rgba(0,0,0,.6); border: 1px solid #d5b65b; border-radius: 999px; padding: 1px 10px; font-size: calc(var(--u) * 1.05); white-space: nowrap; }
+#pokerCom { display: flex; gap: 2px; justify-content: center; }
+#pokerCom .carta, #pokerCom .slot { --w: calc((var(--tw) * 3) / 5); }
+#pokerCom .slot { width: var(--w); height: calc(var(--w) * 1.4286); border: 1px dashed rgba(255,255,255,.35); border-radius: calc(var(--w) * .085); box-sizing: border-box; }
+#pokerMao { font-size: calc(var(--u) * .95); color: #fff; font-weight: 700; text-shadow: 0 1px 3px #000; text-align: center; min-height: 1.2em; }
+body.poker-fora #maoJogador { opacity: .45; }
+#pokerAcoes { position: absolute; left: 0; right: 0; z-index: 27; display: none; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; padding: 6px; background: rgba(0,0,0,.78); border-top: 1px solid #d5b65b; }
+#pokerAcoes.on { display: flex; }
+#pokerAcoes .pk-subir { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
+#pokerAcoes button { min-height: 40px; padding: 0 12px; border-radius: 10px; border: 2px solid #8fd19e; background: rgba(0,0,0,.85); color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; }
+#pokerAcoes .pk-fold { border-color: #ff8a80; color: #ff8a80; }
+#pokerAcoes .pk-raise { border-color: #ffd54f; color: #ffd54f; }
+#pokerAcoes .pk-all { border-color: #ff5252; background: #7a1010; }
+#pokerAcoes .pk-menos, #pokerAcoes .pk-mais { padding: 0 10px; font-size: 18px; }
+#pokerAcoes .pk-meio, #pokerAcoes .pk-pote { border-color: #aaa; font-size: 12px; padding: 0 8px; }
+#pokerAcoes .pk-val { min-width: 54px; text-align: center; color: #ffe9a8; font-weight: 800; }
+#pokerAcoes .escondido { display: none !important; }
+.carta.poker-mini { --w: 38px; display: inline-block; margin: 0 2px; }
+.pk-rev-lista { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.pk-rev { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pk-rev-cartas { display: inline-flex; }
