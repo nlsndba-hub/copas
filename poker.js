@@ -240,13 +240,14 @@ const Poker = (() => {
         const sc = {}; vivos().forEach(i => { sc[i] = melhor(G.maos[i].concat(G.comunTodas)); });
         fimMao({ sc });
     }
-    function distribuir(sc, ganhos) {
+    function distribuir(sc, ganhos, dev) {
         const niveis = [...new Set(G.investido.filter(x => x > 0))].sort((a, b) => a - b);
         let ant = 0;
         niveis.forEach(n => {
             const contr = [0, 1, 2, 3].filter(i => G.investido[i] >= n), valor = (n - ant) * contr.length, el = contr.filter(i => !G.dobrou[i]);
-            if (!el.length) { contr.forEach(i => { ganhos[i] += n - ant; }); ant = n; return; }   // sobra sem disputa volta a quem pôs
+            if (!el.length) { contr.forEach(i => { ganhos[i] += n - ant; dev[i] += n - ant; }); ant = n; return; }   // sobra sem disputa volta a quem pôs
             ant = n;
+            if (contr.length === 1) { ganhos[contr[0]] += valor; dev[contr[0]] += valor; return; }   // aposta que ninguém cobriu: só volta
             const b = el.reduce((m, i) => (m === null || cmp(sc[i], sc[m]) > 0 ? i : m), null);
             const gan = el.filter(i => cmp(sc[i], sc[b]) === 0).sort((a, c) => ((a - G.botao + 3) % 4) - ((c - G.botao + 3) % 4));
             const parte = Math.floor(valor / gan.length);
@@ -257,14 +258,14 @@ const Poker = (() => {
     function fimMao(r) {
         clearTimeout(G.timer);
         G.ocupado = true; G.fase = G.fase === 'show' ? 'show' : G.fase;
-        const ganhos = [0, 0, 0, 0], rv = {}, mh = {};
+        const ganhos = [0, 0, 0, 0], dev = [0, 0, 0, 0], rv = {}, mh = {};
         if (r && r.unico !== undefined) ganhos[r.unico] = G.investido.reduce((a, b) => a + b, 0);
         else if (r && r.sc) {
-            distribuir(r.sc, ganhos);
+            distribuir(r.sc, ganhos, dev);
             vivos().forEach(i => { rv[i] = G.maos[i].map(c => c.id); mh[i] = descrever(r.sc[i]); });
             // desempate: se perdeu para alguém com a mesma jogada, explica qual carta decidiu
             vivos().forEach(i => {
-                if (!(ganhos[i] > 0)) return;
+                if (!(ganhos[i] - dev[i] > 0)) return;
                 let melhorRival = null;
                 vivos().forEach(j => { if (j !== i && r.sc[j][0] === r.sc[i][0] && r.sc[j][1] === r.sc[i][1] && cmp(r.sc[i], r.sc[j]) > 0 && (melhorRival === null || cmp(r.sc[j], r.sc[melhorRival]) > 0)) melhorRival = j; });
                 if (melhorRival === null) return;
@@ -279,7 +280,7 @@ const Poker = (() => {
         const fim = !r || com.length < 2 || !com.some(i => G.humanos[i]);
         let venc = -1;
         if (fim) venc = [0, 1, 2, 3].reduce((m, i) => (G.fichas[i] > G.fichas[m] ? i : m), 0);
-        const d = { r: G.rodada, no: G.nomes.slice(), gn: ganhos, rv, mh, fi: G.fichas.slice(), com: G.comun.map(c => c.id), fim, venc, eu: 0, sd: !!(r && r.sc) };
+        const d = { r: G.rodada, no: G.nomes.slice(), gn: ganhos, dv: dev, rv, mh, fi: G.fichas.slice(), com: G.comun.map(c => c.id), fim, venc, eu: 0, sd: !!(r && r.sc) };
         G.venc = null;
         render();
         MP.ultimoD = d;
@@ -292,7 +293,11 @@ const Poker = (() => {
     function mostrarModal(d) {
         const eu = G.eu || 0;
         let h = d.fim ? '<h2>🏁 Fim da partida!</h2>' : `<h2>Fim da mão ${d.r}</h2>`;
-        d.gn.forEach((g, i) => { if (g > 0) h += `<p class="pk-vit">🏆 <b>${i === eu ? 'Você' : d.no[i]}</b> ganhou <b>${g}</b> fichas</p>` + (d.mh[i] ? `<p class="pk-mao-ganha">com ${d.mh[i]}</p>` : '<p class="sub">Todos os outros desistiram.</p>') + `<div class="pk-fichas">${fichasHTML(g)}</div>`; });
+        d.gn.forEach((g, i) => {
+            const dv = (d.dv && d.dv[i]) || 0, gv = g - dv, nm = i === eu ? 'Você' : d.no[i];
+            if (gv > 0) h += `<p class="pk-vit">🏆 <b>${nm}</b> ganhou <b>${gv}</b> fichas</p>` + (d.mh[i] ? `<p class="pk-mao-ganha">com ${d.mh[i]}</p>` : '<p class="sub">Todos os outros desistiram.</p>') + `<div class="pk-fichas">${fichasHTML(gv)}</div>`;
+            if (dv > 0) h += `<p class="sub">↩️ <b>${nm}</b> recebeu de volta <b>${dv}</b> fichas (aposta que ninguém cobriu)</p>`;
+        });
         const reveladas = Object.keys(d.rv);
         if (reveladas.length) h += '<div class="pk-rev-lista">' + (d.com && d.com.length ? '<div class="pk-rev pk-mesa"><span>Mesa</span><span class="pk-rev-cartas" data-s="mesa"></span></div>' : '') + reveladas.map(i => `<div class="pk-rev"><span>${+i === eu ? 'Você' : d.no[i]}</span><span class="pk-rev-cartas" data-s="${i}"></span></div>`).join('') + '</div>';
         h += '<p class="sub">' + d.fi.map((f, i) => `${i === eu ? 'Você' : d.no[i]}: <b>${f}</b>`).join(' · ') + '</p>';
