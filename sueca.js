@@ -197,9 +197,14 @@ const Sueca = (() => {
             <p><b>Sua dupla</b> (${[G.nomes[0], G.nomes[2]].join(' e ')})<br>Jogos: <b>${G.jogos[0]}</b> · Pontos na mão: <b>${G.ptsEq[0]}</b></p>
             <p><b>Adversários</b> (${[G.nomes[1], G.nomes[3]].join(' e ')})<br>Jogos: <b>${G.jogos[1]}</b> · Pontos na mão: <b>${G.ptsEq[1]}</b></p>
             <p class="sub">Vence quem fizer ${META} jogos. 61–90 pts = 1 jogo · 91–119 = 2 · 120 = 4.</p>
-            <button type="button" class="btn-sec" id="btnFecharPlacarSueca">Fechar</button>`;
+            ${!MP.ativo ? '<button type="button" class="btn-modo" id="btnRodarMesaSueca" style="margin:0 0 8px">🔄 Rodar mesa</button>' : ''}
+            <button type="button" class="btn-sec" id="btnSairSueca" style="margin:0 0 8px">🚪 Sair do jogo</button>
+            <button type="button" class="btn-modo" id="btnFecharPlacarSueca">Fechar</button>`;
         $('modalRanking').classList.remove('escondido');
         $('btnFecharPlacarSueca').onclick = () => $('modalRanking').classList.add('escondido');
+        const r = $('btnRodarMesaSueca');
+        if (r) r.onclick = () => { $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); clearTimeout(G.timer); pararAudiosEntrada(); iniciar(); };   // nova mesa, novos adversários
+        $('btnSairSueca').onclick = () => { if (confirm('Sair do jogo e voltar à escolha do modo?')) sairParaMenu('telaModo'); };
     }
 
     // ---------- máquina ----------

@@ -279,7 +279,7 @@ const Poker = (() => {
         let h = d.fim ? '<h2>🏁 Fim da partida!</h2>' : `<h2>Fim da mão ${d.r}</h2>`;
         d.gn.forEach((g, i) => { if (g > 0) h += `<p>🏆 <b>${i === eu ? 'Você' : d.no[i]}</b> ficou com <b>${g}</b> fichas${d.mh[i] ? ` · ${d.mh[i]}` : ''}</p>`; });
         const reveladas = Object.keys(d.rv);
-        if (reveladas.length) h += '<div class="pk-rev-lista">' + reveladas.map(i => `<div class="pk-rev"><span>${+i === eu ? 'Você' : d.no[i]}</span><span class="pk-rev-cartas" data-s="${i}"></span></div>`).join('') + '</div>';
+        if (reveladas.length) h += '<div class="pk-rev-lista">' + (d.com && d.com.length ? '<div class="pk-rev pk-mesa"><span>Mesa</span><span class="pk-rev-cartas" data-s="mesa"></span></div>' : '') + reveladas.map(i => `<div class="pk-rev"><span>${+i === eu ? 'Você' : d.no[i]}</span><span class="pk-rev-cartas" data-s="${i}"></span></div>`).join('') + '</div>';
         h += '<p class="sub">' + d.fi.map((f, i) => `${i === eu ? 'Você' : d.no[i]}: <b>${f}</b>`).join(' · ') + '</p>';
         if (d.fim) {
             h += `<h3>${d.venc === eu ? '🏆 Você ganhou todas as fichas!' : (d.fi[eu] <= 0 ? '😤 Você ficou sem fichas' : `🏆 ${d.no[d.venc]} venceu`)}</h3>`;
@@ -289,6 +289,8 @@ const Poker = (() => {
         } else if (d.fi[eu] <= 0) h += '<p class="sub">Você ficou sem fichas e acompanha a mesa até o fim.</p>';
         else h += '<p class="sub">A próxima mão começa já…</p>';
         $('modalBox').innerHTML = h;
+        const bm = $('modalBox').querySelector('.pk-rev-cartas[data-s="mesa"]');
+        if (bm) d.com.forEach(id => { const e = criarElementoCarta(cartaDeId(id)); e.classList.add('poker-mini'); bm.appendChild(e); });
         reveladas.forEach(i => {
             const box = $('modalBox').querySelector(`.pk-rev-cartas[data-s="${i}"]`);
             d.rv[i].forEach(id => { const e = criarElementoCarta(cartaDeId(id)); e.classList.add('poker-mini'); box.appendChild(e); });
@@ -302,9 +304,14 @@ const Poker = (() => {
         $('modalRankingBox').innerHTML = `<h2>♠ Placar do Poker</h2>
             <p><b>Mão ${G.rodada}</b> · blinds ${G.sb}/${G.bb} <small>(dobram a cada ${MAOS_POR_NIVEL} mãos)</small></p>
             ${ordem.map((i, k) => `<p>${k + 1}º <b>${i === 0 ? 'Você' : G.nomes[i]}</b>: ${G.fichas[i]} fichas${G.fora[i] ? ' · eliminado' : ''}</p>`).join('')}
-            <button type="button" class="btn-sec" id="btnFecharPlacarPoker">Fechar</button>`;
+            ${!MP.ativo ? '<button type="button" class="btn-modo" id="btnRodarMesaPoker" style="margin:0 0 8px">🔄 Rodar mesa</button>' : ''}
+            <button type="button" class="btn-sec" id="btnSairPoker" style="margin:0 0 8px">🚪 Sair do jogo</button>
+            <button type="button" class="btn-modo" id="btnFecharPlacarPoker">Fechar</button>`;
         $('modalRanking').classList.remove('escondido');
         $('btnFecharPlacarPoker').onclick = () => $('modalRanking').classList.add('escondido');
+        const r = $('btnRodarMesaPoker');
+        if (r) r.onclick = () => { $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); clearTimeout(G.timer); pararAudiosEntrada(); iniciar(); };   // nova mesa, novos adversários
+        $('btnSairPoker').onclick = () => { if (confirm('Sair do jogo e voltar à escolha do modo?')) sairParaMenu('telaModo'); };
     }
 
     // ---------- máquina ----------
