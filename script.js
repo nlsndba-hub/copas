@@ -1005,6 +1005,53 @@ function fimRodada() {
 }
 
 // ================= MODAL DO RANKING GERAL =================
+// ============ REGRAS (botão dentro do troféu: Copas, Sueca e Poker) ============
+function abrirRegras(jogo, voltar) {
+    const R = (f, n) => `<span class="mini-carta ${(n === '♥' || n === '♦') ? 'verm' : ''}">${f}<small>${n}</small></span>`;
+    let h = '';
+    if (jogo === 'sueca') {
+        h = `<h2>♣ Regras da Sueca</h2><div class="regras">
+        <p><b>Jogo:</b> 4 jogadores em 2 duplas (você com quem senta à sua frente), baralho de 40 cartas (sem 8, 9 e 10).</p>
+        <p><b>Trunfo:</b> o naipe da última carta distribuída. O trunfo vence os outros naipes.</p>
+        <p><b>Jogar:</b> é obrigatório assistir ao naipe da primeira carta; sem o naipe, joga qualquer uma. Vence a vaza o maior trunfo ou, sem trunfo, a maior carta do naipe jogado.</p>
+        <p><b>Ordem (maior → menor):</b> Ás, 7, Rei, Valete, Dama, 6, 5, 4, 3, 2.</p>
+        <p><b>Valor das cartas:</b> Ás 11 · 7 = 10 · Rei 4 · Valete 3 · Dama 2 · demais 0 (total 120).</p>
+        <p><b>Mão:</b> 61 a 90 pts = 1 jogo · 91 a 119 = 2 jogos · 120 = 4 jogos · 60×60 = empate (a próxima mão vale dobro).</p>
+        <p><b>Vitória:</b> a dupla que fizer 4 jogos primeiro.</p></div>`;
+    } else if (jogo === 'poker') {
+        const lin = [
+            ['Straight flush', 'Sequência do mesmo naipe (10-J-Q-K-Ás = Royal flush)', [['10','♥'],['J','♥'],['Q','♥'],['K','♥'],['A','♥']]],
+            ['Quadra', 'Quatro cartas iguais', [['8','♠'],['8','♥'],['8','♦'],['8','♣'],['K','♠']]],
+            ['Full house', 'Uma trinca + um par', [['Q','♠'],['Q','♥'],['Q','♦'],['5','♣'],['5','♠']]],
+            ['Flush', 'Cinco cartas do mesmo naipe', [['2','♦'],['6','♦'],['9','♦'],['J','♦'],['K','♦']]],
+            ['Sequência', 'Cinco cartas em ordem, naipes variados', [['5','♣'],['6','♥'],['7','♠'],['8','♦'],['9','♣']]],
+            ['Trinca', 'Três cartas iguais', [['7','♠'],['7','♥'],['7','♦'],['K','♣'],['2','♠']]],
+            ['Dois pares', 'Dois pares diferentes', [['J','♠'],['J','♥'],['4','♦'],['4','♣'],['A','♠']]],
+            ['Par', 'Duas cartas iguais', [['10','♠'],['10','♥'],['3','♦'],['8','♣'],['K','♠']]],
+            ['Carta alta', 'Nenhuma combinação: vale a maior carta', [['A','♠'],['J','♥'],['8','♦'],['5','♣'],['2','♠']]]
+        ];
+        h = `<h2>♠ Regras do Poker</h2><div class="regras">
+        <p><b>Texas Hold'em:</b> cada jogador recebe 2 cartas e há 5 cartas comuns na mesa (flop 3, turn 1, river 1). Vale a melhor mão de 5 cartas entre as 7 disponíveis.</p>
+        <p><b>Apostas:</b> pré-flop, flop, turn e river. Você pode passar, pagar, aumentar, desistir ou ir all-in.</p>
+        <p><b>Fichas:</b> todos começam com 1000. Blinds 10/20, dobrando a cada 6 mãos. Vence quem ficar com todas as fichas.</p>
+        <h3>Combinações (da mais forte para a mais fraca)</h3>
+        <div class="tabela-maos">${lin.map((l, i) => `<div class="linha-mao"><div class="mao-info"><b>${i + 1}º ${l[0]}</b><small>${l[1]}</small></div><span class="mao-cartas">${l[2].map(x => R(x[0], x[1])).join('')}</span></div>`).join('')}</div></div>`;
+    } else {
+        h = `<h2>♥ Regras de Copas</h2><div class="regras">
+        <p><b>Objetivo:</b> fazer o <b>menor número de pontos</b>. Cada ♥ vale 1 ponto e a Dama de Espadas (Q♠) vale 13. Cada rodada distribui 26 pontos.</p>
+        <p><b>Início:</b> quem tem o 2♣ abre a primeira vaza com ele.</p>
+        <p><b>Jogar:</b> é obrigatório seguir o naipe da primeira carta; sem o naipe, joga qualquer uma (inclusive pontos). Vence a vaza a maior carta do naipe jogado; quem vence recolhe as cartas e abre a próxima.</p>
+        <p><b>Copas quebradas:</b> não se abre com ♥ até que alguma ♥ tenha sido jogada (ou se só tiver ♥ na mão).</p>
+        <p><b>Lua:</b> quem pegar todas as ♥ e a Q♠ na mesma rodada dá 26 pontos aos outros jogadores.</p>
+        <p><b>Fim:</b> a partida acaba quando alguém chega a ${LIMITE} pontos; vence quem tiver menos.</p>
+        <p><b>Ranking geral:</b> 1º −1 · 2º e 3º +1 · último +2 (só vale partida com 4 jogadores).</p></div>`;
+    }
+    h += '<button type="button" class="btn-modo" id="btnVoltarRegras">⬅ Voltar</button>';
+    $('modalRankingBox').innerHTML = h;
+    $('modalRanking').classList.remove('escondido');
+    $('btnVoltarRegras').onclick = () => { if (voltar) voltar(); else $('modalRanking').classList.add('escondido'); };
+}
+
 function abrirRankingGeral() {
     if (!G) return;
     if (G.jogo === 'poker') return Poker.abrirPlacar();
@@ -1030,6 +1077,7 @@ function desenharPlacarPartida() {
     });
     h += '</table>';
     h += '<button type="button" class="btn-modo" id="btnRodarMesa" style="margin:0 0 8px">🔄 Rodar mesa</button>';
+    h += '<button type="button" class="btn-sec" id="btnRegras" style="margin:0 0 8px">📖 Regras</button>';
     h += '<button type="button" class="btn-sec" id="btnSairBar" style="margin:0 0 8px">🚪 Sair do bar</button>';
     h += '<button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
     $('modalRankingBox').innerHTML = h;
@@ -1043,6 +1091,7 @@ function desenharPlacarPartida() {
     };
     $('btnFecharRanking').onclick = () => $('modalRanking').classList.add('escondido');
     $('btnSairBar').onclick = sairDoBar;
+    $('btnRegras').onclick = () => abrirRegras('copas', abrirRankingGeral);
 }
 
 function desenharRanking() {
@@ -1068,6 +1117,7 @@ function desenharRanking() {
     });
     h += '</table>';
     h += `<p class="legenda-pontos" style="margin-bottom:12px;">Seu histórico: ${ESTAT.partidas} partida(s) · ${ESTAT.vitorias} vitória(s) · ${ESTAT.zeros} rodada(s) sem pontos · ${ESTAT.luas} Lua(s)</p>`;
+    h += '<button type="button" class="btn-sec" id="btnRegras" style="margin:0 0 8px">📖 Regras</button>';
     h += '<button type="button" class="btn-sec" id="btnSairBar" style="margin:0 0 8px">🚪 Sair do bar</button>';
     h += '<button type="button" class="btn-modo" id="btnFecharRanking">Fechar</button>';
     $('modalRankingBox').innerHTML = h;
@@ -1075,6 +1125,7 @@ function desenharRanking() {
     $('btnFecharRanking').focus();
     $('btnFecharRanking').onclick = () => $('modalRanking').classList.add('escondido');
     $('btnSairBar').onclick = sairDoBar;
+    $('btnRegras').onclick = () => abrirRegras('copas', desenharRanking);
 }
 
 $('btnRanking').onclick = abrirRankingGeral;

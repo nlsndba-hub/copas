@@ -305,12 +305,14 @@ const Poker = (() => {
             <p><b>Mão ${G.rodada}</b> · blinds ${G.sb}/${G.bb} <small>(dobram a cada ${MAOS_POR_NIVEL} mãos)</small></p>
             ${ordem.map((i, k) => `<p>${k + 1}º <b>${i === 0 ? 'Você' : G.nomes[i]}</b>: ${G.fichas[i]} fichas${G.fora[i] ? ' · eliminado' : ''}</p>`).join('')}
             ${!MP.ativo ? '<button type="button" class="btn-modo" id="btnRodarMesaPoker" style="margin:0 0 8px">🔄 Rodar mesa</button>' : ''}
+            <button type="button" class="btn-sec" id="btnRegrasPoker" style="margin:0 0 8px">📖 Regras</button>
             <button type="button" class="btn-sec" id="btnSairPoker" style="margin:0 0 8px">🚪 Sair do jogo</button>
             <button type="button" class="btn-modo" id="btnFecharPlacarPoker">Fechar</button>`;
         $('modalRanking').classList.remove('escondido');
         $('btnFecharPlacarPoker').onclick = () => $('modalRanking').classList.add('escondido');
         const r = $('btnRodarMesaPoker');
         if (r) r.onclick = () => { $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); clearTimeout(G.timer); pararAudiosEntrada(); iniciar(); };   // nova mesa, novos adversários
+        $('btnRegrasPoker').onclick = () => abrirRegras('poker', abrirPlacar);
         $('btnSairPoker').onclick = () => { if (confirm('Sair do jogo e voltar à escolha do modo?')) sairParaMenu('telaModo'); };
     }
 
