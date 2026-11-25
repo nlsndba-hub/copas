@@ -1019,7 +1019,21 @@ function abrirRegras(jogo, voltar) {
     const MOD = bj ? $('bjModal') : $('modalRanking'), BOX = bj ? $('bjModalBox') : $('modalRankingBox');
     const R = (f, n) => `<span class="mini-carta ${(n === '♥' || n === '♦') ? 'verm' : ''}">${f}<small>${n}</small></span>`;
     let h = '';
-    if (jogo === 'sueca') {
+    if (jogo === 'pokermaos') {
+        const M = [
+            ['Royal Flush (Sequência Real)', 'A, K, Q, J e 10, todos do mesmo naipe. É a melhor mão possível.', [['10','♥'],['J','♥'],['Q','♥'],['K','♥'],['A','♥']]],
+            ['Straight Flush (Sequência de mesmo naipe)', 'Cinco cartas em sequência, todas do mesmo naipe.', [['5','♠'],['6','♠'],['7','♠'],['8','♠'],['9','♠']]],
+            ['Quadra (Four of a Kind)', 'Quatro cartas do mesmo valor.', [['K','♥'],['K','♦'],['K','♣'],['K','♠'],['5','♥']]],
+            ['Full House', 'Uma trinca + um par.', [['A','♥'],['A','♦'],['A','♠'],['K','♥'],['K','♣']]],
+            ['Flush (Cor)', 'Cinco cartas do mesmo naipe, sem precisar estar em sequência.', [['2','♥'],['5','♥'],['8','♥'],['J','♥'],['K','♥']]],
+            ['Straight (Sequência)', 'Cinco cartas em sequência, de naipes variados (não todas do mesmo).', [['5','♥'],['6','♣'],['7','♦'],['8','♠'],['9','♥']]],
+            ['Trinca (Three of a Kind)', 'Três cartas do mesmo valor.', [['Q','♥'],['Q','♦'],['Q','♠'],['8','♣'],['2','♥']]],
+            ['Dois Pares (Two Pair)', 'Dois pares diferentes.', [['A','♥'],['A','♣'],['8','♦'],['8','♠'],['5','♥']]],
+            ['Um Par (One Pair)', 'Duas cartas do mesmo valor.', [['J','♥'],['J','♣'],['9','♦'],['6','♠'],['3','♥']]],
+            ['Carta Alta (High Card)', 'Nenhuma combinação anterior: ganha quem tiver a carta mais alta.', [['A','♥'],['J','♣'],['9','♦'],['6','♠'],['3','♥']]]
+        ];
+        h = `<h2>🃏 O que vale mais</h2><p><small>Ordem das mãos do poker, da maior para a menor</small></p><div class="maos-rank">${M.map((l, i) => `<div class="mr-item"><div class="mr-img">${l[2].map(x => R(x[0], x[1])).join('')}</div><div class="mr-txt"><b>${i + 1}. ${l[0]}</b><small>${l[1]}</small></div></div>`).join('')}</div>`;
+    } else if (jogo === 'sueca') {
         h = `<h2>♣ Regras da Sueca</h2><div class="regras">
         <p><b>Jogo:</b> 4 jogadores em 2 duplas (você com quem senta à sua frente), baralho de 40 cartas (sem 8, 9 e 10).</p>
         <p><b>Trunfo:</b> o naipe da última carta distribuída. O trunfo vence os outros naipes.</p>
@@ -3402,11 +3416,12 @@ let toqueVoz = null;
 function cancelarToque() { if (toqueVoz) { clearTimeout(toqueVoz.tm); toqueVoz = null; } }
 window.addEventListener('touchstart', e => {
     if (!vozPermitida() || dentroDoChat(e)) return;
+    if (e.target && e.target.closest && e.target.closest('button, a, input, textarea, select, label, canvas, [class*="carta"], [class*="card"], [class*="mao"], [id*="mao"], [onclick]')) { cancelarToque(); return; }   // não abre o áudio ao segurar carta/botão
     if (e.touches.length !== 1) { cancelarToque(); return; }
     const t = e.touches[0];
     cancelarToque();
     const o = { x: t.clientX, y: t.clientY, ativo: false };
-    o.tm = setTimeout(() => { o.ativo = true; VOZ.fonte = 'toque'; falarIniciar(); if (navigator.vibrate) navigator.vibrate(30); }, 1000);
+    o.tm = setTimeout(() => { o.ativo = true; VOZ.fonte = 'toque'; falarIniciar(); if (navigator.vibrate) navigator.vibrate(30); }, 1500);
     toqueVoz = o;
 }, { passive: true });
 window.addEventListener('touchmove', e => {

@@ -1481,3 +1481,12 @@ body.jogo-poker #j3 .pk-ap-lado { right: auto; left: 50%; bottom: auto; top: cal
 .pk-rev > span:first-child { text-align: left; }
 
 .pk-det { display: block; font-size: 10.5px; color: #cfd8cf; font-weight: 400; line-height: 1.25; }
+
+/* Poker: ranking ilustrado das mãos */
+.maos-rank { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.mr-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #444; }
+.mr-img { display: flex; flex: 0 0 auto; padding: 8px 6px; background: radial-gradient(#1b7a3a, #0b3d1c); border-radius: 10px; }
+.mr-img .mini-carta { width: 22px; height: 32px; margin-left: -6px; box-shadow: -1px 1px 3px rgba(0,0,0,.5); }
+.mr-img .mini-carta:first-child { margin-left: 0; }
+.mr-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mr-txt small { color: #bbb; font-size: 12px; }

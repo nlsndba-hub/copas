@@ -361,6 +361,7 @@ const Poker = (() => {
             ${ordem.map((i, k) => `<p>${k + 1}º <b>${i === 0 ? 'Você' : G.nomes[i]}</b>: ${G.fichas[i]} fichas${G.fora[i] ? ' · eliminado' : ''}</p>`).join('')}
             ${!MP.ativo ? '<button type="button" class="btn-modo" id="btnRodarMesaPoker" style="margin:0 0 8px">🔄 Rodar mesa</button>' : ''}
             <button type="button" class="btn-sec" id="btnRegrasPoker" style="margin:0 0 8px">📖 Regras</button>
+            <button type="button" class="btn-sec" id="btnMaosPoker" style="margin:0 0 8px">🃏 O que vale mais</button>
             <button type="button" class="btn-sec" id="btnSairPoker" style="margin:0 0 8px">🚪 Sair do jogo</button>
             <button type="button" class="btn-modo" id="btnFecharPlacarPoker">Fechar</button>`;
         $('modalRanking').classList.remove('escondido');
@@ -368,6 +369,7 @@ const Poker = (() => {
         const r = $('btnRodarMesaPoker');
         if (r) r.onclick = () => { $('modalRanking').classList.add('escondido'); $('modal').classList.add('escondido'); clearTimeout(G.timer); pararAudiosEntrada(); iniciar(); };   // nova mesa, novos adversários
         $('btnRegrasPoker').onclick = () => abrirRegras('poker', abrirPlacar);
+        $('btnMaosPoker').onclick = () => abrirRegras('pokermaos', abrirPlacar);
         $('btnSairPoker').onclick = () => confirmarToque($('btnSairPoker'), () => sairParaMenu('telaModo'));
     }
 
