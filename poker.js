@@ -390,6 +390,16 @@ const Poker = (() => {
         }
         return g / n;
     }
+    // plano da mão (sorteado 1x por mão, por bot): 'blefe' (mão fraca fingindo força), 'slow' (mão forte fingindo fraqueza) ou 'normal'
+    function planoMao(i) {
+        const m = G.maos[i], chave = m[0].id + '|' + m[1].id + '|' + G.rodada;
+        G.planos = G.planos || {};
+        if (!G.planos[i] || G.planos[i].k !== chave) {
+            const r = Math.random();
+            G.planos[i] = { k: chave, tipo: r < 0.22 ? 'blefe' : r < 0.40 ? 'slow' : 'normal', foi: false };
+        }
+        return G.planos[i];
+    }
     function decidirBot(i) {
         const falta = Math.max(0, G.apostaAtual - G.apostas[i]), fich = G.fichas[i], pote = G.pote;
         const opp = Math.max(1, vivos().length - 1);
@@ -397,6 +407,27 @@ const Poker = (() => {
         const efetivo = Math.min(falta, fich), odds = efetivo / (pote + efetivo || 1);
         const maxTo = G.apostas[i] + fich, minTo = Math.min(G.apostaAtual + G.minAumento, maxTo), podeSubir = fich > falta;
         const tam = f => Math.min(Math.max(G.apostaAtual + Math.max(G.minAumento, Math.round((pote * f) / G.sb) * G.sb), minTo), maxTo);
+        const pl = planoMao(i), pre = G.fase === 'pre', river = G.fase === 'river';
+        const caro = falta > pote * 0.6 || efetivo >= fich * 0.5;   // aposta pesada: blefe não insiste
+        // BLEFE puro: mão fraca, poucos adversários, sem se arriscar demais
+        if (pl.tipo === 'blefe' && podeSubir && eq < 0.42 && !pre && opp <= 2 && fich > G.bb * 6) {
+            if (falta === 0) {
+                if (Math.random() < (pl.foi ? 0.6 : 0.75)) { pl.foi = true; return 'r:' + tam(0.5 + Math.random() * 0.25); }
+            } else if (pl.foi && !caro && Math.random() < 0.3) {
+                return 'r:' + tam(0.7);                      // re-aumenta fingindo força
+            } else if (pl.foi && !caro && Math.random() < 0.6) {
+                return 'c';                                  // segura a história mais uma rodada
+            }
+        }
+        // SEMI-BLEFE: mão média/projeto de mão, aposta como se fosse forte
+        if (podeSubir && !pre && !river && eq >= 0.3 && eq <= 0.55 && !caro && fich > G.bb * 5 && Math.random() < 0.14) {
+            return 'r:' + tam(0.45 + Math.random() * 0.3);
+        }
+        // SLOW-PLAY: mão muito forte, disfarça passando/pagando antes do river
+        if (pl.tipo === 'slow' && eq > 0.78 && !pre && !river) {
+            if (falta === 0) { if (Math.random() < 0.7) return 'c'; }
+            else if (Math.random() < 0.6) return 'c';
+        }
         if (falta === 0) {
             if (podeSubir && eq > 0.68 && Math.random() < 0.75) return 'r:' + tam(0.4 + Math.random() * 0.5);
             if (podeSubir && eq > 0.52 && Math.random() < 0.3) return 'r:' + tam(0.35);
@@ -409,6 +440,8 @@ const Poker = (() => {
             return 'c';
         }
         if (efetivo <= G.bb && eq > 0.3 && Math.random() < 0.5) return 'c';
+        // paga às vezes com mão fraca para pegar blefe do adversário (só se a aposta for pequena)
+        if (falta <= pote * 0.35 && eq > 0.25 && Math.random() < 0.18) return 'c';
         if (Math.random() < 0.04) return 'c';
         return 'f';
     }
